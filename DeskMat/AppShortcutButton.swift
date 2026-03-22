@@ -26,17 +26,16 @@ enum HoverAnimation: String, CaseIterable {
 struct AppShortcutButton: View {
     let shortcut: AppShortcut
     let onRemove: () -> Void
-    let onEdit: (AppShortcut) -> Void
 
     @AppStorage("showLabels") private var showLabels = true
     @AppStorage("hoverSize") private var hoverSize: HoverSize = .small
     @AppStorage("hoverAnimation") private var hoverAnimation: HoverAnimation = .bounce
+    @AppStorage("finderDefaultDirectory") private var finderDefaultDirectory = "~/"
     
     @State private var isHovering = false
     @State private var bobScale: Double = 1.0
     @State private var avgColor: Color = .gray
     @State private var cachedIcon: Image?
-    @State private var isEditing = false
     @State private var isFrontmost = false
     @State private var windowCount = 0
     @State private var jiggleAngle: Double = 0
@@ -87,13 +86,10 @@ struct AppShortcutButton: View {
             }
         }
         .contextMenu {
-            Button("Edit...") { isEditing = true }
-            Button("Remove", role: .destructive) { onRemove() }
-        }
-        .sheet(isPresented: $isEditing) {
-            EditShortcutSheet(shortcut: shortcut) { updated in
-                onEdit(updated)
+            Button(Strings.Menu.edit) {
+                NotificationCenter.default.post(name: .editShortcut, object: shortcut)
             }
+            Button(Strings.Menu.remove, role: .destructive) { onRemove() }
         }
         .task(id: shortcut.iconFileName) {
             loadIcon()
@@ -242,7 +238,8 @@ struct AppShortcutButton: View {
     private func launchOrFocus() {
         // Finder is always running — open a new window instead of just activating
         if shortcut.bundleIdentifier == "com.apple.finder" {
-            NSWorkspace.shared.open(URL(filePath: NSHomeDirectory()))
+            let path = NSString(string: finderDefaultDirectory).expandingTildeInPath
+            NSWorkspace.shared.open(URL(filePath: path))
             return
         }
 

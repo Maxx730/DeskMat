@@ -4,24 +4,22 @@ import ServiceManagement
 struct SettingsView: View {
     @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
     @AppStorage("showLabels") private var showLabels = true
+    @AppStorage("showWeatherWidget") private var showWeatherWidget = true
     @AppStorage("hoverSize") private var hoverSize: HoverSize = .small
     @AppStorage("hoverAnimation") private var hoverAnimation: HoverAnimation = .bounce
     @AppStorage("dockPosition") private var dockPosition: DockPosition = .bottom
     @AppStorage("dockOffset") private var dockOffset = 0
+    @AppStorage("finderDefaultDirectory") private var finderDefaultDirectory = "~/"
+    @AppStorage("showClockWidget") private var showClockWidget = true
 
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             // General section
-            VStack(alignment: .leading, spacing: 0) {
-                Text("General")
-                    .font(.headline)
-                    .foregroundStyle(.secondary)
-                    .padding(.bottom, 12)
-
+            SettingsSection(title: Strings.Settings.general) {
                 VStack(spacing: 12) {
                     HStack {
-                        Text("Launch at Login")
+                        Text(Strings.Settings.launchAtLogin)
                         Spacer()
                         Toggle("", isOn: $launchAtLogin)
                             .labelsHidden()
@@ -37,38 +35,50 @@ struct SettingsView: View {
                                 }
                             }
                     }
+                    Divider()
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack {
+                            Text(Strings.Settings.finderDefaultDirectory)
+                            Spacer()
+                            TextField("", text: $finderDefaultDirectory)
+                                .textFieldStyle(.roundedBorder)
+                                .frame(width: 200)
+                                .multilineTextAlignment(.trailing)
+                        }
+                        Text(Strings.Settings.finderDefaultDirectorySublabel)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 }
-                .padding(16)
-                .background(.quinary)
-                .clipShape(RoundedRectangle(cornerRadius: 10))
             }
-            Text("Appearance")
-                .font(.headline)
-                .foregroundStyle(.secondary)
-                .padding(.leading, 12)
-            // Appearance section
-            VStack(alignment: .leading, spacing: 0) {
+            SettingsSection(title: Strings.Settings.appearance) {
                 VStack(spacing: 12) {
                     HStack {
-                        Text("Show Labels")
+                        Text(Strings.Settings.showLabels)
                         Spacer()
                         Toggle("", isOn: $showLabels)
                             .labelsHidden()
                     }
+                    Divider()
+                    HStack {
+                        Text(Strings.Settings.showWeatherWidget)
+                        Spacer()
+                        Toggle("", isOn: $showWeatherWidget)
+                            .labelsHidden()
+                    }
+                    Divider()
+                    HStack {
+                        Text(Strings.Settings.showClockWidget)
+                        Spacer()
+                        Toggle("", isOn: $showClockWidget)
+                            .labelsHidden()
+                    }
                 }
-                .padding(16)
-                .background(.quinary)
-                .clipShape(RoundedRectangle(cornerRadius: 10))
             }
-            Text("Hover")
-                .font(.headline)
-                .foregroundStyle(.secondary)
-                .padding(.leading, 12)
-            VStack(alignment: .leading, spacing: 0) {
-                
+            SettingsSection(title: Strings.Settings.hover) {
                 VStack(spacing: 12) {
                     HStack {
-                        Text("Scale")
+                        Text(Strings.Settings.scale)
                         Spacer()
                         Picker("", selection: $hoverSize) {
                             ForEach(HoverSize.allCases, id: \.self) { size in
@@ -80,7 +90,7 @@ struct SettingsView: View {
                     }
                     Divider()
                     HStack {
-                        Text("Animation")
+                        Text(Strings.Settings.animation)
                         Spacer()
                         Picker("", selection: $hoverAnimation) {
                             ForEach(HoverAnimation.allCases, id: \.self) { style in
@@ -92,46 +102,34 @@ struct SettingsView: View {
                     }
                 }
             }
-            .padding(16)
-            .background(.quinary)
-            .clipShape(RoundedRectangle(cornerRadius: 10))
-            
-            Text("Dock")
-                .font(.headline)
-                .foregroundStyle(.secondary)
-                .padding(.leading, 12)
-            VStack(alignment: .leading, spacing: 0) {
-                    VStack(spacing: 12) {
-                        HStack {
-                            Text("Position")
-                            Spacer()
-                            Picker("", selection: $dockPosition) {
-                                ForEach(DockPosition.allCases, id: \.self) { position in
-                                    Text(position.rawValue).tag(position)
+            SettingsSection (title: Strings.Settings.dock) {
+                VStack(alignment: .leading, spacing: 0) {
+                        VStack(spacing: 12) {
+                            HStack {
+                                Text(Strings.Settings.position)
+                                Spacer()
+                                Picker("", selection: $dockPosition) {
+                                    ForEach(DockPosition.allCases, id: \.self) { position in
+                                        Text(position.rawValue).tag(position)
+                                    }
                                 }
+                                .labelsHidden()
+                                .fixedSize()
                             }
-                            .labelsHidden()
-                            .fixedSize()
+                            Divider()
+                            HStack {
+                                Text(Strings.Settings.offset)
+                                Spacer()
+                                TextField("", value: $dockOffset, format: .number)
+                                    .textFieldStyle(.roundedBorder)
+                                    .frame(width: 60)
+                                    .multilineTextAlignment(.trailing)
+                                Text(Strings.Settings.pixelUnit)
+                                    .foregroundStyle(.secondary)
+                            }
                         }
-                        Divider()
-                        HStack {
-                            Text("Offset")
-                            Spacer()
-                            TextField("", value: $dockOffset, format: .number)
-                                .textFieldStyle(.roundedBorder)
-                                .frame(width: 60)
-                                .multilineTextAlignment(.trailing)
-                            Text("px")
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-            }.padding(16)
-            .background(.quinary)
-            .clipShape(RoundedRectangle(cornerRadius: 10))
-            Text("Icons")
-                .font(.headline)
-                .foregroundStyle(.secondary)
-                .padding(.leading, 12)
+                }
+            }
         }
         .padding(16)
     }

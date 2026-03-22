@@ -3,33 +3,40 @@ import AppKit
 
 struct ContentView: View {
     @State private var shortcuts: [AppShortcut] = AppShortcutStore.load()
+    @AppStorage("showWeatherWidget") private var showWeatherWidget = true
+    @AppStorage("showClockWidget") private var showClockWidget = true
+
     var body: some View {
         HStack {
-            WeatherWidget()
+            if showWeatherWidget {
+                WeatherWidget()
+            }
 
             ForEach(shortcuts) { shortcut in
                 AppShortcutButton(shortcut: shortcut, onRemove: {
                     removeShortcut(shortcut)
-                }, onEdit: { updated in
-                    updateShortcut(updated)
                 })
+            }
+
+            if showClockWidget {
+                ClockWidget()
             }
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 10)
         .contextMenu {
-            Button("Add Shortcut...") {
+            Button(Strings.Menu.addShortcut) {
                 NotificationCenter.default.post(name: .addShortcut, object: nil)
             }
             Divider()
-            Button("Export Dock...") {
+            Button(Strings.Menu.exportDock) {
                 NotificationCenter.default.post(name: .exportDock, object: nil)
             }
-            Button("Import Dock...") {
+            Button(Strings.Menu.importDock) {
                 NotificationCenter.default.post(name: .importDock, object: nil)
             }
             Divider()
-            Button("Settings...") {
+            Button(Strings.Menu.settings) {
                 NotificationCenter.default.post(name: .openSettings, object: nil)
             }
         }
@@ -37,6 +44,11 @@ struct ContentView: View {
             if let newShortcut = notification.object as? AppShortcut {
                 shortcuts.append(newShortcut)
                 AppShortcutStore.save(shortcuts)
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .shortcutEdited)) { notification in
+            if let updated = notification.object as? AppShortcut {
+                updateShortcut(updated)
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .dockImported)) { notification in

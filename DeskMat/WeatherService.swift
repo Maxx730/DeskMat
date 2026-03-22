@@ -57,8 +57,8 @@ private func weatherIcon(for code: Int) -> String {
 
 @Observable
 class WeatherService {
-    var temperature: String = "--°"
-    var locationName: String = "Williamsburg, VA"
+    var temperature: String = Strings.Weather.temperaturePlaceholder
+    var locationName: String = Strings.Weather.defaultLocationName
     var iconName: String = "cloud.sun.fill"
     var isLoading: Bool = false
 

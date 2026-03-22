@@ -109,7 +109,7 @@ enum AppShortcutStore {
 
         guard process.terminationStatus == 0 else {
             throw NSError(domain: "DeskMat", code: 1,
-                          userInfo: [NSLocalizedDescriptionKey: "Failed to create .dskm archive"])
+                          userInfo: [NSLocalizedDescriptionKey: Strings.Errors.failedToCreateArchive])
         }
     }
 
@@ -133,14 +133,14 @@ enum AppShortcutStore {
 
         guard process.terminationStatus == 0 else {
             throw NSError(domain: "DeskMat", code: 2,
-                          userInfo: [NSLocalizedDescriptionKey: "Failed to extract .dskm archive"])
+                          userInfo: [NSLocalizedDescriptionKey: Strings.Errors.failedToExtractArchive])
         }
 
         // Read the shortcuts from the extracted archive
         let extractedJSON = tempDir.appending(path: "shortcuts.json")
         guard fm.fileExists(atPath: extractedJSON.path(percentEncoded: false)) else {
             throw NSError(domain: "DeskMat", code: 3,
-                          userInfo: [NSLocalizedDescriptionKey: "Invalid .dskm file: missing shortcuts.json"])
+                          userInfo: [NSLocalizedDescriptionKey: Strings.Errors.invalidDskmFile])
         }
 
         let data = try Data(contentsOf: extractedJSON)

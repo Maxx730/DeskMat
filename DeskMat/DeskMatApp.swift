@@ -23,6 +23,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var statusItem: NSStatusItem!
     var settingsWindow: NSWindow?
     var addShortcutWindow: NSWindow?
+    var editShortcutWindow: NSWindow?
     private var positionObserver: Any?
     private var offsetObserver: Any?
     private var globalHotkeyMonitor: Any?
@@ -41,6 +42,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         NotificationCenter.default.addObserver(self, selector: #selector(exportDock), name: .exportDock, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(importDock), name: .importDock, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(addShortcut), name: .addShortcut, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(editShortcut(_:)), name: .editShortcut, object: nil)
 
         setupHotkey()
     }
@@ -75,15 +77,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         let menu = NSMenu()
-        menu.addItem(NSMenuItem(title: "Add Shortcut...", action: #selector(addShortcut), keyEquivalent: ""))
+        menu.addItem(NSMenuItem(title: Strings.Menu.addShortcut, action: #selector(addShortcut), keyEquivalent: "a"))
         menu.addItem(NSMenuItem.separator())
-        menu.addItem(NSMenuItem(title: "Export Dock...", action: #selector(exportDock), keyEquivalent: "e"))
-        menu.addItem(NSMenuItem(title: "Import Dock...", action: #selector(importDock), keyEquivalent: "i"))
+        menu.addItem(NSMenuItem(title: Strings.Menu.exportDock, action: #selector(exportDock), keyEquivalent: "e"))
+        menu.addItem(NSMenuItem(title: Strings.Menu.importDock, action: #selector(importDock), keyEquivalent: "i"))
         menu.addItem(NSMenuItem.separator())
-        menu.addItem(NSMenuItem(title: "Toggle Dock", action: #selector(toggleDock), keyEquivalent: "d"))
-        menu.item(withTitle: "Toggle Dock")?.keyEquivalentModifierMask = [.command, .shift]
-        menu.addItem(NSMenuItem(title: "Settings...", action: #selector(openSettings), keyEquivalent: ","))
-        menu.addItem(NSMenuItem(title: "Quit DeskMat", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
+        menu.addItem(NSMenuItem(title: Strings.Menu.toggleDock, action: #selector(toggleDock), keyEquivalent: "d"))
+        menu.item(withTitle: Strings.Menu.toggleDock)?.keyEquivalentModifierMask = [.command, .shift]
+        menu.addItem(NSMenuItem(title: Strings.Menu.settings, action: #selector(openSettings), keyEquivalent: ","))
+        menu.addItem(NSMenuItem(title: Strings.Menu.quitDeskMat, action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
         statusItem.menu = menu
     }
 
@@ -163,14 +165,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
 
-        let addView = AddShortcutSheet { [weak self] newShortcut in
+        let addView = ShortcutSheet(shortcut: nil, onSave: { [weak self] newShortcut in
             NotificationCenter.default.post(name: .shortcutAdded, object: newShortcut)
             self?.addShortcutWindow?.close()
             self?.addShortcutWindow = nil
-        }
+        }, onDismiss: { [weak self] in
+            self?.addShortcutWindow?.close()
+            self?.addShortcutWindow = nil
+        })
         let hostingView = NSHostingView(rootView: addView)
-        hostingView.setFrameSize(NSSize(width: 350, height: 0))
-        let size = NSSize(width: 350, height: hostingView.fittingSize.height)
+        hostingView.setFrameSize(NSSize(width: 480, height: 0))
+        let size = NSSize(width: 480, height: hostingView.fittingSize.height)
         hostingView.setFrameSize(size)
 
         let window = NSWindow(
@@ -179,7 +184,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             backing: .buffered,
             defer: false
         )
-        window.title = "Add Shortcut"
+        window.title = Strings.Windows.addShortcut
         window.contentView = hostingView
         window.center()
         window.isReleasedWhenClosed = false
@@ -189,21 +194,59 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         addShortcutWindow = window
     }
 
+    @objc private func editShortcut(_ notification: Notification) {
+        guard let shortcut = notification.object as? AppShortcut else { return }
+
+        if let window = editShortcutWindow {
+            window.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+            return
+        }
+
+        let editView = ShortcutSheet(shortcut: shortcut, onSave: { [weak self] updated in
+            NotificationCenter.default.post(name: .shortcutEdited, object: updated)
+            self?.editShortcutWindow?.close()
+            self?.editShortcutWindow = nil
+        }, onDismiss: { [weak self] in
+            self?.editShortcutWindow?.close()
+            self?.editShortcutWindow = nil
+        })
+        let hostingView = NSHostingView(rootView: editView)
+        hostingView.setFrameSize(NSSize(width: 480, height: 0))
+        let size = NSSize(width: 480, height: hostingView.fittingSize.height)
+        hostingView.setFrameSize(size)
+
+        let window = NSWindow(
+            contentRect: NSRect(origin: .zero, size: size),
+            styleMask: [.titled, .closable],
+            backing: .buffered,
+            defer: false
+        )
+        window.title = Strings.Windows.editShortcut
+        window.contentView = hostingView
+        window.center()
+        window.isReleasedWhenClosed = false
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+
+        editShortcutWindow = window
+    }
+
     @objc private func exportDock() {
         guard let dskmType = UTType(filenameExtension: "dskm") else { return }
         let savePanel = NSSavePanel()
-        savePanel.title = "Export Dock"
+        savePanel.title = Strings.Windows.exportDock
         savePanel.allowedContentTypes = [dskmType]
-        savePanel.nameFieldStringValue = "MyDock.dskm"
+        savePanel.nameFieldStringValue = Strings.Defaults.exportFileName
         savePanel.canCreateDirectories = true
 
         savePanel.begin { [weak self] response in
             guard response == .OK, let url = savePanel.url else { return }
             do {
                 try AppShortcutStore.exportDock(to: url)
-                self?.sendNotification(title: "Dock Exported", body: "Your dock was exported to \(url.lastPathComponent).")
+                self?.sendNotification(title: Strings.Notifications.dockExported, body: Strings.Notifications.dockExportedBody(url.lastPathComponent))
             } catch {
-                self?.sendNotification(title: "Export Failed", body: error.localizedDescription)
+                self?.sendNotification(title: Strings.Notifications.exportFailed, body: error.localizedDescription)
             }
         }
     }
@@ -211,7 +254,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func importDock() {
         guard let dskmType = UTType(filenameExtension: "dskm") else { return }
         let openPanel = NSOpenPanel()
-        openPanel.title = "Import Dock"
+        openPanel.title = Strings.Windows.importDock
         openPanel.allowedContentTypes = [dskmType]
         openPanel.allowsMultipleSelection = false
         openPanel.canChooseDirectories = false
@@ -221,9 +264,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             do {
                 let shortcuts = try AppShortcutStore.importDock(from: url)
                 NotificationCenter.default.post(name: .dockImported, object: shortcuts)
-                self?.sendNotification(title: "Dock Imported", body: "Imported \(shortcuts.count) shortcut\(shortcuts.count == 1 ? "" : "s") from \(url.lastPathComponent).")
+                self?.sendNotification(title: Strings.Notifications.dockImported, body: Strings.Notifications.dockImportedBody(count: shortcuts.count, fileName: url.lastPathComponent))
             } catch {
-                self?.sendNotification(title: "Import Failed", body: error.localizedDescription)
+                self?.sendNotification(title: Strings.Notifications.importFailed, body: error.localizedDescription)
             }
         }
     }
@@ -275,7 +318,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             backing: .buffered,
             defer: false
         )
-        window.title = "DeskMat Settings"
+        window.title = Strings.Windows.settings
         window.contentView = hostingView
         window.center()
         window.isReleasedWhenClosed = false
@@ -302,6 +345,8 @@ extension Notification.Name {
     static let importDock = Notification.Name("importDock")
     static let dockImported = Notification.Name("dockImported")
     static let shortcutAdded = Notification.Name("shortcutAdded")
+    static let editShortcut = Notification.Name("editShortcut")
+    static let shortcutEdited = Notification.Name("shortcutEdited")
 }
 
 

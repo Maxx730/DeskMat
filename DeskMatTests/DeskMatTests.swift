@@ -953,4 +953,164 @@ struct ImportExportTests {
     }
 }
 
+// MARK: - Edit Shortcut Notification Tests
+
+struct EditShortcutNotificationTests {
+
+    @Test func editShortcutNotificationNameExists() {
+        #expect(Notification.Name.editShortcut.rawValue == "editShortcut")
+    }
+
+    @Test func shortcutEditedNotificationNameExists() {
+        #expect(Notification.Name.shortcutEdited.rawValue == "shortcutEdited")
+    }
+
+    @Test func editNotificationNamesAreDistinct() {
+        #expect(Notification.Name.editShortcut != Notification.Name.shortcutEdited)
+        #expect(Notification.Name.editShortcut != Notification.Name.addShortcut)
+        #expect(Notification.Name.shortcutEdited != Notification.Name.shortcutAdded)
+    }
+}
+
+// MARK: - Widget Settings Tests
+
+@Suite(.serialized)
+struct WidgetSettingsTests {
+
+    @Test func showWeatherWidgetDefaultsToTrue() {
+        let defaults = UserDefaults.standard
+        let existing = defaults.object(forKey: "showWeatherWidget")
+        defer {
+            if let existing {
+                defaults.set(existing, forKey: "showWeatherWidget")
+            } else {
+                defaults.removeObject(forKey: "showWeatherWidget")
+            }
+        }
+
+        defaults.removeObject(forKey: "showWeatherWidget")
+        let value = defaults.object(forKey: "showWeatherWidget")
+        #expect(value == nil) // nil means the default (true) is used by @AppStorage
+    }
+
+    @Test func showClockWidgetDefaultsToTrue() {
+        let defaults = UserDefaults.standard
+        let existing = defaults.object(forKey: "showClockWidget")
+        defer {
+            if let existing {
+                defaults.set(existing, forKey: "showClockWidget")
+            } else {
+                defaults.removeObject(forKey: "showClockWidget")
+            }
+        }
+
+        defaults.removeObject(forKey: "showClockWidget")
+        let value = defaults.object(forKey: "showClockWidget")
+        #expect(value == nil) // nil means the default (true) is used by @AppStorage
+    }
+
+    @Test func showWeatherWidgetPersistedToUserDefaults() {
+        let defaults = UserDefaults.standard
+        let existing = defaults.object(forKey: "showWeatherWidget")
+        defer {
+            if let existing {
+                defaults.set(existing, forKey: "showWeatherWidget")
+            } else {
+                defaults.removeObject(forKey: "showWeatherWidget")
+            }
+        }
+
+        defaults.set(false, forKey: "showWeatherWidget")
+        #expect(defaults.bool(forKey: "showWeatherWidget") == false)
+
+        defaults.set(true, forKey: "showWeatherWidget")
+        #expect(defaults.bool(forKey: "showWeatherWidget") == true)
+    }
+
+    @Test func showClockWidgetPersistedToUserDefaults() {
+        let defaults = UserDefaults.standard
+        let existing = defaults.object(forKey: "showClockWidget")
+        defer {
+            if let existing {
+                defaults.set(existing, forKey: "showClockWidget")
+            } else {
+                defaults.removeObject(forKey: "showClockWidget")
+            }
+        }
+
+        defaults.set(false, forKey: "showClockWidget")
+        #expect(defaults.bool(forKey: "showClockWidget") == false)
+
+        defaults.set(true, forKey: "showClockWidget")
+        #expect(defaults.bool(forKey: "showClockWidget") == true)
+    }
+
+    @Test func finderDefaultDirectoryDefaultsToHome() {
+        let defaults = UserDefaults.standard
+        let existing = defaults.object(forKey: "finderDefaultDirectory")
+        defer {
+            if let existing {
+                defaults.set(existing, forKey: "finderDefaultDirectory")
+            } else {
+                defaults.removeObject(forKey: "finderDefaultDirectory")
+            }
+        }
+
+        defaults.removeObject(forKey: "finderDefaultDirectory")
+        let value = defaults.object(forKey: "finderDefaultDirectory")
+        #expect(value == nil) // nil means the default ("~/") is used by @AppStorage
+    }
+
+    @Test func finderDefaultDirectoryPersistedToUserDefaults() {
+        let defaults = UserDefaults.standard
+        let existing = defaults.object(forKey: "finderDefaultDirectory")
+        defer {
+            if let existing {
+                defaults.set(existing, forKey: "finderDefaultDirectory")
+            } else {
+                defaults.removeObject(forKey: "finderDefaultDirectory")
+            }
+        }
+
+        defaults.set("~/Desktop", forKey: "finderDefaultDirectory")
+        #expect(defaults.string(forKey: "finderDefaultDirectory") == "~/Desktop")
+
+        defaults.set("/Applications", forKey: "finderDefaultDirectory")
+        #expect(defaults.string(forKey: "finderDefaultDirectory") == "/Applications")
+    }
+}
+
+// MARK: - Strings Constants Tests
+
+struct StringsConstantsTests {
+
+    @Test func settingsStringsExist() {
+        #expect(!Strings.Settings.finderDefaultDirectory.isEmpty)
+        #expect(!Strings.Settings.finderDefaultDirectorySublabel.isEmpty)
+        #expect(!Strings.Settings.showWeatherWidget.isEmpty)
+        #expect(!Strings.Settings.showClockWidget.isEmpty)
+    }
+
+    @Test func windowStringsExist() {
+        #expect(!Strings.Windows.addShortcut.isEmpty)
+        #expect(!Strings.Windows.editShortcut.isEmpty)
+        #expect(!Strings.Windows.exportDock.isEmpty)
+        #expect(!Strings.Windows.importDock.isEmpty)
+        #expect(!Strings.Windows.settings.isEmpty)
+    }
+
+    @Test func shortcutStringsExist() {
+        #expect(!Strings.Shortcuts.application.isEmpty)
+        #expect(!Strings.Shortcuts.icon.isEmpty)
+        #expect(!Strings.Shortcuts.customLabel.isEmpty)
+        #expect(!Strings.Shortcuts.chooseApp.isEmpty)
+        #expect(!Strings.Shortcuts.chooseIcon.isEmpty)
+    }
+
+    @Test func weatherStringsExist() {
+        #expect(!Strings.Weather.temperaturePlaceholder.isEmpty)
+        #expect(!Strings.Weather.defaultLocationName.isEmpty)
+    }
+}
+
 
