@@ -21,6 +21,7 @@ enum Strings {
         static let showLabels = "Show Labels"
         static let showWeatherWidget = "Show Weather Widget"
         static let showClockWidget = "Show Clock Widget"
+        static let showBatteryWidget = "Show Battery Widget"
         static let hover = "Hover"
         static let scale = "Scale"
         static let animation = "Animation"

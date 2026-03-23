@@ -11,6 +11,7 @@ struct SettingsView: View {
     @AppStorage("dockOffset") private var dockOffset = 0
     @AppStorage("finderDefaultDirectory") private var finderDefaultDirectory = "~/"
     @AppStorage("showClockWidget") private var showClockWidget = true
+    @AppStorage("showBatteryWidget") private var showBatteryWidget = true
 
 
     var body: some View {
@@ -71,6 +72,13 @@ struct SettingsView: View {
                         Text(Strings.Settings.showClockWidget)
                         Spacer()
                         Toggle("", isOn: $showClockWidget)
+                            .labelsHidden()
+                    }
+                    Divider()
+                    HStack {
+                        Text(Strings.Settings.showBatteryWidget)
+                        Spacer()
+                        Toggle("", isOn: $showBatteryWidget)
                             .labelsHidden()
                     }
                 }

@@ -5,6 +5,8 @@ struct ContentView: View {
     @State private var shortcuts: [AppShortcut] = AppShortcutStore.load()
     @AppStorage("showWeatherWidget") private var showWeatherWidget = true
     @AppStorage("showClockWidget") private var showClockWidget = true
+    @AppStorage("showBatteryWidget") private var showBatteryWidget = true
+    @State private var mousePosition: CGPoint? = nil
 
     var body: some View {
         HStack {
@@ -18,12 +20,33 @@ struct ContentView: View {
                 })
             }
 
+            if showBatteryWidget {
+                BatteryWidget()
+            }
+
             if showClockWidget {
                 ClockWidget()
             }
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 10)
+        .onContinuousHover { phase in
+            switch phase {
+            case .active(let location):
+                mousePosition = location
+            case .ended:
+                mousePosition = nil
+            }
+        }
+        .overlay {
+            if let mousePosition {
+                Circle()
+                    .fill(.white.opacity(0.3))
+                    .frame(width: 20, height: 20)
+                    .position(mousePosition)
+                    .allowsHitTesting(false)
+            }
+        }
         .contextMenu {
             Button(Strings.Menu.addShortcut) {
                 NotificationCenter.default.post(name: .addShortcut, object: nil)

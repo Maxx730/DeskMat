@@ -27,5 +27,8 @@ struct WeatherWidget: View {
             }
         }
         .task { await weatherService.fetch() }
+        .onTapGesture {
+            NSWorkspace.shared.open(URL(string: "weather://")!)
+        }
     }
 }
