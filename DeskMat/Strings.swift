@@ -22,6 +22,10 @@ enum Strings {
         static let showWeatherWidget = "Show Weather Widget"
         static let showClockWidget = "Show Clock Widget"
         static let showBatteryWidget = "Show Battery Widget"
+        static let showBatteryPercentage = "Show Battery Percentage"
+        static let visualEffect = "Visual Effect"
+        static let effectIntensity = "Intensity"
+        static let widgets = "Widgets"
         static let hover = "Hover"
         static let scale = "Scale"
         static let animation = "Animation"
@@ -30,6 +34,7 @@ enum Strings {
         static let offset = "Offset"
         static let pixelUnit = "px"
         static let icons = "Icons"
+        static let borderEffect = "Border Effect"
     }
 
     // MARK: - Menu

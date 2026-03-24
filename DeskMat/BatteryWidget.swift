@@ -2,40 +2,41 @@ import SwiftUI
 import IOKit.ps
 
 struct BatteryWidget: View {
+    @AppStorage("showBatteryPercentage") private var showBatteryPercentage = true
     @State private var batteryLevel: Double = 0
     @State private var isCharging: Bool = false
 
     var body: some View {
-        TimelineView(.periodic(from: .now, by: 30)) { _ in
-            DockWidget(width: 64) {
-                ZStack(alignment: .bottom) {
-                    // Battery fill
-                    GeometryReader { geo in
-                        let fillHeight = geo.size.height * batteryLevel / 100
-                        RoundedRectangle(cornerRadius: 10)
-                            .fill(
-                                ColorUtils.darkened(batteryColor)
-                            )
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 10)
-                                    .stroke(batteryColor, lineWidth: 2)
-                            )
-                            .frame(height: fillHeight)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
-                    }
+        DockWidget(width: 64) {
+            ZStack(alignment: .bottom) {
+                // Battery fill
+                GeometryReader { geo in
+                    let fillHeight = geo.size.height * batteryLevel / 100
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(
+                            ColorUtils.darkened(batteryColor)
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10)
+                                .stroke(batteryColor, lineWidth: 1.5)
+                        )
+                        .frame(height: fillHeight)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+                }
 
-                    // Percentage text
-                    VStack(spacing: 6) {
-                        if isCharging {
-                            Image(systemName: "bolt.fill")
-                                .font(.system(size: 10))
-                                .foregroundStyle(.white)
-                        }
+                // Percentage text
+                VStack(spacing: 6) {
+                    if isCharging {
+                        Image(systemName: "bolt.fill")
+                            .font(.system(size: 10))
+                            .foregroundStyle(.white)
+                    }
+                    if showBatteryPercentage {
                         Text("\(Int(batteryLevel))%")
                             .font(.system(size: 16, weight: .semibold, design: .rounded))
                             .foregroundStyle(.white)
-                    }.frame(maxWidth: .infinity, maxHeight: .infinity)
-                }
+                    }
+                }.frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
         .onAppear { updateBattery() }

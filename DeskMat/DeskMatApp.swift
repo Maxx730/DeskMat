@@ -8,6 +8,20 @@ enum DockPosition: String, CaseIterable {
     case top = "Top"
 }
 
+enum DockEffect: String, CaseIterable {
+    case none = "None"
+    case rainbow = "Rainbow"
+    case pill = "Pill"
+    case checkerboard = "Checkerboard"
+}
+
+enum VisualEffect: String, CaseIterable {
+    case none = "None"
+    case scanlineWiggle = "Scanline Wiggle"
+    case crt = "CRT"
+    case vhs = "VHS"
+}
+
 @main
 struct DeskMatApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
@@ -308,8 +322,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let settingsView = SettingsView()
         let hostingView = NSHostingView(rootView: settingsView)
         // Set width first so fittingSize computes the correct height for this width
-        hostingView.setFrameSize(NSSize(width: 480, height: 0))
-        let settingsSize = NSSize(width: 480, height: hostingView.fittingSize.height)
+        hostingView.setFrameSize(NSSize(width: 680, height: 0))
+        let settingsSize = NSSize(width: 680, height: hostingView.fittingSize.height)
         hostingView.setFrameSize(settingsSize)
 
         let window = NSWindow(

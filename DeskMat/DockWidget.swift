@@ -38,6 +38,7 @@ struct DockWidget<Content: View>: View {
             }
         }
         .frame(width: width, height: 64)
+        .dockItemShader()
         .onHover { isHovering = $0 }
         .animation(.easeInOut(duration: 0.15), value: isHovering)
         .overlay(alignment: .topTrailing) {

@@ -1045,6 +1045,40 @@ struct WidgetSettingsTests {
         #expect(defaults.bool(forKey: "showClockWidget") == true)
     }
 
+    @Test func showBatteryWidgetDefaultsToTrue() {
+        let defaults = UserDefaults.standard
+        let existing = defaults.object(forKey: "showBatteryWidget")
+        defer {
+            if let existing {
+                defaults.set(existing, forKey: "showBatteryWidget")
+            } else {
+                defaults.removeObject(forKey: "showBatteryWidget")
+            }
+        }
+
+        defaults.removeObject(forKey: "showBatteryWidget")
+        let value = defaults.object(forKey: "showBatteryWidget")
+        #expect(value == nil) // nil means the default (true) is used by @AppStorage
+    }
+
+    @Test func showBatteryWidgetPersistedToUserDefaults() {
+        let defaults = UserDefaults.standard
+        let existing = defaults.object(forKey: "showBatteryWidget")
+        defer {
+            if let existing {
+                defaults.set(existing, forKey: "showBatteryWidget")
+            } else {
+                defaults.removeObject(forKey: "showBatteryWidget")
+            }
+        }
+
+        defaults.set(false, forKey: "showBatteryWidget")
+        #expect(defaults.bool(forKey: "showBatteryWidget") == false)
+
+        defaults.set(true, forKey: "showBatteryWidget")
+        #expect(defaults.bool(forKey: "showBatteryWidget") == true)
+    }
+
     @Test func finderDefaultDirectoryDefaultsToHome() {
         let defaults = UserDefaults.standard
         let existing = defaults.object(forKey: "finderDefaultDirectory")
@@ -1089,6 +1123,7 @@ struct StringsConstantsTests {
         #expect(!Strings.Settings.finderDefaultDirectorySublabel.isEmpty)
         #expect(!Strings.Settings.showWeatherWidget.isEmpty)
         #expect(!Strings.Settings.showClockWidget.isEmpty)
+        #expect(!Strings.Settings.showBatteryWidget.isEmpty)
     }
 
     @Test func windowStringsExist() {
@@ -1113,4 +1148,97 @@ struct StringsConstantsTests {
     }
 }
 
+// MARK: - DockOverlay Tests
+
+struct DockOverlayTests {
+
+    @Test func outlinePathIsNonEmpty() {
+        let overlay = DockOverlay(dockSize: CGSize(width: 200, height: 80), mousePosition: nil)
+        let path = overlay.outlinePath
+        #expect(!path.isEmpty)
+    }
+
+    @Test func outlinePathIsInsetByHalfCircleSize() {
+        let overlay = DockOverlay(dockSize: CGSize(width: 200, height: 80), mousePosition: nil)
+        let bounds = overlay.outlinePath.boundingRect
+        // The path should be inset from the full size by circleSize/2 on each side
+        // circleSize is 3, so inset is 1.5 on each side
+        #expect(bounds.minX >= 1.0)
+        #expect(bounds.minY >= 1.0)
+        #expect(bounds.maxX <= 199.0)
+        #expect(bounds.maxY <= 79.0)
+    }
+
+    @Test func pointAtZeroReturnsValidPoint() {
+        let size = CGSize(width: 200, height: 80)
+        let overlay = DockOverlay(dockSize: size, mousePosition: nil)
+        let p = overlay.point(at: 0.0)
+        #expect(p.x >= 0 && p.x <= size.width)
+        #expect(p.y >= 0 && p.y <= size.height)
+    }
+
+    @Test func pointAtOneReturnsFinitePoint() {
+        let size = CGSize(width: 200, height: 80)
+        let overlay = DockOverlay(dockSize: size, mousePosition: nil)
+        let p = overlay.point(at: 1.0)
+        #expect(p.x.isFinite)
+        #expect(p.y.isFinite)
+    }
+
+    @Test func pointAtHalfReturnsValidPoint() {
+        let size = CGSize(width: 200, height: 80)
+        let overlay = DockOverlay(dockSize: size, mousePosition: nil)
+        let p = overlay.point(at: 0.5)
+        #expect(p.x >= 0 && p.x <= size.width)
+        #expect(p.y >= 0 && p.y <= size.height)
+    }
+
+    @Test func pointsClampsOutOfRange() {
+        let size = CGSize(width: 200, height: 80)
+        let overlay = DockOverlay(dockSize: size, mousePosition: nil)
+        let pNeg = overlay.point(at: -0.5)
+        let pOver = overlay.point(at: 1.5)
+        // Clamped values should produce finite points
+        #expect(pNeg.x.isFinite && pNeg.y.isFinite)
+        #expect(pOver.x.isFinite && pOver.y.isFinite)
+        // point(at: -0.5) clamps to 0, same as point(at: 0)
+        let pZero = overlay.point(at: 0.0)
+        #expect(abs(pNeg.x - pZero.x) < 1.0)
+        #expect(abs(pNeg.y - pZero.y) < 1.0)
+    }
+
+    @Test func angleReturnsFiniteValue() {
+        let overlay = DockOverlay(dockSize: CGSize(width: 200, height: 80), mousePosition: nil)
+        let a = overlay.angle(at: 0.25)
+        #expect(a.radians.isFinite)
+    }
+
+    @Test func angleVariesAlongPath() {
+        let overlay = DockOverlay(dockSize: CGSize(width: 200, height: 80), mousePosition: nil)
+        // At different positions along the path, the angle should differ
+        // (the path has straight edges and corners)
+        let a1 = overlay.angle(at: 0.1)
+        let a2 = overlay.angle(at: 0.4)
+        #expect(abs(a1.radians - a2.radians) > 0.01)
+    }
+
+    @Test func closestFractionFindsNearestEdge() {
+        let size = CGSize(width: 200, height: 80)
+        let overlay = DockOverlay(dockSize: size, mousePosition: nil)
+        // A point at the top-center should map to a fraction on the top edge
+        let fraction = overlay.closestFraction(to: CGPoint(x: 100, y: 0))
+        let p = overlay.point(at: fraction)
+        // The closest path point should be near the top (small y)
+        #expect(p.y < 10)
+    }
+
+    @Test func closestFractionForBottomCenter() {
+        let size = CGSize(width: 200, height: 80)
+        let overlay = DockOverlay(dockSize: size, mousePosition: nil)
+        let fraction = overlay.closestFraction(to: CGPoint(x: 100, y: 80))
+        let p = overlay.point(at: fraction)
+        // The closest path point should be near the bottom (large y)
+        #expect(p.y > 70)
+    }
+}
 

@@ -54,6 +54,7 @@ struct AppShortcutButton: View {
                     }
                 }
                 .frame(width: 64, height: 64)
+                .dockItemShader()
                 .overlay(alignment: .bottom) {
                     if windowCount > 0 {
                         Capsule()
