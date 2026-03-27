@@ -6,10 +6,6 @@
 	objectVersion = 77;
 	objects = {
 
-/* Begin PBXBuildFile section */
-		9546DBFC2F734EAF00D00892 /* DockItemShader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9546DBFB2F734EAF00D00892 /* DockItemShader.swift */; };
-/* End PBXBuildFile section */
-
 /* Begin PBXContainerItemProxy section */
 		956140D42F69BBF700125446 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -28,7 +24,6 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		9546DBFB2F734EAF00D00892 /* DockItemShader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DockItemShader.swift; sourceTree = "<group>"; };
 		956140C62F69BBF500125446 /* DeskMat.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = DeskMat.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		956140D32F69BBF700125446 /* DeskMatTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = DeskMatTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		956140DD2F69BBF700125446 /* DeskMatUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = DeskMatUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -84,7 +79,6 @@
 				956140D62F69BBF700125446 /* DeskMatTests */,
 				956140E02F69BBF700125446 /* DeskMatUITests */,
 				956140C72F69BBF500125446 /* Products */,
-				9546DBFB2F734EAF00D00892 /* DockItemShader.swift */,
 			);
 			sourceTree = "<group>";
 		};
@@ -242,7 +236,6 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				9546DBFC2F734EAF00D00892 /* DockItemShader.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

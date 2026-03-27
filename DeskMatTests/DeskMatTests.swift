@@ -443,45 +443,121 @@ struct ColorUtilsTests {
         #expect(abs(ns.alphaComponent - 0.5) < 0.01)
     }
 
-    // MARK: - lightened
+    // MARK: - brightenedHSV
 
-    @Test func lightenedIncreasesBrightness() {
-        let dark = Color(red: 0.2, green: 0.2, blue: 0.2)
-        let lightened = ColorUtils.lightened(dark, by: 0.5)
-        let ns = NSColor(lightened).usingColorSpace(.sRGB)!
-
-        #expect(ns.redComponent > 0.5)
-        #expect(ns.greenComponent > 0.5)
-        #expect(ns.blueComponent > 0.5)
+    @Test func brightenedHSVIncreasesValue() {
+        let color = Color(hue: 0.5, saturation: 0.8, brightness: 0.4)
+        let brightened = ColorUtils.brightenedHSV(color, by: 0.2)
+        let ns = NSColor(brightened).usingColorSpace(.sRGB)!
+        var h: CGFloat = 0, s: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        ns.getHue(&h, saturation: &s, brightness: &b, alpha: &a)
+        #expect(abs(b - 0.6) < 0.01)
     }
 
-    @Test func lightenedByZeroPreservesColor() {
-        let color = Color.red
-        let lightened = ColorUtils.lightened(color, by: 0.0)
-        let original = NSColor(color).usingColorSpace(.sRGB)!
-        let result = NSColor(lightened).usingColorSpace(.sRGB)!
-
-        #expect(abs(result.redComponent - original.redComponent) < 0.01)
-        #expect(abs(result.greenComponent - original.greenComponent) < 0.01)
-        #expect(abs(result.blueComponent - original.blueComponent) < 0.01)
+    @Test func brightenedHSVPreservesHueAndSaturation() {
+        let color = Color(hue: 0.3, saturation: 0.7, brightness: 0.5)
+        let brightened = ColorUtils.brightenedHSV(color, by: 0.1)
+        let ns = NSColor(brightened).usingColorSpace(.sRGB)!
+        var h: CGFloat = 0, s: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        ns.getHue(&h, saturation: &s, brightness: &b, alpha: &a)
+        #expect(abs(h - 0.3) < 0.01)
+        #expect(abs(s - 0.7) < 0.01)
     }
 
-    @Test func lightenedByOneProducesWhite() {
-        let color = Color(red: 0.3, green: 0.5, blue: 0.7)
-        let lightened = ColorUtils.lightened(color, by: 1.0)
-        let ns = NSColor(lightened).usingColorSpace(.sRGB)!
+    @Test func brightenedHSVClampsToOne() {
+        let color = Color(hue: 0.5, saturation: 0.5, brightness: 0.9)
+        let brightened = ColorUtils.brightenedHSV(color, by: 0.5)
+        let ns = NSColor(brightened).usingColorSpace(.sRGB)!
+        var h: CGFloat = 0, s: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        ns.getHue(&h, saturation: &s, brightness: &b, alpha: &a)
+        #expect(b <= 1.0)
+        #expect(abs(b - 1.0) < 0.01)
+    }
 
+    @Test func brightenedHSVPreservesAlpha() {
+        let color = Color(hue: 0.5, saturation: 0.5, brightness: 0.5).opacity(0.6)
+        let brightened = ColorUtils.brightenedHSV(color, by: 0.1)
+        let ns = NSColor(brightened).usingColorSpace(.sRGB)!
+        var h: CGFloat = 0, s: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        ns.getHue(&h, saturation: &s, brightness: &b, alpha: &a)
+        #expect(abs(a - 0.6) < 0.01)
+    }
+
+    @Test func brightenedHSVByZeroIsUnchanged() {
+        let color = Color(hue: 0.4, saturation: 0.6, brightness: 0.5)
+        let brightened = ColorUtils.brightenedHSV(color, by: 0.0)
+        let ns = NSColor(brightened).usingColorSpace(.sRGB)!
+        var h: CGFloat = 0, s: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        ns.getHue(&h, saturation: &s, brightness: &b, alpha: &a)
+        #expect(abs(b - 0.5) < 0.01)
+    }
+
+    // MARK: - toHex / fromHex
+
+    @Test func toHexProducesHashPrefixedEightCharString() {
+        let hex = ColorUtils.toHex(.red)
+        #expect(hex.hasPrefix("#"))
+        #expect(hex.count == 9) // # + 8 hex chars
+    }
+
+    @Test func toHexRedColor() {
+        let hex = ColorUtils.toHex(Color(red: 1, green: 0, blue: 0, opacity: 1))
+        #expect(hex.lowercased() == "#ff0000ff")
+    }
+
+    @Test func toHexBlackColor() {
+        let hex = ColorUtils.toHex(Color(red: 0, green: 0, blue: 0, opacity: 1))
+        #expect(hex.lowercased() == "#000000ff")
+    }
+
+    @Test func toHexEncodesAlpha() {
+        let hex = ColorUtils.toHex(Color(red: 1, green: 1, blue: 1, opacity: 0))
+        #expect(hex.lowercased() == "#ffffff00")
+    }
+
+    @Test func fromHexDecodesBlack() {
+        let color = ColorUtils.fromHex("#000000ff")
+        let ns = NSColor(color).usingColorSpace(.sRGB)!
+        #expect(ns.redComponent < 0.01)
+        #expect(ns.greenComponent < 0.01)
+        #expect(ns.blueComponent < 0.01)
+        #expect(abs(ns.alphaComponent - 1.0) < 0.01)
+    }
+
+    @Test func fromHexDecodesRed() {
+        let color = ColorUtils.fromHex("#ff0000ff")
+        let ns = NSColor(color).usingColorSpace(.sRGB)!
         #expect(abs(ns.redComponent - 1.0) < 0.01)
-        #expect(abs(ns.greenComponent - 1.0) < 0.01)
-        #expect(abs(ns.blueComponent - 1.0) < 0.01)
+        #expect(ns.greenComponent < 0.01)
+        #expect(ns.blueComponent < 0.01)
     }
 
-    @Test func lightenedPreservesAlpha() {
-        let color = Color.blue.opacity(0.4)
-        let lightened = ColorUtils.lightened(color, by: 0.5)
-        let ns = NSColor(lightened).usingColorSpace(.sRGB)!
+    @Test func fromHexExpandsSixCharToEight() {
+        let color = ColorUtils.fromHex("#ff0000")
+        let ns = NSColor(color).usingColorSpace(.sRGB)!
+        #expect(abs(ns.redComponent - 1.0) < 0.01)
+        #expect(abs(ns.alphaComponent - 1.0) < 0.01)
+    }
 
-        #expect(abs(ns.alphaComponent - 0.4) < 0.01)
+    @Test func fromHexInvalidInputReturnsBlack() {
+        let color = ColorUtils.fromHex("notahex")
+        let ns = NSColor(color).usingColorSpace(.sRGB)!
+        // fromHex returns .black for invalid input
+        #expect(ns.redComponent < 0.01)
+        #expect(ns.greenComponent < 0.01)
+        #expect(ns.blueComponent < 0.01)
+    }
+
+    @Test func toHexFromHexRoundTrips() {
+        let original = Color(red: 0.4, green: 0.6, blue: 0.8, opacity: 0.9)
+        let hex = ColorUtils.toHex(original)
+        let recovered = ColorUtils.fromHex(hex)
+        let ns = NSColor(recovered).usingColorSpace(.sRGB)!
+        let nsOriginal = NSColor(original).usingColorSpace(.sRGB)!
+        #expect(abs(ns.redComponent - nsOriginal.redComponent) < 0.01)
+        #expect(abs(ns.greenComponent - nsOriginal.greenComponent) < 0.01)
+        #expect(abs(ns.blueComponent - nsOriginal.blueComponent) < 0.01)
+        #expect(abs(ns.alphaComponent - nsOriginal.alphaComponent) < 0.01)
     }
 }
 // MARK: - Settings & AppDelegate Tests
@@ -742,6 +818,104 @@ struct AdditionalSettingsTests {
         #expect(defaults.integer(forKey: "dockOffset") == -10)
     }
 
+}
+
+// MARK: - Dock Background Settings Tests
+
+@Suite(.serialized)
+struct DockBackgroundSettingsTests {
+
+    @Test func showDockBackgroundDefaultsToTrue() {
+        let defaults = UserDefaults.standard
+        let existing = defaults.object(forKey: "showDockBackground")
+        defer {
+            if let existing {
+                defaults.set(existing, forKey: "showDockBackground")
+            } else {
+                defaults.removeObject(forKey: "showDockBackground")
+            }
+        }
+
+        defaults.removeObject(forKey: "showDockBackground")
+        let value = defaults.object(forKey: "showDockBackground")
+        #expect(value == nil) // nil means the default (true) is used by @AppStorage
+    }
+
+    @Test func showDockBackgroundPersistedToUserDefaults() {
+        let defaults = UserDefaults.standard
+        let existing = defaults.object(forKey: "showDockBackground")
+        defer {
+            if let existing {
+                defaults.set(existing, forKey: "showDockBackground")
+            } else {
+                defaults.removeObject(forKey: "showDockBackground")
+            }
+        }
+
+        defaults.set(false, forKey: "showDockBackground")
+        #expect(defaults.bool(forKey: "showDockBackground") == false)
+
+        defaults.set(true, forKey: "showDockBackground")
+        #expect(defaults.bool(forKey: "showDockBackground") == true)
+    }
+
+    @Test func dockBackgroundColorHexDefaultsToBlack() {
+        let defaults = UserDefaults.standard
+        let existing = defaults.object(forKey: "dockBackgroundColorHex")
+        defer {
+            if let existing {
+                defaults.set(existing, forKey: "dockBackgroundColorHex")
+            } else {
+                defaults.removeObject(forKey: "dockBackgroundColorHex")
+            }
+        }
+
+        defaults.removeObject(forKey: "dockBackgroundColorHex")
+        let value = defaults.string(forKey: "dockBackgroundColorHex")
+        // nil means the default ("#000000ff") is used by @AppStorage
+        #expect(value == nil)
+    }
+
+    @Test func dockBackgroundColorHexPersistedToUserDefaults() {
+        let defaults = UserDefaults.standard
+        let existing = defaults.object(forKey: "dockBackgroundColorHex")
+        defer {
+            if let existing {
+                defaults.set(existing, forKey: "dockBackgroundColorHex")
+            } else {
+                defaults.removeObject(forKey: "dockBackgroundColorHex")
+            }
+        }
+
+        defaults.set("#ff0000ff", forKey: "dockBackgroundColorHex")
+        #expect(defaults.string(forKey: "dockBackgroundColorHex") == "#ff0000ff")
+
+        defaults.set("#000000ff", forKey: "dockBackgroundColorHex")
+        #expect(defaults.string(forKey: "dockBackgroundColorHex") == "#000000ff")
+    }
+
+    @Test func dockBackgroundColorHexDecodesStoredValue() {
+        let defaults = UserDefaults.standard
+        let existing = defaults.object(forKey: "dockBackgroundColorHex")
+        defer {
+            if let existing {
+                defaults.set(existing, forKey: "dockBackgroundColorHex")
+            } else {
+                defaults.removeObject(forKey: "dockBackgroundColorHex")
+            }
+        }
+
+        let stored = "#0000ffff"
+        defaults.set(stored, forKey: "dockBackgroundColorHex")
+
+        let hex = defaults.string(forKey: "dockBackgroundColorHex") ?? "#000000ff"
+        let color = ColorUtils.fromHex(hex)
+        let ns = NSColor(color).usingColorSpace(.sRGB)!
+
+        #expect(ns.redComponent < 0.01)
+        #expect(ns.greenComponent < 0.01)
+        #expect(abs(ns.blueComponent - 1.0) < 0.01)
+    }
 }
 
 struct NotificationTests {
@@ -1045,40 +1219,6 @@ struct WidgetSettingsTests {
         #expect(defaults.bool(forKey: "showClockWidget") == true)
     }
 
-    @Test func showBatteryWidgetDefaultsToTrue() {
-        let defaults = UserDefaults.standard
-        let existing = defaults.object(forKey: "showBatteryWidget")
-        defer {
-            if let existing {
-                defaults.set(existing, forKey: "showBatteryWidget")
-            } else {
-                defaults.removeObject(forKey: "showBatteryWidget")
-            }
-        }
-
-        defaults.removeObject(forKey: "showBatteryWidget")
-        let value = defaults.object(forKey: "showBatteryWidget")
-        #expect(value == nil) // nil means the default (true) is used by @AppStorage
-    }
-
-    @Test func showBatteryWidgetPersistedToUserDefaults() {
-        let defaults = UserDefaults.standard
-        let existing = defaults.object(forKey: "showBatteryWidget")
-        defer {
-            if let existing {
-                defaults.set(existing, forKey: "showBatteryWidget")
-            } else {
-                defaults.removeObject(forKey: "showBatteryWidget")
-            }
-        }
-
-        defaults.set(false, forKey: "showBatteryWidget")
-        #expect(defaults.bool(forKey: "showBatteryWidget") == false)
-
-        defaults.set(true, forKey: "showBatteryWidget")
-        #expect(defaults.bool(forKey: "showBatteryWidget") == true)
-    }
-
     @Test func finderDefaultDirectoryDefaultsToHome() {
         let defaults = UserDefaults.standard
         let existing = defaults.object(forKey: "finderDefaultDirectory")
@@ -1123,7 +1263,6 @@ struct StringsConstantsTests {
         #expect(!Strings.Settings.finderDefaultDirectorySublabel.isEmpty)
         #expect(!Strings.Settings.showWeatherWidget.isEmpty)
         #expect(!Strings.Settings.showClockWidget.isEmpty)
-        #expect(!Strings.Settings.showBatteryWidget.isEmpty)
     }
 
     @Test func windowStringsExist() {
@@ -1148,97 +1287,333 @@ struct StringsConstantsTests {
     }
 }
 
-// MARK: - DockOverlay Tests
+// MARK: - VisualEffect Enum Tests
 
-struct DockOverlayTests {
+struct VisualEffectTests {
 
-    @Test func outlinePathIsNonEmpty() {
-        let overlay = DockOverlay(dockSize: CGSize(width: 200, height: 80), mousePosition: nil)
-        let path = overlay.outlinePath
-        #expect(!path.isEmpty)
+    @Test func allCasesContainsTwoCases() {
+        #expect(VisualEffect.allCases.count == 2)
     }
 
-    @Test func outlinePathIsInsetByHalfCircleSize() {
-        let overlay = DockOverlay(dockSize: CGSize(width: 200, height: 80), mousePosition: nil)
-        let bounds = overlay.outlinePath.boundingRect
-        // The path should be inset from the full size by circleSize/2 on each side
-        // circleSize is 3, so inset is 1.5 on each side
-        #expect(bounds.minX >= 1.0)
-        #expect(bounds.minY >= 1.0)
-        #expect(bounds.maxX <= 199.0)
-        #expect(bounds.maxY <= 79.0)
+    @Test func rawValuesMatchDisplayNames() {
+        #expect(VisualEffect.none.rawValue == "None")
+        #expect(VisualEffect.scanlineWiggle.rawValue == "Scanline Wiggle")
     }
 
-    @Test func pointAtZeroReturnsValidPoint() {
-        let size = CGSize(width: 200, height: 80)
-        let overlay = DockOverlay(dockSize: size, mousePosition: nil)
-        let p = overlay.point(at: 0.0)
-        #expect(p.x >= 0 && p.x <= size.width)
-        #expect(p.y >= 0 && p.y <= size.height)
+    @Test func initFromRawValue() {
+        #expect(VisualEffect(rawValue: "None") == VisualEffect.none)
+        #expect(VisualEffect(rawValue: "Scanline Wiggle") == .scanlineWiggle)
+        #expect(VisualEffect(rawValue: "Invalid") == nil)
+    }
+}
+
+// MARK: - Visual Effect Settings Tests
+
+@Suite(.serialized)
+struct VisualEffectSettingsTests {
+
+    @Test func visualEffectDefaultsToNone() {
+        let defaults = UserDefaults.standard
+        let existing = defaults.object(forKey: "visualEffect")
+        defer {
+            if let existing {
+                defaults.set(existing, forKey: "visualEffect")
+            } else {
+                defaults.removeObject(forKey: "visualEffect")
+            }
+        }
+
+        defaults.removeObject(forKey: "visualEffect")
+        let value = defaults.object(forKey: "visualEffect")
+        #expect(value == nil) // nil means the default (.none) is used by @AppStorage
     }
 
-    @Test func pointAtOneReturnsFinitePoint() {
-        let size = CGSize(width: 200, height: 80)
-        let overlay = DockOverlay(dockSize: size, mousePosition: nil)
-        let p = overlay.point(at: 1.0)
-        #expect(p.x.isFinite)
-        #expect(p.y.isFinite)
+    @Test func visualEffectPersistedToUserDefaults() {
+        let defaults = UserDefaults.standard
+        let existing = defaults.object(forKey: "visualEffect")
+        defer {
+            if let existing {
+                defaults.set(existing, forKey: "visualEffect")
+            } else {
+                defaults.removeObject(forKey: "visualEffect")
+            }
+        }
+
+        defaults.set(VisualEffect.scanlineWiggle.rawValue, forKey: "visualEffect")
+        #expect(defaults.string(forKey: "visualEffect") == "Scanline Wiggle")
     }
 
-    @Test func pointAtHalfReturnsValidPoint() {
-        let size = CGSize(width: 200, height: 80)
-        let overlay = DockOverlay(dockSize: size, mousePosition: nil)
-        let p = overlay.point(at: 0.5)
-        #expect(p.x >= 0 && p.x <= size.width)
-        #expect(p.y >= 0 && p.y <= size.height)
+    @Test func dockItemShaderIntensityDefaultsToHalf() {
+        let defaults = UserDefaults.standard
+        let existing = defaults.object(forKey: "dockItemShaderIntensity")
+        defer {
+            if let existing {
+                defaults.set(existing, forKey: "dockItemShaderIntensity")
+            } else {
+                defaults.removeObject(forKey: "dockItemShaderIntensity")
+            }
+        }
+
+        defaults.removeObject(forKey: "dockItemShaderIntensity")
+        // double(forKey:) returns 0 when no value is set, but @AppStorage defaults to 0.5
+        let value = defaults.object(forKey: "dockItemShaderIntensity")
+        #expect(value == nil) // nil means the default (0.5) is used by @AppStorage
     }
 
-    @Test func pointsClampsOutOfRange() {
-        let size = CGSize(width: 200, height: 80)
-        let overlay = DockOverlay(dockSize: size, mousePosition: nil)
-        let pNeg = overlay.point(at: -0.5)
-        let pOver = overlay.point(at: 1.5)
-        // Clamped values should produce finite points
-        #expect(pNeg.x.isFinite && pNeg.y.isFinite)
-        #expect(pOver.x.isFinite && pOver.y.isFinite)
-        // point(at: -0.5) clamps to 0, same as point(at: 0)
-        let pZero = overlay.point(at: 0.0)
-        #expect(abs(pNeg.x - pZero.x) < 1.0)
-        #expect(abs(pNeg.y - pZero.y) < 1.0)
+    @Test func dockItemShaderIntensityPersistedToUserDefaults() {
+        let defaults = UserDefaults.standard
+        let existing = defaults.object(forKey: "dockItemShaderIntensity")
+        defer {
+            if let existing {
+                defaults.set(existing, forKey: "dockItemShaderIntensity")
+            } else {
+                defaults.removeObject(forKey: "dockItemShaderIntensity")
+            }
+        }
+
+        defaults.set(0.0, forKey: "dockItemShaderIntensity")
+        #expect(abs(defaults.double(forKey: "dockItemShaderIntensity") - 0.0) < 0.001)
+
+        defaults.set(1.0, forKey: "dockItemShaderIntensity")
+        #expect(abs(defaults.double(forKey: "dockItemShaderIntensity") - 1.0) < 0.001)
+
+        defaults.set(0.75, forKey: "dockItemShaderIntensity")
+        #expect(abs(defaults.double(forKey: "dockItemShaderIntensity") - 0.75) < 0.001)
     }
 
-    @Test func angleReturnsFiniteValue() {
-        let overlay = DockOverlay(dockSize: CGSize(width: 200, height: 80), mousePosition: nil)
-        let a = overlay.angle(at: 0.25)
-        #expect(a.radians.isFinite)
+}
+
+// MARK: - New Strings Constants Tests
+
+struct NewStringsConstantsTests {
+
+    @Test func visualEffectStringsExist() {
+        #expect(!Strings.Settings.visualEffect.isEmpty)
+        #expect(!Strings.Settings.effectIntensity.isEmpty)
     }
 
-    @Test func angleVariesAlongPath() {
-        let overlay = DockOverlay(dockSize: CGSize(width: 200, height: 80), mousePosition: nil)
-        // At different positions along the path, the angle should differ
-        // (the path has straight edges and corners)
-        let a1 = overlay.angle(at: 0.1)
-        let a2 = overlay.angle(at: 0.4)
-        #expect(abs(a1.radians - a2.radians) > 0.01)
+    @Test func notificationStringsExist() {
+        #expect(!Strings.Notifications.dockExported.isEmpty)
+        #expect(!Strings.Notifications.exportFailed.isEmpty)
+        #expect(!Strings.Notifications.dockImported.isEmpty)
+        #expect(!Strings.Notifications.importFailed.isEmpty)
     }
 
-    @Test func closestFractionFindsNearestEdge() {
-        let size = CGSize(width: 200, height: 80)
-        let overlay = DockOverlay(dockSize: size, mousePosition: nil)
-        // A point at the top-center should map to a fraction on the top edge
-        let fraction = overlay.closestFraction(to: CGPoint(x: 100, y: 0))
-        let p = overlay.point(at: fraction)
-        // The closest path point should be near the top (small y)
-        #expect(p.y < 10)
+    @Test func notificationDynamicStringsWork() {
+        let exportBody = Strings.Notifications.dockExportedBody("test.dskm")
+        #expect(exportBody.contains("test.dskm"))
+
+        let importBody = Strings.Notifications.dockImportedBody(count: 3, fileName: "dock.dskm")
+        #expect(importBody.contains("3"))
+        #expect(importBody.contains("dock.dskm"))
     }
 
-    @Test func closestFractionForBottomCenter() {
-        let size = CGSize(width: 200, height: 80)
-        let overlay = DockOverlay(dockSize: size, mousePosition: nil)
-        let fraction = overlay.closestFraction(to: CGPoint(x: 100, y: 80))
-        let p = overlay.point(at: fraction)
-        // The closest path point should be near the bottom (large y)
-        #expect(p.y > 70)
+    @Test func importSingularPlural() {
+        let single = Strings.Notifications.dockImportedBody(count: 1, fileName: "f.dskm")
+        #expect(single.contains("shortcut"))
+        #expect(!single.contains("shortcuts"))
+
+        let plural = Strings.Notifications.dockImportedBody(count: 2, fileName: "f.dskm")
+        #expect(plural.contains("shortcuts"))
     }
+
+    @Test func errorStringsExist() {
+        #expect(!Strings.Errors.selectBothAppAndIcon.isEmpty)
+        #expect(!Strings.Errors.selectAnApp.isEmpty)
+        #expect(!Strings.Errors.failedToCreateArchive.isEmpty)
+        #expect(!Strings.Errors.failedToExtractArchive.isEmpty)
+        #expect(!Strings.Errors.invalidDskmFile.isEmpty)
+    }
+
+    @Test func errorDynamicStringWorks() {
+        let msg = Strings.Errors.failedToSaveIcon("disk full")
+        #expect(msg.contains("disk full"))
+    }
+}
+
+// MARK: - ImageUtils Tests
+
+struct ImageUtilsTests {
+
+    // MARK: supportedExtensions
+
+    @Test func supportedExtensionsContainsCommonFormats() {
+        let exts = ImageUtils.supportedExtensions
+        #expect(exts.contains("jpg"))
+        #expect(exts.contains("jpeg"))
+        #expect(exts.contains("png"))
+        #expect(exts.contains("gif"))
+        #expect(exts.contains("heic"))
+        #expect(exts.contains("heif"))
+        #expect(exts.contains("webp"))
+        #expect(exts.contains("tiff"))
+        #expect(exts.contains("tif"))
+        #expect(exts.contains("bmp"))
+    }
+
+    // MARK: loadImages(at:)
+
+    @Test func loadImagesReturnsEmptyForNonExistentDirectory() {
+        let result = ImageUtils.loadImages(from: "/nonexistent/path/\(UUID().uuidString)")
+        #expect(result.isEmpty)
+    }
+
+    @Test func loadImagesFiltersOutNonImageFiles() throws {
+        let dir = try makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: dir) }
+
+        try Data().write(to: dir.appendingPathComponent("photo.jpg"))
+        try Data().write(to: dir.appendingPathComponent("document.pdf"))
+        try Data().write(to: dir.appendingPathComponent("script.sh"))
+
+        let result = ImageUtils.loadImages(at: dir)
+        #expect(result.count == 1)
+        #expect(result[0].lastPathComponent == "photo.jpg")
+    }
+
+    @Test func loadImagesMatchesAllSupportedExtensions() throws {
+        let dir = try makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: dir) }
+
+        for ext in ImageUtils.supportedExtensions {
+            try Data().write(to: dir.appendingPathComponent("file.\(ext)"))
+        }
+        try Data().write(to: dir.appendingPathComponent("file.txt"))
+
+        let result = ImageUtils.loadImages(at: dir)
+        #expect(result.count == ImageUtils.supportedExtensions.count)
+    }
+
+    @Test func loadImagesIsCaseInsensitiveForExtensions() throws {
+        let dir = try makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: dir) }
+
+        try Data().write(to: dir.appendingPathComponent("a.JPG"))
+        try Data().write(to: dir.appendingPathComponent("b.Png"))
+        try Data().write(to: dir.appendingPathComponent("c.HEIC"))
+
+        let result = ImageUtils.loadImages(at: dir)
+        #expect(result.count == 3)
+    }
+
+    @Test func loadImagesSkipsHiddenFiles() throws {
+        let dir = try makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: dir) }
+
+        try Data().write(to: dir.appendingPathComponent("visible.jpg"))
+        try Data().write(to: dir.appendingPathComponent(".hidden.jpg"))
+
+        let result = ImageUtils.loadImages(at: dir)
+        #expect(result.count == 1)
+        #expect(result[0].lastPathComponent == "visible.jpg")
+    }
+
+    // MARK: loadImages(from:) — path string variant
+
+    @Test func loadImagesFromPathExpandsTilde() throws {
+        let dir = try makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: dir) }
+
+        try Data().write(to: dir.appendingPathComponent("img.png"))
+
+        // Build a ~-prefixed path by stripping the home directory prefix
+        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        guard dir.path.hasPrefix(home) else { return }
+        let relativePath = "~" + dir.path.dropFirst(home.count)
+
+        let result = ImageUtils.loadImages(from: relativePath)
+        #expect(result.count == 1)
+    }
+
+    // MARK: loadImage(from:)
+
+    @Test func loadImageReturnsNilForNilURL() async {
+        let result = await ImageUtils.loadImage(from: nil)
+        #expect(result == nil)
+    }
+
+    @Test func loadImageReturnsNilForNonExistentFile() async {
+        let url = URL(fileURLWithPath: "/nonexistent/\(UUID().uuidString).png")
+        let result = await ImageUtils.loadImage(from: url)
+        #expect(result == nil)
+    }
+
+    @Test func loadImageLoadsValidPNGFile() async throws {
+        let dir = try makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: dir) }
+
+        let fileURL = dir.appendingPathComponent("test.png")
+        try makePNG(at: fileURL)
+
+        let result = await ImageUtils.loadImage(from: fileURL)
+        #expect(result != nil)
+    }
+
+    // MARK: resolveDirectoryURL
+
+    @Test func resolveDirectoryURLFallsBackToPathWhenNoBookmark() {
+        let key = "imageutils_test_\(UUID().uuidString)"
+        UserDefaults.standard.removeObject(forKey: key)
+
+        let (url, isSecurityScoped) = ImageUtils.resolveDirectoryURL(
+            directoryPath: "/tmp",
+            bookmarkKey: key
+        )
+
+        #expect(!isSecurityScoped)
+        #expect(url.path == "/tmp")
+    }
+
+    @Test func resolveDirectoryURLFallsBackOnInvalidBookmarkData() {
+        let key = "imageutils_test_\(UUID().uuidString)"
+        UserDefaults.standard.set(Data([0x00, 0x01, 0x02]), forKey: key)
+        defer { UserDefaults.standard.removeObject(forKey: key) }
+
+        let (_, isSecurityScoped) = ImageUtils.resolveDirectoryURL(
+            directoryPath: "/tmp",
+            bookmarkKey: key
+        )
+
+        #expect(!isSecurityScoped)
+    }
+
+    // MARK: saveBookmark
+
+    @Test func saveBookmarkDoesNotCrashForValidURL() {
+        let key = "imageutils_test_\(UUID().uuidString)"
+        defer { UserDefaults.standard.removeObject(forKey: key) }
+        // In the test environment (no sandbox entitlements), .withSecurityScope
+        // bookmark creation fails silently — verify it does not crash.
+        ImageUtils.saveBookmark(for: URL(fileURLWithPath: NSTemporaryDirectory()), bookmarkKey: key)
+    }
+
+    // MARK: Helpers
+
+    private func makeTemporaryDirectory() throws -> URL {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir
+    }
+
+    private func makePNG(at url: URL) throws {
+        guard let rep = NSBitmapImageRep(
+            bitmapDataPlanes: nil,
+            pixelsWide: 1, pixelsHigh: 1,
+            bitsPerSample: 8, samplesPerPixel: 4,
+            hasAlpha: true, isPlanar: false,
+            colorSpaceName: .calibratedRGB,
+            bytesPerRow: 0, bitsPerPixel: 0
+        ) else { throw ImageTestError.bitmapCreationFailed }
+        rep.setColor(.red, atX: 0, y: 0)
+        guard let png = rep.representation(using: .png, properties: [:]) else {
+            throw ImageTestError.pngEncodingFailed
+        }
+        try png.write(to: url)
+    }
+}
+
+private enum ImageTestError: Error {
+    case bitmapCreationFailed
+    case pngEncodingFailed
 }
 

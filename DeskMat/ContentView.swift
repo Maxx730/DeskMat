@@ -5,9 +5,9 @@ struct ContentView: View {
     @State private var shortcuts: [AppShortcut] = AppShortcutStore.load()
     @AppStorage("showWeatherWidget") private var showWeatherWidget = true
     @AppStorage("showClockWidget") private var showClockWidget = true
-    @AppStorage("showBatteryWidget") private var showBatteryWidget = true
-    @AppStorage("dockEffect") private var dockEffect: DockEffect = .rainbow
-    @State private var mousePosition: CGPoint? = nil
+    @AppStorage("showImageWidget") private var showImageWidget = true
+    @AppStorage("showDockBackground") private var showDockBackground = true
+    @AppStorage("dockBackgroundColorHex") private var dockBackgroundColorHex: String = "#000000ff"
 
     var body: some View {
         ZStack {
@@ -22,8 +22,8 @@ struct ContentView: View {
                     })
                 }
 
-                if showBatteryWidget {
-                    BatteryWidget()
+                if showImageWidget {
+                    ImageWidget()
                 }
 
                 if showClockWidget {
@@ -32,14 +32,6 @@ struct ContentView: View {
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 10)
-            .onContinuousHover { phase in
-                switch phase {
-                case .active(let location):
-                    mousePosition = location
-                case .ended:
-                    mousePosition = nil
-                }
-            }
             .contextMenu {
                 Button(Strings.Menu.addShortcut) {
                     NotificationCenter.default.post(name: .addShortcut, object: nil)
@@ -74,21 +66,13 @@ struct ContentView: View {
             }
             
         }
-        .overlay {
-            GeometryReader { geometry in
-                switch dockEffect {
-                case .rainbow:
-                    RainbowBorderOverlay(dockSize: geometry.size)
-                case .pill:
-                    DockOverlay(dockSize: geometry.size, mousePosition: mousePosition)
-                        .frame(width: geometry.size.width, height: geometry.size.height)
-                case .checkerboard:
-                    CheckerboardBorderOverlay(dockSize: geometry.size)
-                case .none:
-                    EmptyView()
-                }
+        .background {
+            if showDockBackground {
+                VisualEffectBackground()
+            } else {
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(ColorUtils.fromHex(dockBackgroundColorHex))
             }
-            .allowsHitTesting(false)
         }
     }
 
@@ -102,6 +86,7 @@ struct ContentView: View {
         if let index = shortcuts.firstIndex(where: { $0.id == updated.id }) {
             shortcuts[index] = updated
             AppShortcutStore.save(shortcuts)
+            // we need to 'refresh' the icons in the dock here
         }
     }
 }

@@ -49,7 +49,7 @@ struct AppShortcutButton: View {
                     (cachedIcon ?? Image(systemName: "questionmark.app"))
                     if isFrontmost {
                         RoundedRectangle(cornerRadius: 8)
-                            .stroke(ColorUtils.lightened(avgColor), lineWidth: 2)
+                            .stroke(ColorUtils.brightenedHSV(avgColor), lineWidth: 2)
                             .padding(1)
                     }
                 }
@@ -71,6 +71,8 @@ struct AppShortcutButton: View {
                     Text(shortcut.label)
                         .font(.caption2)
                         .lineLimit(1)
+                        .frame(width: 64)
+                        .truncationMode(.tail)
                 }
             }
         }

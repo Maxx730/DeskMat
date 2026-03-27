@@ -1,19 +1,24 @@
 import SwiftUI
 
 struct DockWidget<Content: View>: View {
+    static var cellSize: CGFloat { 64 }
+
     let width: CGFloat
+    let height: CGFloat
     let isLoading: Bool
     let onRefresh: (() async -> Void)?
     let content: Content
     @State private var isHovering = false
 
     init(
-        width: CGFloat = 128,
+        cells: Int = 1,
+        height: CGFloat = 64,
         isLoading: Bool = false,
         onRefresh: (() async -> Void)? = nil,
         @ViewBuilder content: () -> Content
     ) {
-        self.width = width
+        self.width = CGFloat(cells) * Self.cellSize
+        self.height = height
         self.isLoading = isLoading
         self.onRefresh = onRefresh
         self.content = content()
@@ -35,10 +40,10 @@ struct DockWidget<Content: View>: View {
                     .tint(.white)
             } else {
                 content
+                    .dockItemShader()
             }
         }
-        .frame(width: width, height: 64)
-        .dockItemShader()
+        .frame(width: width, height: height)
         .onHover { isHovering = $0 }
         .animation(.easeInOut(duration: 0.15), value: isHovering)
         .overlay(alignment: .topTrailing) {

@@ -8,18 +8,15 @@ enum DockPosition: String, CaseIterable {
     case top = "Top"
 }
 
-enum DockEffect: String, CaseIterable {
-    case none = "None"
-    case rainbow = "Rainbow"
-    case pill = "Pill"
-    case checkerboard = "Checkerboard"
+enum AppearanceMode: String, CaseIterable {
+    case system = "System"
+    case light = "Light"
+    case dark = "Dark"
 }
 
 enum VisualEffect: String, CaseIterable {
     case none = "None"
     case scanlineWiggle = "Scanline Wiggle"
-    case crt = "CRT"
-    case vhs = "VHS"
 }
 
 @main
@@ -40,6 +37,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var editShortcutWindow: NSWindow?
     private var positionObserver: Any?
     private var offsetObserver: Any?
+    private var appearanceObserver: Any?
     private var globalHotkeyMonitor: Any?
     private var localHotkeyMonitor: Any?
     private var isDockHidden = false
@@ -59,6 +57,20 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         NotificationCenter.default.addObserver(self, selector: #selector(editShortcut(_:)), name: .editShortcut, object: nil)
 
         setupHotkey()
+        applyAppearance()
+        appearanceObserver = UserDefaults.standard.observe(\.appearanceMode, options: [.new]) { [weak self] _, _ in
+            DispatchQueue.main.async { self?.applyAppearance() }
+        }
+    }
+
+    private func applyAppearance() {
+        let raw = UserDefaults.standard.string(forKey: "appearanceMode") ?? AppearanceMode.system.rawValue
+        let mode = AppearanceMode(rawValue: raw) ?? .system
+        switch mode {
+        case .system: NSApp.appearance = nil
+        case .light:  NSApp.appearance = NSAppearance(named: .aqua)
+        case .dark:   NSApp.appearance = NSAppearance(named: .darkAqua)
+        }
     }
 
     private func requestNotificationAuthorization() {
@@ -105,7 +117,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func setupPanel() {
         let content = ContentView()
-            .background(VisualEffectBackground())
 
         let hostingView = NSHostingView(rootView: content)
         hostingView.setFrameSize(hostingView.fittingSize)
@@ -321,9 +332,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         let settingsView = SettingsView()
         let hostingView = NSHostingView(rootView: settingsView)
-        // Set width first so fittingSize computes the correct height for this width
-        hostingView.setFrameSize(NSSize(width: 680, height: 0))
-        let settingsSize = NSSize(width: 680, height: hostingView.fittingSize.height)
+        hostingView.setFrameSize(NSSize(width: 380, height: 0))
+        let settingsSize = NSSize(width: 380, height: hostingView.fittingSize.height)
         hostingView.setFrameSize(settingsSize)
 
         let window = NSWindow(
@@ -349,6 +359,9 @@ extension UserDefaults {
     }
     @objc dynamic var dockOffset: Int {
         return integer(forKey: "dockOffset")
+    }
+    @objc dynamic var appearanceMode: String {
+        return string(forKey: "appearanceMode") ?? AppearanceMode.system.rawValue
     }
 }
 

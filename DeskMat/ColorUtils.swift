@@ -38,22 +38,40 @@ enum ColorUtils {
         )
     }
 
-    /// Returns a lightened version of a SwiftUI Color by the given factor (0.0–1.0).
-    /// A factor of 0.3 means 30% of the gap to white is added.
-    static func lightened(_ color: Color, by factor: Double = 0.3) -> Color {
+
+    /// Returns a copy of the color with its HSB brightness (V) increased by the given amount (0.0–1.0), clamped to 1.0.
+    static func brightenedHSV(_ color: Color, by amount: Double = 0.2) -> Color {
         let nsColor = NSColor(color).usingColorSpace(.sRGB) ?? NSColor(color)
-        return Color(
-            red: nsColor.redComponent + (1.0 - nsColor.redComponent) * factor,
-            green: nsColor.greenComponent + (1.0 - nsColor.greenComponent) * factor,
-            blue: nsColor.blueComponent + (1.0 - nsColor.blueComponent) * factor,
-            opacity: nsColor.alphaComponent
-        )
+        var h: CGFloat = 0, s: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        nsColor.getHue(&h, saturation: &s, brightness: &b, alpha: &a)
+        return Color(hue: h, saturation: s, brightness: min(b + amount, 1.0), opacity: a)
+    }
+
+    /// Converts a SwiftUI Color to a hex string (e.g. "#ff0000ff" with alpha).
+    static func toHex(_ color: Color) -> String {
+        let nsColor = NSColor(color).usingColorSpace(.sRGB) ?? NSColor(color)
+        let r = Int((nsColor.redComponent * 255).rounded())
+        let g = Int((nsColor.greenComponent * 255).rounded())
+        let b = Int((nsColor.blueComponent * 255).rounded())
+        let a = Int((nsColor.alphaComponent * 255).rounded())
+        return String(format: "#%02x%02x%02x%02x", r, g, b, a)
+    }
+
+    /// Converts a hex string (e.g. "#ff0000ff") back to a SwiftUI Color.
+    static func fromHex(_ hex: String) -> Color {
+        var raw = hex.hasPrefix("#") ? String(hex.dropFirst()) : hex
+        if raw.count == 6 { raw += "ff" }
+        guard raw.count == 8, let value = UInt64(raw, radix: 16) else { return .black }
+        let r = Double((value >> 24) & 0xff) / 255
+        let g = Double((value >> 16) & 0xff) / 255
+        let b = Double((value >> 8) & 0xff) / 255
+        let a = Double(value & 0xff) / 255
+        return Color(red: r, green: g, blue: b, opacity: a)
     }
 
     /// Returns the average color of an NSImage.
     static func averageColor(of image: NSImage) -> Color? {
-        guard let tiffData = image.tiffRepresentation,
-              let bitmap = NSBitmapImageRep(data: tiffData) else {
+        guard image.tiffRepresentation != nil else {
             return nil
         }
 

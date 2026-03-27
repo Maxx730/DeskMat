@@ -43,19 +43,6 @@ struct DockItemShader: ViewModifier {
                 .float(Float(0.1 * intensity)),
                 .float(Float(viewSize.width))
             )
-        case .crt:
-            return ShaderLibrary.crtEffect(
-                .float(Float(intensity)),
-                .float(Float(viewSize.width)),
-                .float(Float(viewSize.height))
-            )
-        case .vhs:
-            return ShaderLibrary.vhsGlitch(
-                .float(Float(elapsed)),
-                .float(Float(intensity)),
-                .float(Float(viewSize.width)),
-                .float(Float(viewSize.height))
-            )
         }
     }
 }

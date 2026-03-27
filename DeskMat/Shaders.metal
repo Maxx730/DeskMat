@@ -402,3 +402,131 @@ float vhs_noise(float2 st) {
     return finalColor;
 }
 
+// --- Radial Chromatic Aberration ---
+// Ported from a Godot canvas_item shader.
+// Splits RGB channels radially outward from center, with exponential
+// falloff so the effect is stronger near edges.
+float2 ca_rotate(float2 v, float cosTheta, float sinTheta) {
+    return float2(
+        v.x * cosTheta - v.y * sinTheta,
+        v.x * sinTheta + v.y * cosTheta
+    );
+}
+
+/// Radial chromatic aberration layer effect.
+/// Red and blue channels are displaced radially from the view center,
+/// with strength increasing exponentially toward the edges.
+/// - position: pixel coordinate in user space
+/// - layer: the rasterized SwiftUI layer
+/// - intensity: effect strength 0..1 (mapped to 0..5 internally)
+/// - viewWidth: width of the view in points
+/// - viewHeight: height of the view in points
+[[stitchable]] half4 chromaticAberration(
+    float2 position,
+    SwiftUI::Layer layer,
+    float intensity,
+    float viewWidth,
+    float viewHeight
+) {
+    float2 viewSize = float2(viewWidth, viewHeight);
+    float2 uv = position / viewSize;
+
+    // Scale intensity to match Godot's 0..5 range
+    float strength = intensity * 5.0;
+    float threshold = 1.0;
+
+    // Base displacement directions (red left, green center, blue right)
+    float2 rDisp = float2(-1.0, 0.0);
+    float2 gDisp = float2(0.0, 0.0);
+    float2 bDisp = float2(1.0, 0.0);
+
+    // Direction from center
+    float2 center = float2(0.5);
+    float2 dir = uv - center;
+    float dist = 2.0 * length(dir);
+
+    // Angle of the direction vector
+    float angle = (abs(dir.x) < 0.0001 && abs(dir.y) < 0.0001)
+        ? 0.0
+        : atan2(dir.y, dir.x);
+
+    // Exponential falloff: stronger near edges
+    float effect = exp(strength * (dist - threshold));
+
+    float cosA = cos(angle);
+    float sinA = sin(angle);
+
+    // Rotate displacement vectors to point radially outward
+    rDisp = ca_rotate(effect * strength * rDisp, cosA, sinA);
+    gDisp = ca_rotate(effect * strength * gDisp, cosA, sinA);
+    bDisp = ca_rotate(effect * strength * bDisp, cosA, sinA);
+
+    // Sample each channel at its displaced position (displacement is in pixels)
+    half4 rSample = layer.sample(position + rDisp);
+    half4 gSample = layer.sample(position + gDisp);
+    half4 bSample = layer.sample(position + bDisp);
+    half4 aSample = layer.sample(position);
+
+    return half4(rSample.r, gSample.g, bSample.b, aSample.a);
+}
+
+// --- Hologram Effect ---
+// Ported from a Godot canvas_item shader.
+// Scrolling horizontal lines with color shifting, noise, and alpha fade.
+
+/// Hologram layer effect.
+/// Scrolling scan lines tinted between two colors, with horizontal color shift,
+/// noise grain, and transparency — creating a sci-fi holographic projection look.
+/// - position: pixel coordinate in user space
+/// - layer: the rasterized SwiftUI layer
+/// - time: elapsed time for animation
+/// - intensity: overall effect strength 0..1
+/// - viewWidth: width of the view in points
+/// - viewHeight: height of the view in points
+[[stitchable]] half4 hologram(
+    float2 position,
+    SwiftUI::Layer layer,
+    float time,
+    float intensity,
+    float viewWidth,
+    float viewHeight
+) {
+    float2 viewSize = float2(viewWidth, viewHeight);
+    float2 uv = position / viewSize;
+    // Parameters scaled by intensity
+    int lines = 100;
+    float speed = 0.4 * intensity;
+    float noiseAmount = 0.05 * intensity;
+    float effectFactor = 0.4 * intensity;
+    float alpha = mix(1.0, 0.5, intensity);
+
+    // Hologram colors: blue and red
+    float3 color1 = float3(0.0, 0.0, 1.0);
+    float3 color2 = float3(1.0, 0.0, 0.0);
+
+    // Scrolling line index and grade
+    float lineN = floor((uv.y - time * speed) * float(lines));
+    float lineGrade = abs(sin(lineN * M_PI_F / 4.0));
+    float smoothLineGrade = abs(sin((uv.y - time * speed) * float(lines)));
+
+    // Line color: mix between blue and red based on line position
+    float3 lineColor = mix(color1, color2, lineGrade);
+
+    // Color shift: sample with horizontal offset based on smooth line grade
+    float shiftAmount = smoothLineGrade / 240.0 * effectFactor * viewWidth;
+    half4 col = layer.sample(position - float2(shiftAmount, 0.0));
+
+    // Noise grain
+    float n = fract(sin(dot(uv * time, float2(12.9898, 78.233))) * 438.5453) * 1.9;
+    col.rgb = mix(col.rgb, half3(half(n)), half(noiseAmount));
+
+    // Mix in the line color
+    col.rgb = mix(col.rgb, half3(lineColor), half(effectFactor));
+
+    // Apply alpha
+    col.a = half(alpha) * col.a;
+
+    return col;
+}
+
+

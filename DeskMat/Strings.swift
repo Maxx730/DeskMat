@@ -19,10 +19,13 @@ enum Strings {
         static let finderDefaultDirectorySublabel = "Only applies to Finder"
         static let appearance = "Appearance"
         static let showLabels = "Show Labels"
+        static let showDockBackground = "Show Dock Background"
+        static let dockBackgroundColor = "Dock Background Color"
         static let showWeatherWidget = "Show Weather Widget"
         static let showClockWidget = "Show Clock Widget"
-        static let showBatteryWidget = "Show Battery Widget"
-        static let showBatteryPercentage = "Show Battery Percentage"
+        static let showImageWidget = "Show Image Widget"
+        static let imageWidgetDirectory = "Images Directory"
+        static let theme = "Theme"
         static let visualEffect = "Visual Effect"
         static let effectIntensity = "Intensity"
         static let widgets = "Widgets"
@@ -34,7 +37,7 @@ enum Strings {
         static let offset = "Offset"
         static let pixelUnit = "px"
         static let icons = "Icons"
-        static let borderEffect = "Border Effect"
+        static let about = "About"
     }
 
     // MARK: - Menu
