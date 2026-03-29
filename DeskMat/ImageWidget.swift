@@ -31,11 +31,6 @@ struct ImageWidget: View {
                     placeholder
                 }
             }
-            .overlay {
-                RoundedRectangle(cornerRadius: 10)
-                    .stroke(.white.opacity(0.35), lineWidth: 1.5)
-                    .frame(width: Self.widgetWidth, height: Self.widgetHeight)
-            }
             if showLabels {
                 Text("Images")
                     .font(.caption2)
@@ -45,8 +40,8 @@ struct ImageWidget: View {
             }
         }
         .task(id: imageWidgetDirectory) {
-            let (directoryURL, isSecurityScoped) = ImageUtils.resolveDirectoryURL(
-                directoryPath: imageWidgetDirectory,
+            let (directoryURL, isSecurityScoped) = ImageUtils.resolveURL(
+                path: imageWidgetDirectory,
                 bookmarkKey: Self.bookmarkKey
             )
             defer { if isSecurityScoped { directoryURL.stopAccessingSecurityScopedResource() } }

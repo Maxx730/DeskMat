@@ -332,8 +332,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         let settingsView = SettingsView()
         let hostingView = NSHostingView(rootView: settingsView)
-        hostingView.setFrameSize(NSSize(width: 380, height: 0))
-        let settingsSize = NSSize(width: 380, height: hostingView.fittingSize.height)
+        hostingView.setFrameSize(NSSize(width: 480, height: 0))
+        let settingsSize = NSSize(width: 480, height: hostingView.fittingSize.height)
         hostingView.setFrameSize(settingsSize)
 
         let window = NSWindow(
