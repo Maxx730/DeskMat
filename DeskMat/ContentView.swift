@@ -6,6 +6,7 @@ struct ContentView: View {
     @AppStorage("showWeatherWidget") private var showWeatherWidget = true
     @AppStorage("showClockWidget") private var showClockWidget = true
     @AppStorage("showImageWidget") private var showImageWidget = true
+    @AppStorage("showLEDBoard") private var showLEDBoard = true
     @AppStorage("showDockBackground") private var showDockBackground = true
     @AppStorage("dockBackgroundColorHex") private var dockBackgroundColorHex: String = "#000000ff"
 
@@ -24,6 +25,10 @@ struct ContentView: View {
 
                 if showImageWidget {
                     ImageWidget()
+                }
+
+                if showLEDBoard {
+                    LEDBoardWidget()
                 }
 
                 if showClockWidget {

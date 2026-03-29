@@ -37,6 +37,11 @@ enum Strings {
         static let offset = "Offset"
         static let pixelUnit = "px"
         static let icons = "Icons"
+        static let showLEDBoard = "Show LED Board"
+        static let ledBoardImage = "Choose Image..."
+        static let ledBoardImageNone = "No image selected"
+        static let ledBoardScrollSpeed = "Scroll Speed"
+        static let ledBoardFrameSpeed = "Frame Speed"
         static let about = "About"
     }
 

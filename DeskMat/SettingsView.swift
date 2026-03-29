@@ -1,5 +1,6 @@
 import SwiftUI
 import ServiceManagement
+import UniformTypeIdentifiers
 
 struct SettingsView: View {
     var body: some View {
@@ -155,11 +156,57 @@ private struct WidgetsSettingsTab: View {
     @AppStorage("showWeatherWidget") private var showWeatherWidget = true
     @AppStorage("showClockWidget") private var showClockWidget = true
     @AppStorage("showImageWidget") private var showImageWidget = true
+    @AppStorage("showLEDBoard") private var showLEDBoard = true
+    @AppStorage(LEDBoardWidget.imagePathKey) private var ledBoardImagePath = ""
+    @AppStorage(LEDBoardWidget.scrollSpeedKey) private var ledBoardScrollSpeed = 80
+    @AppStorage(LEDBoardWidget.frameSpeedKey) private var ledBoardFrameSpeed = 150
     @AppStorage("imageWidgetDirectory") private var imageWidgetDirectory = "~/Pictures"
     var body: some View {
         Form {
             Toggle(Strings.Settings.showWeatherWidget, isOn: $showWeatherWidget)
             Toggle(Strings.Settings.showClockWidget, isOn: $showClockWidget)
+            Section {
+                Toggle(Strings.Settings.showLEDBoard, isOn: $showLEDBoard)
+                if showLEDBoard {
+                    HStack {
+                        Text(ledBoardImagePath.isEmpty ? Strings.Settings.ledBoardImageNone : URL(fileURLWithPath: ledBoardImagePath).lastPathComponent)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                        Spacer()
+                        Button(Strings.Settings.ledBoardImage) {
+                            let panel = NSOpenPanel()
+                            panel.canChooseFiles = true
+                            panel.canChooseDirectories = false
+                            panel.allowsMultipleSelection = false
+                            panel.allowedContentTypes = [.image]
+                            panel.prompt = "Choose"
+                            if panel.runModal() == .OK, let url = panel.url {
+                                ledBoardImagePath = url.path(percentEncoded: false)
+                                ImageUtils.saveBookmark(for: url, bookmarkKey: LEDBoardWidget.bookmarkKey)
+                            }
+                        }
+                    }
+                    Slider(
+                        value: Binding(
+                            get: { -Double(ledBoardScrollSpeed) },
+                            set: { ledBoardScrollSpeed = max(20, min(500, Int(-$0))) }
+                        ),
+                        in: -500...(-20)
+                    ) {
+                        Text(Strings.Settings.ledBoardScrollSpeed)
+                    }
+                    Slider(
+                        value: Binding(
+                            get: { -Double(ledBoardFrameSpeed) },
+                            set: { ledBoardFrameSpeed = max(50, min(1000, Int(-$0))) }
+                        ),
+                        in: -1000...(-50)
+                    ) {
+                        Text(Strings.Settings.ledBoardFrameSpeed)
+                    }
+                }
+            }
             Section {
                 Toggle(Strings.Settings.showImageWidget, isOn: $showImageWidget)
                 if showImageWidget {
