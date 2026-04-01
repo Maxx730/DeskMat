@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct LEDBoardWidget: View {
+    static let widthModeKey = "ledBoardIsWide"
     static let bookmarkKey = "ledBoardImageBookmark"
     static let imagePathKey = "ledBoardImagePath"
     static let scrollSpeedKey = "ledBoardScrollSpeed"
@@ -10,28 +11,32 @@ struct LEDBoardWidget: View {
     @AppStorage(LEDBoardWidget.imagePathKey) private var ledBoardImagePath = ""
     @AppStorage(LEDBoardWidget.scrollSpeedKey) private var scrollSpeed = 80
     @AppStorage(LEDBoardWidget.frameSpeedKey) private var frameSpeed = 150
+    @AppStorage(LEDBoardWidget.widthModeKey) private var isWide = true
     @State private var frames: [[[Color?]]] = []
     @State private var currentFrame: Int = 0
     @State private var scrollOffset: Int = 0
     @State private var framesVersion: Int = 0
 
-    private static let columns = 32
+    private static let dotsPerCell = 16
     private static let rows = 16
     private static let sourceFrameWidth = 16
 
+    private var cellCount: Int { isWide ? 2 : 1 }
+    private var columns: Int { cellCount * Self.dotsPerCell }
+
     var body: some View {
         VStack(spacing: 10) {
-            DockWidget(cells: 2) {
+            DockWidget(cells: cellCount, hoverEffect: false) {
                 LEDGrid(
-                    columns: Self.columns,
+                    columns: columns,
                     rows: Self.rows,
                     pixels: frames.isEmpty ? [] : frames[currentFrame],
                     scrollOffset: scrollOffset
                 )
                 .padding(4)
             }
-            // Loads the image and drives the scroll loop
-            .task(id: ledBoardImagePath) {
+            // Loads the image and drives the scroll loop; re-runs on path or width change
+            .task(id: "\(ledBoardImagePath)|\(isWide)") {
                 frames = []
                 currentFrame = 0
                 scrollOffset = 0
@@ -45,9 +50,11 @@ struct LEDBoardWidget: View {
                 defer { if isSecurityScoped { url.stopAccessingSecurityScopedResource() } }
                 guard let image = await ImageUtils.loadImage(from: url) else { return }
 
+                let cols = columns
+                let rows = Self.rows
                 frames = await Task.detached(priority: .background) { () -> [[[Color?]]] in
                     ImageUtils.extractFrames(from: image, frameWidthPx: Self.sourceFrameWidth)
-                        .map { Self.buildPixelGrid(from: $0) }
+                        .map { Self.buildPixelGrid(from: $0, columns: cols, rows: rows) }
                 }.value
                 framesVersion += 1
 
@@ -70,13 +77,21 @@ struct LEDBoardWidget: View {
                 Text("LED Board")
                     .font(.caption2)
                     .lineLimit(1)
-                    .frame(width: DockWidget<EmptyView>.cellSize * 2)
+                    .frame(width: DockWidget<EmptyView>.width(for: cellCount))
                     .truncationMode(.tail)
             }
         }
+        .contextMenu {
+            Button(isWide ? Strings.Settings.ledBoardCompact : Strings.Settings.ledBoardWide) {
+                withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
+                    isWide.toggle()
+                }
+            }
+            .disabled(ledBoardImagePath.isEmpty)
+        }
     }
 
-    private static func buildPixelGrid(from frameRep: NSBitmapImageRep) -> [[Color?]] {
+    private static func buildPixelGrid(from frameRep: NSBitmapImageRep, columns: Int, rows: Int) -> [[Color?]] {
         let aspect = CGFloat(frameRep.pixelsWide) / CGFloat(frameRep.pixelsHigh)
         let gridAspect = CGFloat(columns) / CGFloat(rows)
 

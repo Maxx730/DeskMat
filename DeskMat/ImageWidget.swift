@@ -8,7 +8,8 @@ struct ImageWidget: View {
     @State private var panOffset: CGFloat = 0
     @State private var imageVersion: Int = 0
 
-    private static let widgetWidth: CGFloat = 128
+    static let cellCount = 2
+    private static var widgetWidth: CGFloat { DockWidget<EmptyView>.width(for: cellCount) }
     private static let widgetHeight: CGFloat = 64
     private static let panScale: CGFloat = 2.4
     private static var scaledWidth: CGFloat { widgetWidth * panScale }

@@ -7,7 +7,7 @@ struct ContentView: View {
     @AppStorage("showClockWidget") private var showClockWidget = true
     @AppStorage("showImageWidget") private var showImageWidget = true
     @AppStorage("showLEDBoard") private var showLEDBoard = true
-    @AppStorage("showDockBackground") private var showDockBackground = true
+    @AppStorage("dockBackground") private var dockBackground: DockBackground = .system
     @AppStorage("dockBackgroundColorHex") private var dockBackgroundColorHex: String = "#000000ff"
 
     var body: some View {
@@ -72,11 +72,14 @@ struct ContentView: View {
             
         }
         .background {
-            if showDockBackground {
+            switch dockBackground {
+            case .system:
                 VisualEffectBackground()
-            } else {
+            case .color:
                 RoundedRectangle(cornerRadius: 16)
                     .fill(ColorUtils.fromHex(dockBackgroundColorHex))
+            case .transparent:
+                Color.clear
             }
         }
     }

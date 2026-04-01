@@ -1555,8 +1555,7 @@ struct ImageUtilsTests {
         let key = "imageutils_test_\(UUID().uuidString)"
         UserDefaults.standard.removeObject(forKey: key)
 
-        let (url, isSecurityScoped) = ImageUtils.resolveDirectoryURL(
-            directoryPath: "/tmp",
+        let (url, isSecurityScoped) = ImageUtils.resolveURL(path: "/tmp",
             bookmarkKey: key
         )
 
@@ -1569,8 +1568,7 @@ struct ImageUtilsTests {
         UserDefaults.standard.set(Data([0x00, 0x01, 0x02]), forKey: key)
         defer { UserDefaults.standard.removeObject(forKey: key) }
 
-        let (_, isSecurityScoped) = ImageUtils.resolveDirectoryURL(
-            directoryPath: "/tmp",
+        let (_, isSecurityScoped) = ImageUtils.resolveURL(path: "/tmp",
             bookmarkKey: key
         )
 

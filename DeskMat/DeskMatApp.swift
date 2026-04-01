@@ -19,6 +19,12 @@ enum VisualEffect: String, CaseIterable {
     case scanlineWiggle = "Scanline Wiggle"
 }
 
+enum DockBackground: String, CaseIterable {
+    case system = "System"
+    case color = "Color"
+    case transparent = "Transparent"
+}
+
 @main
 struct DeskMatApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate

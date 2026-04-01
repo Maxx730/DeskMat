@@ -17,7 +17,7 @@ struct SettingsView: View {
                 .tabItem { Label(Strings.Settings.about, systemImage: "info.circle") }
         }
         .padding(20)
-        .frame(width: 380)
+        .frame(width: 480)
         .frame(minHeight: 420)
     }
 }
@@ -59,7 +59,7 @@ private struct GeneralSettingsTab: View {
 private struct AppearanceSettingsTab: View {
     @AppStorage("appearanceMode") private var appearanceMode: AppearanceMode = .system
     @AppStorage("showLabels") private var showLabels = true
-    @AppStorage("showDockBackground") private var showDockBackground = true
+    @AppStorage("dockBackground") private var dockBackground: DockBackground = .system
     @AppStorage("dockBackgroundColorHex") private var dockBackgroundColorHex: String = "#000000ff"
     @AppStorage("visualEffect") private var visualEffect: VisualEffect = .none
     @AppStorage("dockItemShaderIntensity") private var dockItemShaderIntensity = 0.5
@@ -78,14 +78,20 @@ private struct AppearanceSettingsTab: View {
 
             Toggle(Strings.Settings.showLabels, isOn: $showLabels)
 
-            Toggle(Strings.Settings.showDockBackground, isOn: $showDockBackground)
-
-            ColorPicker(Strings.Settings.dockBackgroundColor, selection: Binding(
-                get: { dockBackgroundColor },
-                set: { newColor in
-                    dockBackgroundColorHex = ColorUtils.toHex(newColor)
+            Picker(Strings.Settings.dockBackground, selection: $dockBackground) {
+                ForEach(DockBackground.allCases, id: \.self) { style in
+                    Text(style.rawValue).tag(style)
                 }
-            ))
+            }
+
+            if dockBackground == .color {
+                ColorPicker(Strings.Settings.dockBackgroundColor, selection: Binding(
+                    get: { dockBackgroundColor },
+                    set: { newColor in
+                        dockBackgroundColorHex = ColorUtils.toHex(newColor)
+                    }
+                ))
+            }
 
             Picker(Strings.Settings.visualEffect, selection: $visualEffect) {
                 ForEach(VisualEffect.allCases, id: \.self) { effect in
@@ -153,17 +159,50 @@ private struct DockSettingsTab: View {
 // MARK: - Widgets
 
 private struct WidgetsSettingsTab: View {
-    @AppStorage("showWeatherWidget") private var showWeatherWidget = true
-    @AppStorage("showClockWidget") private var showClockWidget = true
-    @AppStorage("showImageWidget") private var showImageWidget = true
-    @AppStorage("showLEDBoard") private var showLEDBoard = true
-    @AppStorage(LEDBoardWidget.imagePathKey) private var ledBoardImagePath = ""
+    @AppStorage("showWeatherWidget")    private var showWeatherWidget = true
+    @AppStorage("showClockWidget")      private var showClockWidget = true
+    @AppStorage("showImageWidget")      private var showImageWidget = true
+    @AppStorage("showLEDBoard")         private var showLEDBoard = true
+    @AppStorage(LEDBoardWidget.imagePathKey)  private var ledBoardImagePath = ""
     @AppStorage(LEDBoardWidget.scrollSpeedKey) private var ledBoardScrollSpeed = 80
-    @AppStorage(LEDBoardWidget.frameSpeedKey) private var ledBoardFrameSpeed = 150
+    @AppStorage(LEDBoardWidget.frameSpeedKey)  private var ledBoardFrameSpeed = 150
+    @AppStorage(LEDBoardWidget.widthModeKey)   private var ledBoardIsWide = true
     @AppStorage("imageWidgetDirectory") private var imageWidgetDirectory = "~/Pictures"
+    @AppStorage("weatherLatitude")      private var weatherLatitude     = 37.2707
+    @AppStorage("weatherLongitude")     private var weatherLongitude    = -76.7075
+    @AppStorage("weatherLocationName")  private var weatherLocationName = Strings.Weather.defaultLocationName
+
+    @State private var citySearchText = ""
+    @State private var isGeocoding    = false
+    @State private var geocodeError   = false
+
     var body: some View {
         Form {
-            Toggle(Strings.Settings.showWeatherWidget, isOn: $showWeatherWidget)
+            Section {
+                Toggle(Strings.Settings.showWeatherWidget, isOn: $showWeatherWidget)
+                if showWeatherWidget {
+                    HStack {
+                        TextField(Strings.Settings.weatherLocationField, text: $citySearchText)
+                            .onSubmit { Task { await performGeocode() } }
+                        if isGeocoding {
+                            ProgressView().controlSize(.small)
+                        } else {
+                            Button(Strings.Settings.weatherLocationSearch) {
+                                Task { await performGeocode() }
+                            }
+                            .disabled(citySearchText.trimmingCharacters(in: .whitespaces).isEmpty)
+                        }
+                    }
+                    if geocodeError {
+                        Text(Strings.Settings.weatherLocationNotFound)
+                            .font(.caption)
+                            .foregroundStyle(.red)
+                    }
+                    Text(Strings.Settings.weatherCurrentLocation(weatherLocationName))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
             Toggle(Strings.Settings.showClockWidget, isOn: $showClockWidget)
             Section {
                 Toggle(Strings.Settings.showLEDBoard, isOn: $showLEDBoard)
@@ -187,6 +226,7 @@ private struct WidgetsSettingsTab: View {
                             }
                         }
                     }
+                    Toggle(Strings.Settings.ledBoardWide, isOn: $ledBoardIsWide)
                     Slider(
                         value: Binding(
                             get: { -Double(ledBoardScrollSpeed) },
@@ -232,6 +272,23 @@ private struct WidgetsSettingsTab: View {
             }
         }
         .formStyle(.grouped)
+    }
+
+    private func performGeocode() async {
+        let query = citySearchText.trimmingCharacters(in: .whitespaces)
+        guard !query.isEmpty else { return }
+        isGeocoding = true
+        geocodeError = false
+        do {
+            let result = try await LocationService.geocode(query)
+            weatherLatitude     = result.latitude
+            weatherLongitude    = result.longitude
+            weatherLocationName = result.displayName
+            citySearchText      = ""
+        } catch {
+            geocodeError = true
+        }
+        isGeocoding = false
     }
 }
 

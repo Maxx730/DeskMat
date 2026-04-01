@@ -19,9 +19,13 @@ enum Strings {
         static let finderDefaultDirectorySublabel = "Only applies to Finder"
         static let appearance = "Appearance"
         static let showLabels = "Show Labels"
-        static let showDockBackground = "Show Dock Background"
-        static let dockBackgroundColor = "Dock Background Color"
+        static let dockBackground = "Dock Background"
+        static let dockBackgroundColor = "Color"
         static let showWeatherWidget = "Show Weather Widget"
+        static let weatherLocationField = "Search city..."
+        static let weatherLocationSearch = "Search"
+        static let weatherLocationNotFound = "City not found. Try a different name."
+        static func weatherCurrentLocation(_ name: String) -> String { "Current location: \(name)" }
         static let showClockWidget = "Show Clock Widget"
         static let showImageWidget = "Show Image Widget"
         static let imageWidgetDirectory = "Images Directory"
@@ -42,6 +46,8 @@ enum Strings {
         static let ledBoardImageNone = "No image selected"
         static let ledBoardScrollSpeed = "Scroll Speed"
         static let ledBoardFrameSpeed = "Frame Speed"
+        static let ledBoardWide = "Wide LED Board"
+        static let ledBoardCompact = "Compact"
         static let about = "About"
     }
 
@@ -63,7 +69,7 @@ enum Strings {
     enum Shortcuts {
         static let application = "Application"
         static let icon = "Icon"
-        static let customLabel = "Custom Label"
+        static let customLabel = "Label"
         static let chooseApp = "Choose App..."
         static let chooseIcon = "Choose Icon..."
         static let noAppSelected = "No app selected"

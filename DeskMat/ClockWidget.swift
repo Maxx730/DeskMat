@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct ClockWidget: View {
+    static let cellCount = 1
     @AppStorage("showLabels") private var showLabels = true
 
     var body: some View {
@@ -19,7 +20,7 @@ struct ClockWidget: View {
                 Text("Clock")
                     .font(.caption2)
                     .lineLimit(1)
-                    .frame(width: 64)
+                    .frame(width: DockWidget<EmptyView>.width(for: Self.cellCount))
                     .truncationMode(.tail)
             }
         }

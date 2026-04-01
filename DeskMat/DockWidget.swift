@@ -3,9 +3,14 @@ import SwiftUI
 struct DockWidget<Content: View>: View {
     static var cellSize: CGFloat { 64 }
 
+    static func width(for cells: Int) -> CGFloat {
+        CGFloat(cells) * cellSize
+    }
+
     let width: CGFloat
     let height: CGFloat
     let isLoading: Bool
+    let hoverEffect: Bool
     let onRefresh: (() async -> Void)?
     let content: Content
     @State private var isHovering = false
@@ -14,12 +19,14 @@ struct DockWidget<Content: View>: View {
         cells: Int = 1,
         height: CGFloat = 64,
         isLoading: Bool = false,
+        hoverEffect: Bool = true,
         onRefresh: (() async -> Void)? = nil,
         @ViewBuilder content: () -> Content
     ) {
         self.width = CGFloat(cells) * Self.cellSize
         self.height = height
         self.isLoading = isLoading
+        self.hoverEffect = hoverEffect
         self.onRefresh = onRefresh
         self.content = content()
     }
@@ -27,7 +34,7 @@ struct DockWidget<Content: View>: View {
     var body: some View {
         ZStack {
             RoundedRectangle(cornerRadius: 10)
-                .fill(Color(red: 0.0, green: 0.0, blue: 0.0, opacity: isHovering ? 0.15 : 0.3))
+                .fill(Color(red: 0.0, green: 0.0, blue: 0.0, opacity: hoverEffect && isHovering ? 0.15 : 0.3))
                 .stroke(Color(red: 0.0, green: 0.0, blue: 0.0, opacity: 0.5), lineWidth: 1)
             RoundedRectangle(cornerRadius: 10)
                 .inset(by: 1)
@@ -44,7 +51,7 @@ struct DockWidget<Content: View>: View {
             }
         }
         .frame(width: width, height: height)
-        .onHover { isHovering = $0 }
+        .onHover { if hoverEffect { isHovering = $0 } }
         .animation(.easeInOut(duration: 0.15), value: isHovering)
         .overlay(alignment: .topTrailing) {
             if let onRefresh {

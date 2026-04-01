@@ -62,16 +62,19 @@ class WeatherService {
     var iconName: String = "cloud.sun.fill"
     var isLoading: Bool = false
 
-    private let apiURL = URL(string: "https://api.open-meteo.com/v1/forecast?latitude=37.2707&longitude=-76.7075&current=temperature_2m,weather_code&temperature_unit=fahrenheit")!
+    func fetch(latitude: Double, longitude: Double, locationName: String) async {
+        await MainActor.run {
+            self.locationName = locationName
+            isLoading = true
+        }
 
-    func fetch() async {
-        await MainActor.run { isLoading = true }
+        guard let url = URL(string: "https://api.open-meteo.com/v1/forecast?latitude=\(latitude)&longitude=\(longitude)&current=temperature_2m,weather_code&temperature_unit=fahrenheit") else { return }
 
         // Ensure the loading indicator is visible for at least 0.5s
         async let minimumDelay: Void = Task.sleep(for: .milliseconds(500))
 
         do {
-            let (data, _) = try await URLSession.shared.data(from: apiURL)
+            let (data, _) = try await URLSession.shared.data(from: url)
             let response = try JSONDecoder().decode(WeatherResponse.self, from: data)
             let temp = Int(response.current.temperature2m.rounded())
 
