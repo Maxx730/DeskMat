@@ -27,6 +27,7 @@ struct ImageWidget: View {
                         .offset(x: panOffset)
                         .frame(width: Self.widgetWidth, height: Self.widgetHeight)
                         .clipShape(RoundedRectangle(cornerRadius: 10))
+                        .contentShape(RoundedRectangle(cornerRadius: 10))
                 } else {
                     placeholder
                 }

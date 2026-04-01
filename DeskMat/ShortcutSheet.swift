@@ -156,7 +156,7 @@ struct ShortcutSheet: View {
 
             if iconChanged, let iconSourceURL = selectedIconURL {
                 AppShortcutStore.deleteIcon(named: shortcut.iconFileName)
-                iconFileName = try AppShortcutStore.copyIcon(from: iconSourceURL, for: shortcut.id)
+                iconFileName = try AppShortcutStore.copyIcon(from: iconSourceURL, for: UUID())
             }
 
             var updated = shortcut
