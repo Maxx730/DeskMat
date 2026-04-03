@@ -26,6 +26,8 @@ enum HoverAnimation: String, CaseIterable {
 struct AppShortcutButton: View {
     let shortcut: AppShortcut
     let onRemove: () -> Void
+    let isReordering: Bool
+    let onDragStart: (Image?) -> Void
 
     @AppStorage("showLabels") private var showLabels = true
     @AppStorage("hoverSize") private var hoverSize: HoverSize = .small
@@ -39,49 +41,68 @@ struct AppShortcutButton: View {
     @State private var isFrontmost = false
     @State private var windowCount = 0
     @State private var jiggleAngle: Double = 0
+    @State private var suppressNextTap = false
 
     var body: some View {
-        Button(action: { launchOrFocus() }) {
-            VStack(spacing: 10) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 10)
-                        .fill(avgColor)
-                    (cachedIcon ?? Image(systemName: "questionmark.app"))
-                    if isFrontmost {
-                        RoundedRectangle(cornerRadius: 8)
-                            .stroke(ColorUtils.brightenedHSV(avgColor), lineWidth: 2)
-                            .padding(1)
-                    }
-                }
-                .frame(width: 64, height: 64)
-                .dockItemShader()
-                .overlay(alignment: .bottom) {
-                    if windowCount > 0 {
-                        Capsule()
-                            .fill(avgColor)
-                            .frame(width: 20, height: 4)
-                            .offset(y: showLabels ? 8 : 6)
-                    }
-                }
-                .scaleEffect(bobScale)
-                .rotationEffect(.degrees(jiggleAngle))
-                .frame(width: 64, height: 64)
-
-                if showLabels {
-                    Text(shortcut.label)
-                        .font(.caption2)
-                        .lineLimit(1)
-                        .frame(width: 64)
-                        .truncationMode(.tail)
+        VStack(spacing: 10) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(avgColor)
+                (cachedIcon ?? Image(systemName: "questionmark.app"))
+                if isFrontmost {
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(ColorUtils.brightenedHSV(avgColor), lineWidth: 2)
+                        .padding(1)
                 }
             }
+            .frame(width: 64, height: 64)
+            .dockItemShader()
+            .overlay(alignment: .bottom) {
+                if windowCount > 0 {
+                    Capsule()
+                        .fill(avgColor)
+                        .frame(width: 20, height: 4)
+                        .offset(y: showLabels ? 8 : 6)
+                }
+            }
+            .scaleEffect(bobScale)
+            .rotationEffect(.degrees(jiggleAngle))
+            .frame(width: 64, height: 64)
+
+            if showLabels {
+                Text(shortcut.label)
+                    .font(.caption2)
+                    .lineLimit(1)
+                    .frame(width: 64)
+                    .truncationMode(.tail)
+            }
         }
-        .buttonStyle(.plain)
+        .onTapGesture {
+            guard !suppressNextTap else {
+                suppressNextTap = false
+                return
+            }
+            launchOrFocus()
+        }
+        .simultaneousGesture(
+            LongPressGesture(minimumDuration: 0.4)
+                .onEnded { _ in
+                    suppressNextTap = true
+                    withAnimation(.easeInOut(duration: 0.07)) { bobScale = 0.95 }
+                    Task {
+                        try? await Task.sleep(for: .milliseconds(75))
+                        withAnimation(.easeInOut(duration: 0.07)) { bobScale = 1.05 }
+                        try? await Task.sleep(for: .milliseconds(75))
+                        withAnimation(.easeInOut(duration: 0.05)) { bobScale = 1.0 }
+                    }
+                    onDragStart(cachedIcon)
+                }
+        )
         .onHover { hovering in
             isHovering = hovering
-            if hovering {
+            if hovering && !isReordering {
                 startHoverAnimation()
-            } else {
+            } else if !hovering && !isReordering {
                 withAnimation(.easeOut(duration: 0.2)) {
                     bobScale = 1.0
                     jiggleAngle = 0
