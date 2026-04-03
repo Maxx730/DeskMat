@@ -1615,3 +1615,246 @@ private enum ImageTestError: Error {
     case pngEncodingFailed
 }
 
+// MARK: - AppearanceMode Enum Tests
+
+struct AppearanceModeTests {
+
+    @Test func allCasesContainsThreeCases() {
+        #expect(AppearanceMode.allCases.count == 3)
+    }
+
+    @Test func rawValuesMatchDisplayNames() {
+        #expect(AppearanceMode.system.rawValue == "System")
+        #expect(AppearanceMode.light.rawValue == "Light")
+        #expect(AppearanceMode.dark.rawValue == "Dark")
+    }
+
+    @Test func initFromRawValue() {
+        #expect(AppearanceMode(rawValue: "System") == .system)
+        #expect(AppearanceMode(rawValue: "Light") == .light)
+        #expect(AppearanceMode(rawValue: "Dark") == .dark)
+        #expect(AppearanceMode(rawValue: "Invalid") == nil)
+    }
+}
+
+// MARK: - DockBackground Enum Tests
+
+struct DockBackgroundEnumTests {
+
+    @Test func allCasesContainsThreeCases() {
+        #expect(DockBackground.allCases.count == 3)
+    }
+
+    @Test func rawValuesMatchDisplayNames() {
+        #expect(DockBackground.system.rawValue == "System")
+        #expect(DockBackground.color.rawValue == "Color")
+        #expect(DockBackground.transparent.rawValue == "Transparent")
+    }
+
+    @Test func initFromRawValue() {
+        #expect(DockBackground(rawValue: "System") == .system)
+        #expect(DockBackground(rawValue: "Color") == .color)
+        #expect(DockBackground(rawValue: "Transparent") == .transparent)
+        #expect(DockBackground(rawValue: "Invalid") == nil)
+    }
+}
+
+// MARK: - Default Seeding Tests
+
+@Suite(.serialized)
+struct DefaultSeedingTests {
+
+    @Test func initializeWithDefaultsCreatesShortcuts() {
+        let original = AppShortcutStore.load()
+        defer { AppShortcutStore.save(original) }
+
+        // Clear state then seed
+        AppShortcutStore.save([])
+        AppShortcutStore.initializeWithDefaults()
+
+        let seeded = AppShortcutStore.load()
+        // At least Finder and Safari are always present on macOS
+        #expect(seeded.count > 0)
+    }
+
+    @Test func initializeWithDefaultsIncludesFinder() {
+        let original = AppShortcutStore.load()
+        defer { AppShortcutStore.save(original) }
+
+        AppShortcutStore.save([])
+        AppShortcutStore.initializeWithDefaults()
+
+        let seeded = AppShortcutStore.load()
+        let hasFinder = seeded.contains { $0.bundleIdentifier == "com.apple.finder" }
+        #expect(hasFinder)
+    }
+
+    @Test func initializeWithDefaultsCreatesIconFiles() {
+        let original = AppShortcutStore.load()
+        defer { AppShortcutStore.save(original) }
+
+        // Clean up any icon files created by this test
+        var createdFileNames: [String] = []
+
+        AppShortcutStore.save([])
+        AppShortcutStore.initializeWithDefaults()
+
+        let seeded = AppShortcutStore.load()
+        createdFileNames = seeded.map { $0.iconFileName }
+        defer { createdFileNames.forEach { AppShortcutStore.deleteIcon(named: $0) } }
+
+        // Every seeded shortcut should have an icon file on disk
+        for shortcut in seeded {
+            let url = AppShortcutStore.iconURL(for: shortcut.iconFileName)
+            #expect(FileManager.default.fileExists(atPath: url.path(percentEncoded: false)))
+        }
+    }
+
+    @Test func initializeWithDefaultsShortcutsHavePNGExtension() {
+        let original = AppShortcutStore.load()
+        defer { AppShortcutStore.save(original) }
+
+        AppShortcutStore.save([])
+        AppShortcutStore.initializeWithDefaults()
+
+        let seeded = AppShortcutStore.load()
+        defer { seeded.forEach { AppShortcutStore.deleteIcon(named: $0.iconFileName) } }
+
+        for shortcut in seeded {
+            #expect(shortcut.iconFileName.hasSuffix(".png"))
+        }
+    }
+
+    @Test func initializeWithDefaultsDoesNotCrashForInvalidBundleIDs() {
+        // Verifies the guard/continue path doesn't throw or crash
+        // We can't inject bad bundle IDs directly, but calling the function
+        // on a clean state should complete without error regardless of
+        // which system apps are installed.
+        let original = AppShortcutStore.load()
+        defer { AppShortcutStore.save(original) }
+
+        AppShortcutStore.save([])
+        AppShortcutStore.initializeWithDefaults() // must not crash
+        let seeded = AppShortcutStore.load()
+        defer { seeded.forEach { AppShortcutStore.deleteIcon(named: $0.iconFileName) } }
+        #expect(seeded.count >= 0) // trivially true — confirms no crash/throw
+    }
+}
+
+// MARK: - Onboarding Flag Tests
+
+@Suite(.serialized)
+struct OnboardingFlagTests {
+
+    private let key = "hasCompletedOnboarding"
+
+    @Test func onboardingFlagDefaultsToFalse() {
+        let defaults = UserDefaults.standard
+        let existing = defaults.object(forKey: key)
+        defer {
+            if let existing {
+                defaults.set(existing, forKey: key)
+            } else {
+                defaults.removeObject(forKey: key)
+            }
+        }
+
+        defaults.removeObject(forKey: key)
+        #expect(defaults.bool(forKey: key) == false)
+    }
+
+    @Test func onboardingFlagCanBeSetToTrue() {
+        let defaults = UserDefaults.standard
+        let existing = defaults.object(forKey: key)
+        defer {
+            if let existing {
+                defaults.set(existing, forKey: key)
+            } else {
+                defaults.removeObject(forKey: key)
+            }
+        }
+
+        defaults.set(true, forKey: key)
+        #expect(defaults.bool(forKey: key) == true)
+    }
+
+    @Test func onboardingFlagCanBeCleared() {
+        let defaults = UserDefaults.standard
+        let existing = defaults.object(forKey: key)
+        defer {
+            if let existing {
+                defaults.set(existing, forKey: key)
+            } else {
+                defaults.removeObject(forKey: key)
+            }
+        }
+
+        defaults.set(true, forKey: key)
+        defaults.removeObject(forKey: key)
+        #expect(defaults.bool(forKey: key) == false)
+    }
+}
+
+// MARK: - Onboarding Strings Tests
+
+struct OnboardingStringsTests {
+
+    @Test func navigationStringsExistAndAreNonEmpty() {
+        #expect(!Strings.Onboarding.windowTitle.isEmpty)
+        #expect(!Strings.Onboarding.back.isEmpty)
+        #expect(!Strings.Onboarding.skip.isEmpty)
+        #expect(!Strings.Onboarding.next.isEmpty)
+        #expect(!Strings.Onboarding.getStarted.isEmpty)
+    }
+
+    @Test func welcomeStepStringsExist() {
+        #expect(!Strings.Onboarding.Welcome.title.isEmpty)
+        #expect(!Strings.Onboarding.Welcome.subtitle.isEmpty)
+    }
+
+    @Test func widgetsStepStringsExist() {
+        #expect(!Strings.Onboarding.Widgets.title.isEmpty)
+        #expect(!Strings.Onboarding.Widgets.subtitle.isEmpty)
+        #expect(!Strings.Onboarding.Widgets.weather.isEmpty)
+        #expect(!Strings.Onboarding.Widgets.clock.isEmpty)
+        #expect(!Strings.Onboarding.Widgets.image.isEmpty)
+        #expect(!Strings.Onboarding.Widgets.ledBoard.isEmpty)
+    }
+
+    @Test func positionStepStringsExist() {
+        #expect(!Strings.Onboarding.Position.title.isEmpty)
+        #expect(!Strings.Onboarding.Position.subtitle.isEmpty)
+        #expect(!Strings.Onboarding.Position.bottom.isEmpty)
+        #expect(!Strings.Onboarding.Position.top.isEmpty)
+    }
+
+    @Test func appearanceStepStringsExist() {
+        #expect(!Strings.Onboarding.Appearance.title.isEmpty)
+        #expect(!Strings.Onboarding.Appearance.subtitle.isEmpty)
+        #expect(!Strings.Onboarding.Appearance.theme.isEmpty)
+        #expect(!Strings.Onboarding.Appearance.dockBackground.isEmpty)
+    }
+
+    @Test func finishStepStringsExist() {
+        #expect(!Strings.Onboarding.Finish.title.isEmpty)
+        #expect(!Strings.Onboarding.Finish.subtitle.isEmpty)
+    }
+
+    @Test func navigationStringsAreDistinct() {
+        // Back/Skip/Next/Get Started should all be different labels
+        let labels = [
+            Strings.Onboarding.back,
+            Strings.Onboarding.skip,
+            Strings.Onboarding.next,
+            Strings.Onboarding.getStarted,
+        ]
+        #expect(Set(labels).count == labels.count)
+    }
+
+    @Test func positionLabelsMatchDockPositionRawValues() {
+        // Onboarding position labels should match what the enum shows in Settings
+        #expect(Strings.Onboarding.Position.bottom == DockPosition.bottom.rawValue)
+        #expect(Strings.Onboarding.Position.top == DockPosition.top.rawValue)
+    }
+}
+

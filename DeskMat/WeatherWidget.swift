@@ -2,6 +2,7 @@ import SwiftUI
 
 struct WeatherWidget: View {
     static let cellCount = 2
+    private let refreshInterval: TimeInterval = 15 * 60
     @State private var weatherService = WeatherService()
     @AppStorage("showLabels")           private var showLabels = true
     @AppStorage("weatherLatitude")      private var weatherLatitude     = 37.2707
@@ -33,7 +34,12 @@ struct WeatherWidget: View {
                         .background(.white.opacity(0.15), in: Capsule())
                 }
             }
-            .task { await weatherService.fetch(latitude: weatherLatitude, longitude: weatherLongitude, locationName: weatherLocationName) }
+            .task(id: weatherLatitude) {
+                while !Task.isCancelled {
+                    await weatherService.fetch(latitude: weatherLatitude, longitude: weatherLongitude, locationName: weatherLocationName)
+                    try? await Task.sleep(for: .seconds(refreshInterval))
+                }
+            }
             .onTapGesture {
                 NSWorkspace.shared.open(URL(string: "weather://")!)
             }
