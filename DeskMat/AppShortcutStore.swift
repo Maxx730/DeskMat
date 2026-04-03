@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 
 enum AppShortcutStore {
@@ -25,6 +26,11 @@ enum AppShortcutStore {
     }
 
     static func load() -> [AppShortcut] {
+        // First launch: seed defaults before reading
+        if !FileManager.default.fileExists(atPath: shortcutsFileURL.path(percentEncoded: false)) {
+            initializeWithDefaults()
+        }
+
         guard FileManager.default.fileExists(atPath: shortcutsFileURL.path(percentEncoded: false)) else {
             return []
         }
@@ -63,6 +69,58 @@ enum AppShortcutStore {
 
     static func iconURL(for fileName: String) -> URL {
         iconsDirectory.appending(path: fileName)
+    }
+
+    // MARK: - Default Seeding
+
+    static func initializeWithDefaults() {
+        guard (try? ensureDirectories()) != nil else { return }
+
+        let defaults: [(name: String, bundleID: String)] = [
+            ("Finder",          "com.apple.finder"),
+            ("Safari",          "com.apple.Safari"),
+            ("Mail",            "com.apple.mail"),
+            ("Calendar",        "com.apple.iCal"),
+            ("Messages",        "com.apple.MobileSMS"),
+            ("Notes",           "com.apple.Notes"),
+            ("Music",           "com.apple.Music"),
+            ("Photos",          "com.apple.Photos"),
+            ("Maps",            "com.apple.Maps"),
+            ("System Settings", "com.apple.systempreferences"),
+            ("Terminal",        "com.apple.Terminal"),
+            ("App Store",       "com.apple.AppStore"),
+        ]
+
+        var shortcuts: [AppShortcut] = []
+
+        for entry in defaults {
+            guard let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: entry.bundleID) else {
+                continue
+            }
+
+            let icon = NSWorkspace.shared.icon(forFile: appURL.path(percentEncoded: false))
+
+            guard
+                let tiffData = icon.tiffRepresentation,
+                let bitmap = NSBitmapImageRep(data: tiffData),
+                let pngData = bitmap.representation(using: .png, properties: [:])
+            else { continue }
+
+            let fileName = "\(UUID().uuidString).png"
+            let dest = iconsDirectory.appending(path: fileName)
+
+            guard (try? pngData.write(to: dest, options: .atomic)) != nil else { continue }
+
+            let shortcut = AppShortcut(
+                displayName: entry.name,
+                bundleIdentifier: entry.bundleID,
+                appURL: appURL,
+                iconFileName: fileName
+            )
+            shortcuts.append(shortcut)
+        }
+
+        save(shortcuts)
     }
 
     // MARK: - Export / Import (.dskm)
