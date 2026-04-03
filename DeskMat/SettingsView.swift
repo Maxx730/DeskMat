@@ -27,6 +27,9 @@ struct SettingsView: View {
 private struct GeneralSettingsTab: View {
     @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
     @AppStorage("finderDefaultDirectory") private var finderDefaultDirectory = "~/"
+    #if DEBUG
+    @State private var showingResetConfirmation = false
+    #endif
 
     var body: some View {
         Form {
@@ -49,6 +52,25 @@ private struct GeneralSettingsTab: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
+
+            #if DEBUG
+            Section("Debug") {
+                Button("Reset App & Quit") {
+                    showingResetConfirmation = true
+                }
+                .foregroundStyle(.red)
+                .alert("Reset App?", isPresented: $showingResetConfirmation) {
+                    Button("Reset & Quit", role: .destructive) {
+                        try? FileManager.default.removeItem(at: AppShortcutStore.storeDirectory)
+                        UserDefaults.standard.removeObject(forKey: "hasCompletedOnboarding")
+                        NSApp.terminate(nil)
+                    }
+                    Button("Cancel", role: .cancel) {}
+                } message: {
+                    Text("This will delete all shortcuts, icons, and reset onboarding. The app will quit immediately.")
+                }
+            }
+            #endif
         }
         .formStyle(.grouped)
     }

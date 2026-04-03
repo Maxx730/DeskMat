@@ -36,11 +36,13 @@ struct DeskMatApp: App {
 }
 
 class AppDelegate: NSObject, NSApplicationDelegate {
+    private static let onboardingCompletedKey = "hasCompletedOnboarding"
     var panel: DeskMatPanel!
     var statusItem: NSStatusItem!
     var settingsWindow: NSWindow?
     var addShortcutWindow: NSWindow?
     var editShortcutWindow: NSWindow?
+    var onboardingWindow: NSWindow?
     private var positionObserver: Any?
     private var offsetObserver: Any?
     private var appearanceObserver: Any?
@@ -64,6 +66,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         setupHotkey()
         applyAppearance()
+
+        if !UserDefaults.standard.bool(forKey: AppDelegate.onboardingCompletedKey) {
+            showOnboarding()
+        }
         appearanceObserver = UserDefaults.standard.observe(\.appearanceMode, options: [.new]) { [weak self] _, _ in
             DispatchQueue.main.async { self?.applyAppearance() }
         }
@@ -329,6 +335,32 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    private func showOnboarding() {
+        let view = OnboardingView(onComplete: { [weak self] in
+            self?.onboardingWindow?.close()
+        })
+        let hostingView = NSHostingView(rootView: view)
+        hostingView.setFrameSize(NSSize(width: 480, height: 0))
+        let size = NSSize(width: 480, height: hostingView.fittingSize.height)
+        hostingView.setFrameSize(size)
+
+        let window = NSWindow(
+            contentRect: NSRect(origin: .zero, size: size),
+            styleMask: [.titled, .closable],
+            backing: .buffered,
+            defer: false
+        )
+        window.title = Strings.Onboarding.windowTitle
+        window.contentView = hostingView
+        window.center()
+        window.isReleasedWhenClosed = false
+        window.delegate = self
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+
+        onboardingWindow = window
+    }
+
     @objc private func openSettings() {
         if let window = settingsWindow {
             window.makeKeyAndOrderFront(nil)
@@ -356,6 +388,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.activate(ignoringOtherApps: true)
 
         settingsWindow = window
+    }
+}
+
+extension AppDelegate: NSWindowDelegate {
+    func windowWillClose(_ notification: Notification) {
+        guard let window = notification.object as? NSWindow,
+              window === onboardingWindow else { return }
+        UserDefaults.standard.set(true, forKey: AppDelegate.onboardingCompletedKey)
+        onboardingWindow = nil
     }
 }
 

@@ -120,6 +120,49 @@ enum Strings {
         static let exportFileName = "MyDock.dskm"
     }
 
+    // MARK: - Onboarding
+
+    enum Onboarding {
+        static let windowTitle      = "Welcome to DeskMat"
+        static let back             = "Back"
+        static let skip             = "Skip"
+        static let next             = "Next"
+        static let getStarted       = "Get Started"
+
+        enum Welcome {
+            static let title    = "Welcome to DeskMat"
+            static let subtitle = "A customizable dock that lives on your desktop. Let's get it set up the way you like."
+        }
+
+        enum Widgets {
+            static let title    = "Choose Your Widgets"
+            static let subtitle = "Select which widgets appear alongside your shortcuts."
+            static let weather  = "Weather"
+            static let clock    = "Clock"
+            static let image    = "Image Viewer"
+            static let ledBoard = "LED Board"
+        }
+
+        enum Position {
+            static let title    = "Dock Position"
+            static let subtitle = "Choose where the dock sits on your screen."
+            static let bottom   = "Bottom"
+            static let top      = "Top"
+        }
+
+        enum Appearance {
+            static let title          = "Appearance"
+            static let subtitle       = "Customize the look of your dock."
+            static let theme          = "Theme"
+            static let dockBackground = "Dock Background"
+        }
+
+        enum Finish {
+            static let title    = "You're all set!"
+            static let subtitle = "Your dock is ready to go. You can adjust any of these settings later in Preferences."
+        }
+    }
+
     // MARK: - Errors
 
     enum Errors {
