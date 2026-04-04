@@ -81,6 +81,7 @@ private struct GeneralSettingsTab: View {
 private struct AppearanceSettingsTab: View {
     @AppStorage("appearanceMode") private var appearanceMode: AppearanceMode = .system
     @AppStorage("showLabels") private var showLabels = true
+    @AppStorage("showWidgetDivider") private var showWidgetDivider = true
     @AppStorage("dockBackground") private var dockBackground: DockBackground = .system
     @AppStorage("dockBackgroundColorHex") private var dockBackgroundColorHex: String = "#000000ff"
     @AppStorage("visualEffect") private var visualEffect: VisualEffect = .none
@@ -99,6 +100,7 @@ private struct AppearanceSettingsTab: View {
             }
 
             Toggle(Strings.Settings.showLabels, isOn: $showLabels)
+            Toggle(Strings.Settings.showWidgetDivider, isOn: $showWidgetDivider)
 
             Picker(Strings.Settings.dockBackground, selection: $dockBackground) {
                 ForEach(DockBackground.allCases, id: \.self) { style in
@@ -138,10 +140,12 @@ private struct DockSettingsTab: View {
     @AppStorage("dockOffset") private var dockOffset = 0
     @AppStorage("hoverSize") private var hoverSize: HoverSize = .small
     @AppStorage("hoverAnimation") private var hoverAnimation: HoverAnimation = .bounce
+    @AppStorage("autoHideDock") private var autoHideDock = false
 
     var body: some View {
         Form {
             Section(Strings.Settings.dock) {
+                Toggle(Strings.Settings.autoHideDock, isOn: $autoHideDock)
                 Picker(Strings.Settings.position, selection: $dockPosition) {
                     ForEach(DockPosition.allCases, id: \.self) { position in
                         Text(position.rawValue).tag(position)

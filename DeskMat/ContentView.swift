@@ -9,6 +9,7 @@ struct ContentView: View {
     @AppStorage("showLEDBoard") private var showLEDBoard = true
     @AppStorage("dockBackground") private var dockBackground: DockBackground = .system
     @AppStorage("dockBackgroundColorHex") private var dockBackgroundColorHex: String = "#000000ff"
+    @AppStorage("showWidgetDivider") private var showWidgetDivider = true
 
     // Drag-to-reorder state
     @State private var draggingID: UUID? = nil
@@ -20,14 +21,11 @@ struct ContentView: View {
     @State private var windowContentHeight: CGFloat = 0
     @State private var isShaking: Bool = false
     private static var dragMonitorToken: Any?
+    static var isDragging = false
 
     var body: some View {
         ZStack {
             HStack {
-                if showWeatherWidget {
-                    WeatherWidget()
-                }
-
                 if draggingID != nil {
                     ForEach(displayShortcuts.indices, id: \.self) { i in
                         if let shortcut = displayShortcuts[i] {
@@ -50,6 +48,17 @@ struct ContentView: View {
                             onDragStart: { icon in dragStart(shortcut: shortcut, icon: icon) }
                         )
                     }
+                }
+
+                if showWidgetDivider && !shortcuts.isEmpty && anyWidgetVisible {
+                    Rectangle()
+                        .fill(.white.opacity(0.25))
+                        .frame(width: 1, height: 56)
+                        .padding(.horizontal, 4)
+                }
+
+                if showWeatherWidget {
+                    WeatherWidget()
                 }
 
                 if showImageWidget {
@@ -124,6 +133,10 @@ struct ContentView: View {
         }
     }
 
+    private var anyWidgetVisible: Bool {
+        showWeatherWidget || showImageWidget || showLEDBoard || showClockWidget
+    }
+
     private func removeShortcut(_ shortcut: AppShortcut) {
         AppShortcutStore.deleteIcon(named: shortcut.iconFileName)
         shortcuts.removeAll { $0.id == shortcut.id }
@@ -140,6 +153,7 @@ struct ContentView: View {
 
     private func dragStart(shortcut: AppShortcut, icon: Image?) {
         let originalIndex = shortcuts.firstIndex(where: { $0.id == shortcut.id }) ?? 0
+        ContentView.isDragging = true
         draggingID = shortcut.id
         draggingShortcut = shortcut
         targetIndex = originalIndex
@@ -176,10 +190,8 @@ struct ContentView: View {
 
     private func dragChanged(to position: CGPoint) {
         dragPosition = position
-        // Shortcuts start at: 10pt padding + weather widget width + spacing (if shown)
-        let dockOriginX: CGFloat = 10 + (showWeatherWidget
-            ? DockWidget<EmptyView>.cellSize * CGFloat(WeatherWidget.cellCount) + hstackItemSpacing
-            : 0)
+        // Shortcuts are always the leftmost items, starting after the horizontal padding
+        let dockOriginX: CGFloat = 10
         let localX = position.x - dockOriginX
         let rawIndex = Int((localX + DockWidget<EmptyView>.cellSize / 4) / DockWidget<EmptyView>.cellSize)
         let newIndex = max(0, min(shortcuts.count - 1, rawIndex))
@@ -209,6 +221,7 @@ struct ContentView: View {
             }
         }
 
+        ContentView.isDragging = false
         isShaking = false
         draggingID = nil
         draggingShortcut = nil

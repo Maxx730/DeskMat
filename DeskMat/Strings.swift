@@ -19,6 +19,7 @@ enum Strings {
         static let finderDefaultDirectorySublabel = "Only applies to Finder"
         static let appearance = "Appearance"
         static let showLabels = "Show Labels"
+        static let showWidgetDivider = "Show Widget Divider"
         static let dockBackground = "Dock Background"
         static let dockBackgroundColor = "Color"
         static let showWeatherWidget = "Show Weather Widget"
@@ -48,6 +49,7 @@ enum Strings {
         static let ledBoardFrameSpeed = "Frame Speed"
         static let ledBoardWide = "Wide LED Board"
         static let ledBoardCompact = "Compact"
+        static let autoHideDock = "Auto-Hide Dock"
         static let about = "About"
     }
 
