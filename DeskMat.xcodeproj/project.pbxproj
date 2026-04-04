@@ -27,6 +27,7 @@
 		956140C62F69BBF500125446 /* DeskMat.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = DeskMat.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		956140D32F69BBF700125446 /* DeskMatTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = DeskMatTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		956140DD2F69BBF700125446 /* DeskMatUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = DeskMatUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		95A30BB82F80AA1400264493 /* DeskMat.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; path = DeskMat.storekit; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -75,6 +76,7 @@
 		956140BD2F69BBF500125446 = {
 			isa = PBXGroup;
 			children = (
+				95A30BB82F80AA1400264493 /* DeskMat.storekit */,
 				956140C82F69BBF500125446 /* DeskMat */,
 				956140D62F69BBF700125446 /* DeskMatTests */,
 				956140E02F69BBF700125446 /* DeskMatUITests */,

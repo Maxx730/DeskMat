@@ -22,6 +22,14 @@ struct SettingsView: View {
     }
 }
 
+@ViewBuilder
+private func proLabel(_ title: String, isPro: Bool) -> some View {
+    HStack(spacing: 6) {
+        Text(title)
+        if !isPro { ProBadge() }
+    }
+}
+
 // MARK: - General
 
 private struct GeneralSettingsTab: View {
@@ -29,6 +37,7 @@ private struct GeneralSettingsTab: View {
     @AppStorage("finderDefaultDirectory") private var finderDefaultDirectory = "~/"
     #if DEBUG
     @State private var showingResetConfirmation = false
+    @AppStorage("debugProOverride") private var debugProOverride = false
     #endif
 
     var body: some View {
@@ -55,6 +64,7 @@ private struct GeneralSettingsTab: View {
 
             #if DEBUG
             Section("Debug") {
+                Toggle("Pro Override", isOn: $debugProOverride)
                 Button("Reset App & Quit") {
                     showingResetConfirmation = true
                 }
@@ -63,6 +73,7 @@ private struct GeneralSettingsTab: View {
                     Button("Reset & Quit", role: .destructive) {
                         try? FileManager.default.removeItem(at: AppShortcutStore.storeDirectory)
                         UserDefaults.standard.removeObject(forKey: "hasCompletedOnboarding")
+                        UserDefaults.standard.removeObject(forKey: "debugProOverride")
                         NSApp.terminate(nil)
                     }
                     Button("Cancel", role: .cancel) {}
@@ -79,6 +90,7 @@ private struct GeneralSettingsTab: View {
 // MARK: - Appearance
 
 private struct AppearanceSettingsTab: View {
+    @Environment(EntitlementManager.self) private var entitlements
     @AppStorage("appearanceMode") private var appearanceMode: AppearanceMode = .system
     @AppStorage("showLabels") private var showLabels = true
     @AppStorage("showWidgetDivider") private var showWidgetDivider = true
@@ -93,37 +105,44 @@ private struct AppearanceSettingsTab: View {
 
     var body: some View {
         Form {
-            Picker(Strings.Settings.theme, selection: $appearanceMode) {
+            Picker(selection: $appearanceMode) {
                 ForEach(AppearanceMode.allCases, id: \.self) { mode in
                     Text(mode.rawValue).tag(mode)
                 }
+            } label: {
+                proLabel(Strings.Settings.theme, isPro: entitlements.isPro)
             }
+            .disabled(!entitlements.isPro)
 
             Toggle(Strings.Settings.showLabels, isOn: $showLabels)
             Toggle(Strings.Settings.showWidgetDivider, isOn: $showWidgetDivider)
 
-            Picker(Strings.Settings.dockBackground, selection: $dockBackground) {
+            Picker(selection: $dockBackground) {
                 ForEach(DockBackground.allCases, id: \.self) { style in
                     Text(style.rawValue).tag(style)
                 }
+            } label: {
+                proLabel(Strings.Settings.dockBackground, isPro: entitlements.isPro)
             }
+            .disabled(!entitlements.isPro)
 
-            if dockBackground == .color {
+            if dockBackground == .color && entitlements.isPro {
                 ColorPicker(Strings.Settings.dockBackgroundColor, selection: Binding(
                     get: { dockBackgroundColor },
-                    set: { newColor in
-                        dockBackgroundColorHex = ColorUtils.toHex(newColor)
-                    }
+                    set: { newColor in dockBackgroundColorHex = ColorUtils.toHex(newColor) }
                 ))
             }
 
-            Picker(Strings.Settings.visualEffect, selection: $visualEffect) {
+            Picker(selection: $visualEffect) {
                 ForEach(VisualEffect.allCases, id: \.self) { effect in
                     Text(effect.rawValue).tag(effect)
                 }
+            } label: {
+                proLabel(Strings.Settings.visualEffect, isPro: entitlements.isPro)
             }
+            .disabled(!entitlements.isPro)
 
-            if visualEffect != .none {
+            if visualEffect != .none && entitlements.isPro {
                 Slider(value: $dockItemShaderIntensity, in: 0.0...1.0) {
                     Text(Strings.Settings.effectIntensity)
                 }
@@ -136,6 +155,7 @@ private struct AppearanceSettingsTab: View {
 // MARK: - Dock
 
 private struct DockSettingsTab: View {
+    @Environment(EntitlementManager.self) private var entitlements
     @AppStorage("dockPosition") private var dockPosition: DockPosition = .bottom
     @AppStorage("dockOffset") private var dockOffset = 0
     @AppStorage("hoverSize") private var hoverSize: HoverSize = .small
@@ -145,15 +165,22 @@ private struct DockSettingsTab: View {
     var body: some View {
         Form {
             Section(Strings.Settings.dock) {
-                Toggle(Strings.Settings.autoHideDock, isOn: $autoHideDock)
-                Picker(Strings.Settings.position, selection: $dockPosition) {
+                Toggle(isOn: $autoHideDock) {
+                    proLabel(Strings.Settings.autoHideDock, isPro: entitlements.isPro)
+                }
+                .disabled(!entitlements.isPro)
+
+                Picker(selection: $dockPosition) {
                     ForEach(DockPosition.allCases, id: \.self) { position in
                         Text(position.rawValue).tag(position)
                     }
+                } label: {
+                    proLabel(Strings.Settings.position, isPro: entitlements.isPro)
                 }
+                .disabled(!entitlements.isPro)
 
                 HStack {
-                    Text(Strings.Settings.offset)
+                    proLabel(Strings.Settings.offset, isPro: entitlements.isPro)
                     Spacer()
                     TextField("", value: $dockOffset, format: .number)
                         .textFieldStyle(.roundedBorder)
@@ -162,20 +189,27 @@ private struct DockSettingsTab: View {
                     Text(Strings.Settings.pixelUnit)
                         .foregroundStyle(.secondary)
                 }
+                .disabled(!entitlements.isPro)
             }
 
             Section(Strings.Settings.hover) {
-                Picker(Strings.Settings.scale, selection: $hoverSize) {
+                Picker(selection: $hoverSize) {
                     ForEach(HoverSize.allCases, id: \.self) { size in
                         Text(size.rawValue).tag(size)
                     }
+                } label: {
+                    proLabel(Strings.Settings.scale, isPro: entitlements.isPro)
                 }
+                .disabled(!entitlements.isPro)
 
-                Picker(Strings.Settings.animation, selection: $hoverAnimation) {
+                Picker(selection: $hoverAnimation) {
                     ForEach(HoverAnimation.allCases, id: \.self) { style in
                         Text(style.rawValue).tag(style)
                     }
+                } label: {
+                    proLabel(Strings.Settings.animation, isPro: entitlements.isPro)
                 }
+                .disabled(!entitlements.isPro)
             }
         }
         .formStyle(.grouped)
@@ -185,6 +219,7 @@ private struct DockSettingsTab: View {
 // MARK: - Widgets
 
 private struct WidgetsSettingsTab: View {
+    @Environment(EntitlementManager.self) private var entitlements
     @AppStorage("showWeatherWidget")    private var showWeatherWidget = true
     @AppStorage("showClockWidget")      private var showClockWidget = true
     @AppStorage("showImageWidget")      private var showImageWidget = true
@@ -205,8 +240,11 @@ private struct WidgetsSettingsTab: View {
     var body: some View {
         Form {
             Section {
-                Toggle(Strings.Settings.showWeatherWidget, isOn: $showWeatherWidget)
-                if showWeatherWidget {
+                Toggle(isOn: $showWeatherWidget) {
+                    proLabel(Strings.Settings.showWeatherWidget, isPro: entitlements.isPro)
+                }
+                .disabled(!entitlements.isPro)
+                if showWeatherWidget && entitlements.isPro {
                     HStack {
                         TextField(Strings.Settings.weatherLocationField, text: $citySearchText)
                             .onSubmit { Task { await performGeocode() } }
@@ -229,10 +267,16 @@ private struct WidgetsSettingsTab: View {
                         .foregroundStyle(.secondary)
                 }
             }
-            Toggle(Strings.Settings.showClockWidget, isOn: $showClockWidget)
+            Toggle(isOn: $showClockWidget) {
+                proLabel(Strings.Settings.showClockWidget, isPro: entitlements.isPro)
+            }
+            .disabled(!entitlements.isPro)
             Section {
-                Toggle(Strings.Settings.showLEDBoard, isOn: $showLEDBoard)
-                if showLEDBoard {
+                Toggle(isOn: $showLEDBoard) {
+                    proLabel(Strings.Settings.showLEDBoard, isPro: entitlements.isPro)
+                }
+                .disabled(!entitlements.isPro)
+                if showLEDBoard && entitlements.isPro {
                     HStack {
                         Text(ledBoardImagePath.isEmpty ? Strings.Settings.ledBoardImageNone : URL(fileURLWithPath: ledBoardImagePath).lastPathComponent)
                             .foregroundStyle(.secondary)
@@ -274,8 +318,11 @@ private struct WidgetsSettingsTab: View {
                 }
             }
             Section {
-                Toggle(Strings.Settings.showImageWidget, isOn: $showImageWidget)
-                if showImageWidget {
+                Toggle(isOn: $showImageWidget) {
+                    proLabel(Strings.Settings.showImageWidget, isPro: entitlements.isPro)
+                }
+                .disabled(!entitlements.isPro)
+                if showImageWidget && entitlements.isPro {
                     HStack {
                         Text(imageWidgetDirectory)
                             .foregroundStyle(.secondary)

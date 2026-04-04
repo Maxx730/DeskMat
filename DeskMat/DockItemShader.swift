@@ -2,13 +2,14 @@ import SwiftUI
 
 /// Applies the selected visual effect shader to any dock item.
 struct DockItemShader: ViewModifier {
+    @Environment(EntitlementManager.self) private var entitlements
     @AppStorage("visualEffect") private var visualEffect: VisualEffect = .none
     @AppStorage("dockItemShaderIntensity") private var intensity = 0.5
     @State private var viewSize: CGSize = CGSize(width: 64, height: 64)
     private let startDate = Date.now
 
     func body(content: Content) -> some View {
-        if visualEffect != .none {
+        if entitlements.isPro && visualEffect != .none {
             let t = intensity
             TimelineView(.animation) { context in
                 let elapsed = context.date.timeIntervalSince(startDate)

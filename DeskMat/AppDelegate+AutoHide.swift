@@ -28,6 +28,10 @@ extension AppDelegate {
     }
 
     func evaluateMousePosition() {
+        guard entitlements.isPro else {
+            if !isDockVisible { setDockVisible(true, animated: true) }
+            return
+        }
         guard !ContentView.isDragging else { return }
         let mouse = NSEvent.mouseLocation
         let inZone = isMouseInThresholdZone(mouse)
@@ -51,7 +55,9 @@ extension AppDelegate {
         let sf = screen.frame
         let pf = panel.frame
         let threshold: CGFloat = 40
-        let position = DockPosition(rawValue: UserDefaults.standard.string(forKey: "dockPosition") ?? "Bottom") ?? .bottom
+        let position = entitlements.isPro
+            ? DockPosition(rawValue: UserDefaults.standard.string(forKey: "dockPosition") ?? "Bottom") ?? .bottom
+            : .bottom
         switch position {
         case .bottom:
             return mouse.x >= sf.minX && mouse.x <= sf.maxX && mouse.y <= pf.maxY + threshold

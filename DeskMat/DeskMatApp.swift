@@ -15,6 +15,7 @@ struct DeskMatApp: App {
 class AppDelegate: NSObject, NSApplicationDelegate {
     static let onboardingCompletedKey = "hasCompletedOnboarding"
 
+    let entitlements = EntitlementManager()
     var panel: DeskMatPanel!
     var statusItem: NSStatusItem!
     var settingsWindow: NSWindow?
@@ -48,14 +49,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         setupHotkey()
         applyAppearance()
 
-        if UserDefaults.standard.bool(forKey: "autoHideDock") {
+        if UserDefaults.standard.bool(forKey: "autoHideDock") && entitlements.isPro {
             startAutoHide()
         }
 
         NotificationCenter.default.addObserver(forName: UserDefaults.didChangeNotification,
             object: nil, queue: .main) { [weak self] _ in
             guard let self else { return }
-            if UserDefaults.standard.bool(forKey: "autoHideDock") {
+            if UserDefaults.standard.bool(forKey: "autoHideDock") && entitlements.isPro {
                 self.startAutoHide()
             } else {
                 self.stopAutoHide()
@@ -66,6 +67,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             object: nil, queue: .main) { [weak self] _ in
             self?.evaluateMousePosition()
         }
+
+        observeProStatus()
 
         if !UserDefaults.standard.bool(forKey: AppDelegate.onboardingCompletedKey) {
             showOnboarding()

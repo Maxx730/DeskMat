@@ -29,6 +29,7 @@ struct AppShortcutButton: View {
     let isReordering: Bool
     let onDragStart: (Image?) -> Void
 
+    @Environment(EntitlementManager.self) private var entitlements
     @AppStorage("showLabels") private var showLabels = true
     @AppStorage("hoverSize") private var hoverSize: HoverSize = .small
     @AppStorage("hoverAnimation") private var hoverAnimation: HoverAnimation = .bounce
@@ -163,6 +164,7 @@ struct AppShortcutButton: View {
     }
 
     private func startHoverAnimation() {
+        guard entitlements.isPro else { return }
         switch hoverAnimation {
         case .bounce:
             animateBounce()

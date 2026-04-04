@@ -78,6 +78,7 @@ extension AppDelegate {
     }
 
     @objc func exportDock() {
+        guard entitlements.isPro else { return }
         guard let dskmType = UTType(filenameExtension: "dskm") else { return }
         let savePanel = NSSavePanel()
         savePanel.title = Strings.Windows.exportDock
@@ -97,6 +98,7 @@ extension AppDelegate {
     }
 
     @objc func importDock() {
+        guard entitlements.isPro else { return }
         guard let dskmType = UTType(filenameExtension: "dskm") else { return }
         let openPanel = NSOpenPanel()
         openPanel.title = Strings.Windows.importDock
@@ -144,12 +146,16 @@ extension AppDelegate {
 
     @objc func openSettings() {
         if let window = settingsWindow {
+            // Reuse the existing window — no need to re-inject entitlements.
+            // EntitlementManager is a reference type; @Observable propagates
+            // updates through the same instance already held by the hosting view.
             window.makeKeyAndOrderFront(nil)
             NSApp.activate(ignoringOtherApps: true)
             return
         }
 
         let settingsView = SettingsView()
+            .environment(entitlements)
         let hostingView = NSHostingView(rootView: settingsView)
         hostingView.setFrameSize(NSSize(width: 480, height: 0))
         let settingsSize = NSSize(width: 480, height: hostingView.fittingSize.height)

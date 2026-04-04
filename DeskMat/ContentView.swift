@@ -2,6 +2,7 @@ import SwiftUI
 import AppKit
 
 struct ContentView: View {
+    @Environment(EntitlementManager.self) private var entitlements
     @State private var shortcuts: [AppShortcut] = AppShortcutStore.load()
     @AppStorage("showWeatherWidget") private var showWeatherWidget = true
     @AppStorage("showClockWidget") private var showClockWidget = true
@@ -57,19 +58,19 @@ struct ContentView: View {
                         .padding(.horizontal, 4)
                 }
 
-                if showWeatherWidget {
+                if entitlements.isPro && showWeatherWidget {
                     WeatherWidget()
                 }
 
-                if showImageWidget {
+                if entitlements.isPro && showImageWidget {
                     ImageWidget()
                 }
 
-                if showLEDBoard {
+                if entitlements.isPro && showLEDBoard {
                     LEDBoardWidget()
                 }
 
-                if showClockWidget {
+                if entitlements.isPro && showClockWidget {
                     ClockWidget()
                 }
             }
@@ -80,12 +81,14 @@ struct ContentView: View {
                 Button(Strings.Menu.addShortcut) {
                     NotificationCenter.default.post(name: .addShortcut, object: nil)
                 }
-                Divider()
-                Button(Strings.Menu.exportDock) {
-                    NotificationCenter.default.post(name: .exportDock, object: nil)
-                }
-                Button(Strings.Menu.importDock) {
-                    NotificationCenter.default.post(name: .importDock, object: nil)
+                if entitlements.isPro {
+                    Divider()
+                    Button(Strings.Menu.exportDock) {
+                        NotificationCenter.default.post(name: .exportDock, object: nil)
+                    }
+                    Button(Strings.Menu.importDock) {
+                        NotificationCenter.default.post(name: .importDock, object: nil)
+                    }
                 }
                 Divider()
                 Button(Strings.Menu.settings) {
@@ -121,7 +124,7 @@ struct ContentView: View {
                 .onChange(of: geo.size.height) { _, h in windowContentHeight = h }
         })
         .background {
-            switch dockBackground {
+            switch entitlements.isPro ? dockBackground : .system {
             case .system:
                 VisualEffectBackground()
             case .color:
@@ -134,7 +137,7 @@ struct ContentView: View {
     }
 
     private var anyWidgetVisible: Bool {
-        showWeatherWidget || showImageWidget || showLEDBoard || showClockWidget
+        entitlements.isPro && (showWeatherWidget || showImageWidget || showLEDBoard || showClockWidget)
     }
 
     private func removeShortcut(_ shortcut: AppShortcut) {
@@ -272,4 +275,5 @@ private struct DragGhostIcon: View {
 
 #Preview {
     ContentView()
+        .environment(EntitlementManager())
 }

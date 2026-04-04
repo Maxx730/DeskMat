@@ -1,0 +1,31 @@
+{
+  "identifier" : "DeskMat",
+  "nonConsumableProducts" : [
+    {
+      "displayPrice" : "9.99",
+      "familySharable" : true,
+      "internalID" : "1000000001",
+      "localizations" : [
+        {
+          "description" : "Unlock all Pro features: widgets, animations, visual effects, auto-hide, import/export, and more.",
+          "displayName" : "DeskMat Pro",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "com.deskmat.pro",
+      "referenceName" : "DeskMat Pro",
+      "type" : "NonConsumable"
+    }
+  ],
+  "settings" : {
+    "_storeKitVersion" : 2,
+    "defaultLocale" : "en_US",
+    "simulatesAskToBuyInSandbox" : false
+  },
+  "subscriptionGroups" : [],
+  "version" : {
+    "major" : 3,
+    "minor" : 0,
+    "patch" : 0
+  }
+}

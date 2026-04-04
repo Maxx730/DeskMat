@@ -4,6 +4,7 @@ import SwiftUI
 extension AppDelegate {
     func setupPanel() {
         let content = ContentView()
+            .environment(entitlements)
 
         let hostingView = NSHostingView(rootView: content)
         hostingView.setFrameSize(hostingView.fittingSize)
@@ -53,8 +54,10 @@ extension AppDelegate {
         let screenFrame = screen.visibleFrame
         let panelSize = panel.frame.size
         let x = screenFrame.midX - panelSize.width / 2
-        let position = DockPosition(rawValue: UserDefaults.standard.string(forKey: "dockPosition") ?? "Bottom") ?? .bottom
-        let offset = CGFloat(UserDefaults.standard.integer(forKey: "dockOffset"))
+        let position = entitlements.isPro
+            ? DockPosition(rawValue: UserDefaults.standard.string(forKey: "dockPosition") ?? "Bottom") ?? .bottom
+            : .bottom
+        let offset = entitlements.isPro ? CGFloat(UserDefaults.standard.integer(forKey: "dockOffset")) : 0
         let y: CGFloat
         switch position {
         case .bottom: y = screenFrame.minY + offset

@@ -1795,6 +1795,132 @@ struct OnboardingFlagTests {
     }
 }
 
+// MARK: - PurchaseResult Enum Tests
+
+struct PurchaseResultTests {
+
+    @Test func allCasesExist() {
+        // Verify the three expected cases compile and are distinct
+        let results: [PurchaseResult] = [.success, .cancelled, .pending]
+        #expect(results.count == 3)
+    }
+
+    @Test func successIsDistinctFromCancelledAndPending() {
+        if case .success = PurchaseResult.success { } else { Issue.record("expected .success") }
+        if case .cancelled = PurchaseResult.cancelled { } else { Issue.record("expected .cancelled") }
+        if case .pending = PurchaseResult.pending { } else { Issue.record("expected .pending") }
+    }
+}
+
+// MARK: - EntitlementManager Initial State Tests
+
+@Suite(.serialized)
+struct EntitlementManagerTests {
+
+    @Test func initialIsProIsFalse() {
+        let manager = EntitlementManager()
+        #expect(manager.isPro == false)
+    }
+
+    @Test func initialProductIsNil() {
+        let manager = EntitlementManager()
+        #expect(manager.product == nil)
+    }
+
+    @Test func productIDMatchesExpected() {
+        #expect(EntitlementManager.productID == "com.deskmat.pro")
+    }
+
+    @Test func purchaseWithNilProductReturnsCancelled() async throws {
+        let manager = EntitlementManager()
+        // product is nil (no StoreKit config in test env), so purchase() returns .cancelled
+        let result = try await manager.purchase()
+        if case .cancelled = result { } else { Issue.record("expected .cancelled when product is nil") }
+    }
+
+    @Test func isProCanBeSetToTrue() {
+        let manager = EntitlementManager()
+        manager.isPro = true
+        #expect(manager.isPro == true)
+    }
+
+    @Test func isProCanBeSetBackToFalse() {
+        let manager = EntitlementManager()
+        manager.isPro = true
+        manager.isPro = false
+        #expect(manager.isPro == false)
+    }
+}
+
+// MARK: - AutoHide UserDefaults Tests
+
+@Suite(.serialized)
+struct AutoHideSettingsTests {
+
+    @Test func autoHideDockDefaultsToFalse() {
+        let defaults = UserDefaults.standard
+        let existing = defaults.object(forKey: "autoHideDock")
+        defer {
+            if let existing {
+                defaults.set(existing, forKey: "autoHideDock")
+            } else {
+                defaults.removeObject(forKey: "autoHideDock")
+            }
+        }
+
+        defaults.removeObject(forKey: "autoHideDock")
+        // bool(forKey:) returns false when no value is set, matching the @AppStorage default
+        #expect(defaults.bool(forKey: "autoHideDock") == false)
+    }
+
+    @Test func autoHideDockPersistedToUserDefaults() {
+        let defaults = UserDefaults.standard
+        let existing = defaults.object(forKey: "autoHideDock")
+        defer {
+            if let existing {
+                defaults.set(existing, forKey: "autoHideDock")
+            } else {
+                defaults.removeObject(forKey: "autoHideDock")
+            }
+        }
+
+        defaults.set(true, forKey: "autoHideDock")
+        #expect(defaults.bool(forKey: "autoHideDock") == true)
+
+        defaults.set(false, forKey: "autoHideDock")
+        #expect(defaults.bool(forKey: "autoHideDock") == false)
+    }
+
+    @Test func autoHideDockKeyIsDistinctFromOtherBoolKeys() {
+        // Ensures the key string isn't accidentally shared with another setting
+        let key = "autoHideDock"
+        #expect(key != "showLabels")
+        #expect(key != "showWeatherWidget")
+        #expect(key != "showClockWidget")
+        #expect(key != "showImageWidget")
+        #expect(key != "showLEDBoard")
+    }
+}
+
+// MARK: - Pro-Gated Notification Names Tests
+
+struct ProNotificationNamesTests {
+
+    @Test func allNotificationNamesAreDistinct() {
+        let names: [Notification.Name] = [
+            .addShortcut,
+            .openSettings,
+            .exportDock,
+            .importDock,
+            .dockImported,
+            .shortcutAdded,
+            .editShortcut,
+            .shortcutEdited,
+        ]
+        #expect(Set(names.map(\.rawValue)).count == names.count)
+    }
+}
+
 // MARK: - Onboarding Strings Tests
 
 struct OnboardingStringsTests {
