@@ -14,6 +14,10 @@ enum AppearanceMode: String, CaseIterable {
 enum VisualEffect: String, CaseIterable {
     case none = "None"
     case scanlineWiggle = "Scanline Wiggle"
+    case hueDrift = "Hue Drift"
+    case filmGrain = "Film Grain"
+    case pixelate = "Pixelate"
+    case softBloom = "Soft Bloom"
 }
 
 enum DockBackground: String, CaseIterable {
