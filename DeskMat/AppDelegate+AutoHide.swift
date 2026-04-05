@@ -28,10 +28,6 @@ extension AppDelegate {
     }
 
     func evaluateMousePosition() {
-        guard entitlements.isPro else {
-            if !isDockVisible { setDockVisible(true, animated: true) }
-            return
-        }
         guard !ContentView.isDragging else { return }
         let mouse = NSEvent.mouseLocation
         let inZone = isMouseInThresholdZone(mouse)
@@ -53,28 +49,79 @@ extension AppDelegate {
     func isMouseInThresholdZone(_ mouse: NSPoint) -> Bool {
         guard let screen = panel.screen ?? NSScreen.main else { return true }
         let sf = screen.frame
-        let pf = panel.frame
+        let visibleFrame = screen.visibleFrame
         let threshold: CGFloat = 40
-        let position = entitlements.isPro
-            ? DockPosition(rawValue: UserDefaults.standard.string(forKey: "dockPosition") ?? "Bottom") ?? .bottom
-            : .bottom
+        let position = DockPosition(rawValue: UserDefaults.standard.string(forKey: "dockPosition") ?? "Bottom") ?? .bottom
+        let offset = CGFloat(UserDefaults.standard.integer(forKey: "dockOffset"))
+        let panelHeight = panel.frame.height
         switch position {
         case .bottom:
-            return mouse.x >= sf.minX && mouse.x <= sf.maxX && mouse.y <= pf.maxY + threshold
+            let dockedMaxY = visibleFrame.minY + offset + panelHeight
+            return mouse.x >= sf.minX && mouse.x <= sf.maxX && mouse.y <= dockedMaxY + threshold
         case .top:
-            return mouse.x >= sf.minX && mouse.x <= sf.maxX && mouse.y >= pf.minY - threshold
+            let dockedMinY = visibleFrame.maxY - panelHeight - offset
+            return mouse.x >= sf.minX && mouse.x <= sf.maxX && mouse.y >= dockedMinY - threshold
         }
     }
 
     func setDockVisible(_ visible: Bool, animated: Bool) {
         isDockVisible = visible
-        if animated {
+        let animation = HideAnimation(rawValue: UserDefaults.standard.string(forKey: "hideAnimation") ?? "Fade") ?? .fade
+        guard animated else {
+            panel.alphaValue = visible ? 1.0 : 0.0
+            if visible { repositionPanel() }
+            return
+        }
+        switch animation {
+        case .fade:
+            // If previously slid off-screen, snap back to docked position before fading
+            repositionPanel()
             NSAnimationContext.runAnimationGroup { ctx in
                 ctx.duration = 0.2
                 panel.animator().alphaValue = visible ? 1.0 : 0.0
             }
-        } else {
-            panel.alphaValue = visible ? 1.0 : 0.0
+        case .slide:
+            // If previously faded out, restore full opacity before sliding
+            panel.alphaValue = 1.0
+            if visible {
+                slideIn()
+            } else {
+                slideOut()
+            }
+        }
+    }
+
+    private func slideOut() {
+        guard let screen = panel.screen ?? NSScreen.main else { return }
+        let position = DockPosition(rawValue: UserDefaults.standard.string(forKey: "dockPosition") ?? "Bottom") ?? .bottom
+        var hiddenOrigin = panel.frame.origin
+        switch position {
+        case .bottom: hiddenOrigin.y = screen.frame.minY - panel.frame.height
+        case .top:    hiddenOrigin.y = screen.frame.maxY
+        }
+        let targetFrame = NSRect(origin: hiddenOrigin, size: panel.frame.size)
+        NSAnimationContext.runAnimationGroup { ctx in
+            ctx.duration = 0.25
+            ctx.timingFunction = CAMediaTimingFunction(name: .easeIn)
+            panel.animator().setFrame(targetFrame, display: true)
+        }
+    }
+
+    private func slideIn() {
+        guard let screen = panel.screen ?? NSScreen.main else { return }
+        let position = DockPosition(rawValue: UserDefaults.standard.string(forKey: "dockPosition") ?? "Bottom") ?? .bottom
+        var hiddenOrigin = panel.frame.origin
+        switch position {
+        case .bottom: hiddenOrigin.y = screen.frame.minY - panel.frame.height
+        case .top:    hiddenOrigin.y = screen.frame.maxY
+        }
+        panel.setFrameOrigin(hiddenOrigin)
+        let panelSize = panel.frame.size
+        let targetFrame = NSRect(origin: dockedOrigin(for: screen), size: panelSize)
+        NSAnimationContext.runAnimationGroup { ctx in
+            ctx.duration = 0.25
+            ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
+            panel.animator().setFrame(targetFrame, display: true)
         }
     }
 }

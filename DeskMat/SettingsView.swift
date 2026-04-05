@@ -105,28 +105,22 @@ private struct AppearanceSettingsTab: View {
 
     var body: some View {
         Form {
-            Picker(selection: $appearanceMode) {
+            Picker(Strings.Settings.theme, selection: $appearanceMode) {
                 ForEach(AppearanceMode.allCases, id: \.self) { mode in
                     Text(mode.rawValue).tag(mode)
                 }
-            } label: {
-                proLabel(Strings.Settings.theme, isPro: entitlements.isPro)
             }
-            .disabled(!entitlements.isPro)
 
             Toggle(Strings.Settings.showLabels, isOn: $showLabels)
             Toggle(Strings.Settings.showWidgetDivider, isOn: $showWidgetDivider)
 
-            Picker(selection: $dockBackground) {
+            Picker(Strings.Settings.dockBackground, selection: $dockBackground) {
                 ForEach(DockBackground.allCases, id: \.self) { style in
                     Text(style.rawValue).tag(style)
                 }
-            } label: {
-                proLabel(Strings.Settings.dockBackground, isPro: entitlements.isPro)
             }
-            .disabled(!entitlements.isPro)
 
-            if dockBackground == .color && entitlements.isPro {
+            if dockBackground == .color {
                 ColorPicker(Strings.Settings.dockBackgroundColor, selection: Binding(
                     get: { dockBackgroundColor },
                     set: { newColor in dockBackgroundColorHex = ColorUtils.toHex(newColor) }
@@ -155,32 +149,34 @@ private struct AppearanceSettingsTab: View {
 // MARK: - Dock
 
 private struct DockSettingsTab: View {
-    @Environment(EntitlementManager.self) private var entitlements
     @AppStorage("dockPosition") private var dockPosition: DockPosition = .bottom
     @AppStorage("dockOffset") private var dockOffset = 0
     @AppStorage("hoverSize") private var hoverSize: HoverSize = .small
     @AppStorage("hoverAnimation") private var hoverAnimation: HoverAnimation = .bounce
     @AppStorage("autoHideDock") private var autoHideDock = false
+    @AppStorage("hideAnimation") private var hideAnimation: HideAnimation = .fade
 
     var body: some View {
         Form {
             Section(Strings.Settings.dock) {
-                Toggle(isOn: $autoHideDock) {
-                    proLabel(Strings.Settings.autoHideDock, isPro: entitlements.isPro)
-                }
-                .disabled(!entitlements.isPro)
+                Toggle(Strings.Settings.autoHideDock, isOn: $autoHideDock)
 
-                Picker(selection: $dockPosition) {
+                if autoHideDock {
+                    Picker(Strings.Settings.hideAnimation, selection: $hideAnimation) {
+                        ForEach(HideAnimation.allCases, id: \.self) { anim in
+                            Text(anim.rawValue).tag(anim)
+                        }
+                    }
+                }
+
+                Picker(Strings.Settings.position, selection: $dockPosition) {
                     ForEach(DockPosition.allCases, id: \.self) { position in
                         Text(position.rawValue).tag(position)
                     }
-                } label: {
-                    proLabel(Strings.Settings.position, isPro: entitlements.isPro)
                 }
-                .disabled(!entitlements.isPro)
 
                 HStack {
-                    proLabel(Strings.Settings.offset, isPro: entitlements.isPro)
+                    Text(Strings.Settings.offset)
                     Spacer()
                     TextField("", value: $dockOffset, format: .number)
                         .textFieldStyle(.roundedBorder)
@@ -189,27 +185,20 @@ private struct DockSettingsTab: View {
                     Text(Strings.Settings.pixelUnit)
                         .foregroundStyle(.secondary)
                 }
-                .disabled(!entitlements.isPro)
             }
 
             Section(Strings.Settings.hover) {
-                Picker(selection: $hoverSize) {
+                Picker(Strings.Settings.scale, selection: $hoverSize) {
                     ForEach(HoverSize.allCases, id: \.self) { size in
                         Text(size.rawValue).tag(size)
                     }
-                } label: {
-                    proLabel(Strings.Settings.scale, isPro: entitlements.isPro)
                 }
-                .disabled(!entitlements.isPro)
 
-                Picker(selection: $hoverAnimation) {
+                Picker(Strings.Settings.animation, selection: $hoverAnimation) {
                     ForEach(HoverAnimation.allCases, id: \.self) { style in
                         Text(style.rawValue).tag(style)
                     }
-                } label: {
-                    proLabel(Strings.Settings.animation, isPro: entitlements.isPro)
                 }
-                .disabled(!entitlements.isPro)
             }
         }
         .formStyle(.grouped)

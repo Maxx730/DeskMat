@@ -49,20 +49,22 @@ extension AppDelegate {
         repositionPanel()
     }
 
-    func repositionPanel() {
-        guard let screen = NSScreen.main else { return }
+    func dockedOrigin(for screen: NSScreen) -> NSPoint {
         let screenFrame = screen.visibleFrame
         let panelSize = panel.frame.size
         let x = screenFrame.midX - panelSize.width / 2
-        let position = entitlements.isPro
-            ? DockPosition(rawValue: UserDefaults.standard.string(forKey: "dockPosition") ?? "Bottom") ?? .bottom
-            : .bottom
-        let offset = entitlements.isPro ? CGFloat(UserDefaults.standard.integer(forKey: "dockOffset")) : 0
+        let position = DockPosition(rawValue: UserDefaults.standard.string(forKey: "dockPosition") ?? "Bottom") ?? .bottom
+        let offset = CGFloat(UserDefaults.standard.integer(forKey: "dockOffset"))
         let y: CGFloat
         switch position {
         case .bottom: y = screenFrame.minY + offset
         case .top:    y = screenFrame.maxY - panelSize.height - offset
         }
-        panel.setFrameOrigin(NSPoint(x: x, y: y))
+        return NSPoint(x: x, y: y)
+    }
+
+    func repositionPanel() {
+        guard let screen = NSScreen.main else { return }
+        panel.setFrameOrigin(dockedOrigin(for: screen))
     }
 }

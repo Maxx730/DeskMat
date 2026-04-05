@@ -21,3 +21,8 @@ enum DockBackground: String, CaseIterable {
     case color = "Color"
     case transparent = "Transparent"
 }
+
+enum HideAnimation: String, CaseIterable {
+    case fade  = "Fade"
+    case slide = "Slide"
+}
