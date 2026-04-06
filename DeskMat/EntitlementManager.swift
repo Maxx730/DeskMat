@@ -6,8 +6,11 @@ enum PurchaseResult { case success, cancelled, pending }
 @Observable
 class EntitlementManager {
     static let productID = "com.deskmat.pro"
+    private static let cachedProKey = "cachedIsPro"
 
-    var isPro = false
+    /// Seeded from the UserDefaults cache so the first render is correct
+    /// without waiting for StoreKit. StoreKit verification updates the cache.
+    var isPro = UserDefaults.standard.bool(forKey: cachedProKey)
 
     private(set) var product: Product?
     private var transactionListener: Task<Void, Error>?
@@ -25,8 +28,9 @@ class EntitlementManager {
         ) { [weak self] _ in
             guard let self else { return }
             if UserDefaults.standard.bool(forKey: "debugProOverride") {
-                self.isPro = true
+                self.grantPro()
             } else {
+                self.clearProCache()
                 Task { await self.refresh() }
             }
         }
@@ -37,12 +41,29 @@ class EntitlementManager {
         transactionListener?.cancel()
     }
 
+    /// Sets isPro and persists the value to the UserDefaults cache.
+    /// Guards against redundant writes to avoid re-triggering didChangeNotification.
+    @MainActor
+    func grantPro() {
+        isPro = true
+        if !UserDefaults.standard.bool(forKey: Self.cachedProKey) {
+            UserDefaults.standard.set(true, forKey: Self.cachedProKey)
+        }
+    }
+
+    /// Clears the UserDefaults cache without touching isPro (used by debug override).
+    func clearProCache() {
+        if UserDefaults.standard.object(forKey: Self.cachedProKey) != nil {
+            UserDefaults.standard.removeObject(forKey: Self.cachedProKey)
+        }
+    }
+
     func purchase() async throws -> PurchaseResult {
         guard let product else { return .cancelled }
         switch try await product.purchase() {
         case .success(let verification):
             if case .verified(let transaction) = verification {
-                await MainActor.run { isPro = true }
+                await MainActor.run { grantPro() }
                 await transaction.finish()
                 return .success
             }
@@ -70,7 +91,7 @@ class EntitlementManager {
         for await result in Transaction.currentEntitlements {
             if case .verified(let transaction) = result,
                transaction.productID == Self.productID {
-                isPro = true
+                grantPro()
                 return
             }
         }
@@ -85,7 +106,7 @@ class EntitlementManager {
         Task { [weak self] in
             for await result in Transaction.updates {
                 if case .verified(let transaction) = result {
-                    await MainActor.run { self?.isPro = true }
+                    await MainActor.run { self?.grantPro() }
                     await transaction.finish()
                 }
             }

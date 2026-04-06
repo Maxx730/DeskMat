@@ -18,6 +18,8 @@ enum VisualEffect: String, CaseIterable {
     case filmGrain = "Film Grain"
     case pixelate = "Pixelate"
     case softBloom = "Soft Bloom"
+    case heatShimmer = "Heat Shimmer"
+    case oldFilm = "Old Film"
 }
 
 enum DockBackground: String, CaseIterable {

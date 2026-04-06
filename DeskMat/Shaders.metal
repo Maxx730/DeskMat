@@ -71,29 +71,36 @@ float scanlineNoise(float2 uv, float offset) {
 }
 
 /// Soft bloom layer effect.
-/// Blurs a neighborhood of pixels, extracts the bright regions, and adds them
-/// back additively — creating a gentle luminous glow around highlights.
+/// Blurs a 7x7 Gaussian neighborhood (Pascal row-6 weights, 1-pixel step) and
+/// adds bright regions back additively — producing a smooth, non-pixelated glow.
+/// Using 1-pixel steps keeps the kernel dense so there are no visible grid gaps.
 /// - position: pixel coordinate in user space
 /// - layer: the rasterized SwiftUI layer
 /// - intensity: bloom strength 0..1
 [[stitchable]] half4 softBloom(float2 position, SwiftUI::Layer layer, float intensity) {
     half4 center = layer.sample(position);
+    if (center.a < 0.01h) return center;
 
-    // Accumulate a blurred sample over a 5x5 neighborhood
+    // Pascal row-6 Gaussian weights (7 taps, sigma ≈ 1.5, sums to 1.0)
+    const float gw[7] = { 0.015625, 0.09375, 0.234375, 0.3125, 0.234375, 0.09375, 0.015625 };
+
+    // Dense 7x7 kernel at 1-pixel steps — no gaps, smooth result.
+    // The glow radius is fixed at 3 px; intensity controls how much is added back.
     half4 blur = half4(0.0h);
-    float radius = 2.0 + intensity * 3.0;
-    for (int dx = -2; dx <= 2; dx++) {
-        for (int dy = -2; dy <= 2; dy++) {
-            blur += layer.sample(position + float2(float(dx), float(dy)) * radius);
+    for (int i = 0; i < 7; i++) {
+        for (int j = 0; j < 7; j++) {
+            float w = gw[i] * gw[j];
+            float2 offset = float2(float(i - 3), float(j - 3));
+            blur += half(w) * layer.sample(position + offset);
         }
     }
-    blur /= 25.0h;
+    // 2D weights are products of 1D weights which sum to 1, so no division needed.
 
-    // Only bloom pixels above a brightness threshold so darks stay clean
-    half brightness = (blur.r * 0.299h + blur.g * 0.587h + blur.b * 0.114h);
-    half bloomStrength = smoothstep(0.25h, 0.9h, brightness) * half(intensity);
+    // Only add bloom to pixels above a brightness threshold so dark areas stay clean
+    half luma = dot(blur.rgb, half3(0.299h, 0.587h, 0.114h));
+    half bloomStrength = smoothstep(0.2h, 0.9h, luma) * half(intensity);
 
-    half3 bloomed = clamp(center.rgb + blur.rgb * bloomStrength * 0.8h, 0.0h, 1.0h);
+    half3 bloomed = clamp(center.rgb + blur.rgb * bloomStrength, 0.0h, 1.0h);
     return half4(bloomed, center.a);
 }
 
@@ -122,6 +129,86 @@ float scanlineNoise(float2 uv, float offset) {
     float noise = fract(sin(dot(uv, float2(12.9898, 78.233))) * 43758.5453) - 0.5;
     float3 result = clamp(float3(color.rgb) + noise * intensity, 0.0, 1.0);
     return half4(half3(result), color.a);
+}
+
+/// Heat shimmer layer effect.
+/// Displaces pixels vertically with two octaves of sine waves, simulating the
+/// look of air distorted by heat rising from a hot surface. At low intensity
+/// the icon gently breathes; at high intensity it warps noticeably.
+/// - position: pixel coordinate in user space
+/// - layer: the rasterized SwiftUI layer
+/// - time: elapsed time for animation
+/// - intensity: distortion strength 0..1
+[[stitchable]] half4 heatShimmer(float2 position, SwiftUI::Layer layer, float time, float intensity) {
+    float amplitude = intensity * 3.0;
+
+    // Primary wave: wide, slow horizontal variation
+    float dy1 = sin(position.x * 0.08 + time * 1.2) * amplitude;
+    // Secondary octave: narrower and slightly faster for organic complexity
+    float dy2 = sin(position.x * 0.04 + time * 0.7 + 1.5) * amplitude * 0.5;
+
+    return layer.sample(position + float2(0.0, dy1 + dy2));
+}
+
+/// Old film layer effect.
+/// Combines four classic film-damage signals: sepia tone, edge vignette,
+/// animated grain, periodic flicker, and occasional vertical scratch lines.
+/// Gate weave (per-row horizontal jitter) adds the final touch of analogue instability.
+/// - position:   pixel coordinate in user space
+/// - layer:      the rasterized SwiftUI layer
+/// - time:       elapsed time for animation
+/// - intensity:  overall effect strength 0..1
+/// - viewWidth:  view width in points (for vignette UV and scratch placement)
+/// - viewHeight: view height in points (for vignette UV)
+[[stitchable]] half4 oldFilm(
+    float2 position,
+    SwiftUI::Layer layer,
+    float  time,
+    float  intensity,
+    float  viewWidth,
+    float  viewHeight
+) {
+    // Gate weave: quantise rows into 2-pt bands and jitter each band horizontally,
+    // simulating film slipping slightly in the projector gate.
+    float rowSeed = floor(position.y / 2.0);
+    float weave   = sin(rowSeed * 127.1 + time * 2.5) * intensity * 0.8;
+    half4 color   = layer.sample(position + float2(weave, 0.0));
+    if (color.a < 0.01h) return color;
+
+    float3 rgb = float3(color.rgb);
+
+    // Sepia: convert to luminance then re-tint with warm brown
+    float luma   = dot(rgb, float3(0.299, 0.587, 0.114));
+    float3 sepia = clamp(float3(luma * 1.15 + 0.05, luma * 0.88, luma * 0.55), 0.0, 1.0);
+    rgb = mix(rgb, sepia, intensity * 0.85);
+
+    // Vignette: darken towards the edges using normalised UV distance
+    float2 uv       = (position / float2(viewWidth, viewHeight)) * 2.0 - 1.0;
+    float  vignette = 1.0 - clamp(dot(uv * 0.8, uv * 0.8) * intensity, 0.0, 0.65);
+    rgb *= vignette;
+
+    // Grain: hash-based per-pixel noise that shifts each frame
+    float2 grainPos = position + fract(time * 97.3);
+    float  grain    = fract(sin(dot(grainPos, float2(12.9898, 78.233))) * 43758.5453) - 0.5;
+    rgb = clamp(rgb + grain * (0.04 + intensity * 0.06), 0.0, 1.0);
+
+    // Flicker: two beating sine waves produce an irregular brightness pulse
+    float flicker = 1.0 + sin(time * 8.1 + 0.5) * sin(time * 3.7) * 0.025 * intensity;
+    rgb = clamp(rgb * flicker, 0.0, 1.0);
+
+    // Scratch: a random thin vertical line that appears ~25% of the time
+    float scratchFrame = floor(time * 1.5);
+    float scratchRand  = fract(sin(scratchFrame * 127.1 + 31.4) * 43758.5453);
+    if (scratchRand > 0.75) {
+        float scratchX = fract(sin(scratchFrame * 93.989) * 43758.5) * viewWidth;
+        float dist     = abs(position.x - scratchX);
+        if (dist < 1.0) {
+            float brightness = 0.75 + grain * 0.25;
+            rgb = mix(rgb, float3(brightness), intensity * 0.6 * (1.0 - dist));
+        }
+    }
+
+    return half4(half3(rgb), color.a);
 }
 
 /// Hue drift color effect.

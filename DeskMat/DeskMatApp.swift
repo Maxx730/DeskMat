@@ -33,6 +33,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var hideWorkItem: DispatchWorkItem?
     var isDockHidden = false
     var isDockVisible = true
+    var isFullscreenHidden = false
+    var fullscreenTimer: Timer?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
@@ -69,6 +71,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         observeProStatus()
+        startFullscreenObserver()
 
         if !UserDefaults.standard.bool(forKey: AppDelegate.onboardingCompletedKey) {
             showOnboarding()

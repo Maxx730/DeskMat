@@ -334,6 +334,19 @@ private struct WidgetsSettingsTab: View {
                     }
                 }
             }
+            Section {
+                Toggle(isOn: $showSystemWidget) {
+                    proLabel(Strings.Settings.showSystemWidget, isPro: entitlements.isPro)
+                }
+                .disabled(!entitlements.isPro)
+                if showSystemWidget && entitlements.isPro {
+                    Picker(Strings.Settings.sysWidgetMetric, selection: $sysWidgetMetric) {
+                        ForEach(SystemMetric.allCases, id: \.self) { metric in
+                            Text(metric.rawValue).tag(metric)
+                        }
+                    }
+                }
+            }
         }
         .formStyle(.grouped)
     }

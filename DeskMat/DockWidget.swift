@@ -47,7 +47,6 @@ struct DockWidget<Content: View>: View {
                     .tint(.white)
             } else {
                 content
-                    .dockItemShader()
             }
         }
         .frame(width: width, height: height)

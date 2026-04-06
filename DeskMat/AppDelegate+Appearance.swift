@@ -12,8 +12,20 @@ extension AppDelegate {
         } onChange: { [weak self] in
             DispatchQueue.main.async {
                 self?.applyAppearance()
-                self?.repositionPanel()
                 self?.observeProStatus()
+                // A second dispatch waits for SwiftUI's render cycle to complete
+                // before measuring fittingSize. The first dispatch runs in the
+                // same run loop pass as the observation callback — before SwiftUI
+                // has re-rendered ContentView. The second runs on the next pass,
+                // by which time fittingSize reflects the updated content (with
+                // pro widgets), so the panel resizes correctly.
+                DispatchQueue.main.async {
+                    guard let self else { return }
+                    if let contentView = self.panel.contentView {
+                        self.panel.setContentSize(contentView.fittingSize)
+                    }
+                    self.repositionPanel()
+                }
             }
         }
     }

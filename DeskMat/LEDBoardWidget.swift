@@ -162,8 +162,9 @@ private struct LEDGrid: View {
                     )
 
                     let spriteCol = col - spriteLeft
-                    let spriteColor: Color? = (!pixels.isEmpty && spriteCol >= 0 && spriteCol < columns)
-                        ? pixels[row][spriteCol]
+                    let pixelRow = pixels.isEmpty ? nil : pixels[row]
+                    let spriteColor: Color? = (pixelRow != nil && spriteCol >= 0 && spriteCol < pixelRow!.count)
+                        ? pixelRow![spriteCol]
                         : nil
 
                     context.fill(Path(ellipseIn: rect), with: .color(spriteColor ?? .black.opacity(0.25)))
