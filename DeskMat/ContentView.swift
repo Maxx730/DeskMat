@@ -8,6 +8,7 @@ struct ContentView: View {
     @AppStorage("showClockWidget") private var showClockWidget = true
     @AppStorage("showImageWidget") private var showImageWidget = true
     @AppStorage("showLEDBoard") private var showLEDBoard = true
+    @AppStorage("showSystemWidget") private var showSystemWidget = true
     @AppStorage("dockBackground") private var dockBackground: DockBackground = .system
     @AppStorage("dockBackgroundColorHex") private var dockBackgroundColorHex: String = "#000000ff"
     @AppStorage("showWidgetDivider") private var showWidgetDivider = true
@@ -73,6 +74,10 @@ struct ContentView: View {
                 if entitlements.isPro && showClockWidget {
                     ClockWidget()
                 }
+
+                if entitlements.isPro && showSystemWidget {
+                    SystemWidget()
+                }
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 10)
@@ -124,7 +129,7 @@ struct ContentView: View {
                 .onChange(of: geo.size.height) { _, h in windowContentHeight = h }
         })
         .background {
-            switch entitlements.isPro ? dockBackground : .system {
+            switch dockBackground {
             case .system:
                 VisualEffectBackground()
             case .color:
@@ -137,7 +142,7 @@ struct ContentView: View {
     }
 
     private var anyWidgetVisible: Bool {
-        entitlements.isPro && (showWeatherWidget || showImageWidget || showLEDBoard || showClockWidget)
+        entitlements.isPro && (showWeatherWidget || showImageWidget || showLEDBoard || showClockWidget || showSystemWidget)
     }
 
     private func removeShortcut(_ shortcut: AppShortcut) {

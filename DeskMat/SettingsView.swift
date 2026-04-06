@@ -213,6 +213,8 @@ private struct WidgetsSettingsTab: View {
     @AppStorage("showClockWidget")      private var showClockWidget = true
     @AppStorage("showImageWidget")      private var showImageWidget = true
     @AppStorage("showLEDBoard")         private var showLEDBoard = true
+    @AppStorage("showSystemWidget")     private var showSystemWidget = true
+    @AppStorage("sysWidgetMetric")      private var sysWidgetMetric: SystemMetric = .cpu
     @AppStorage(LEDBoardWidget.imagePathKey)  private var ledBoardImagePath = ""
     @AppStorage(LEDBoardWidget.scrollSpeedKey) private var ledBoardScrollSpeed = 80
     @AppStorage(LEDBoardWidget.frameSpeedKey)  private var ledBoardFrameSpeed = 150

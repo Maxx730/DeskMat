@@ -16,6 +16,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     static let onboardingCompletedKey = "hasCompletedOnboarding"
 
     let entitlements = EntitlementManager()
+    let systemMonitor = SystemMonitorService()
     var panel: DeskMatPanel!
     var statusItem: NSStatusItem!
     var settingsWindow: NSWindow?
@@ -46,17 +47,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         NotificationCenter.default.addObserver(self, selector: #selector(addShortcut), name: .addShortcut, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(editShortcut(_:)), name: .editShortcut, object: nil)
 
-        setupHotkey()
         applyAppearance()
 
-        if UserDefaults.standard.bool(forKey: "autoHideDock") && entitlements.isPro {
+        if UserDefaults.standard.bool(forKey: "autoHideDock") {
             startAutoHide()
         }
 
         NotificationCenter.default.addObserver(forName: UserDefaults.didChangeNotification,
             object: nil, queue: .main) { [weak self] _ in
             guard let self else { return }
-            if UserDefaults.standard.bool(forKey: "autoHideDock") && entitlements.isPro {
+            if UserDefaults.standard.bool(forKey: "autoHideDock") {
                 self.startAutoHide()
             } else {
                 self.stopAutoHide()
@@ -100,7 +100,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(NSMenuItem(title: Strings.Menu.exportDock, action: #selector(exportDock), keyEquivalent: "e"))
         menu.addItem(NSMenuItem(title: Strings.Menu.importDock, action: #selector(importDock), keyEquivalent: "i"))
         menu.addItem(NSMenuItem.separator())
-        menu.addItem(NSMenuItem(title: Strings.Menu.toggleDock, action: #selector(toggleDock), keyEquivalent: "d"))
         menu.item(withTitle: Strings.Menu.toggleDock)?.keyEquivalentModifierMask = [.command, .shift]
         menu.addItem(NSMenuItem(title: Strings.Menu.settings, action: #selector(openSettings), keyEquivalent: ","))
         menu.addItem(NSMenuItem(title: Strings.Menu.quitDeskMat, action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))

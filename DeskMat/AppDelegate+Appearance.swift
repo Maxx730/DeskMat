@@ -19,10 +19,6 @@ extension AppDelegate {
     }
 
     func applyAppearance() {
-        guard entitlements.isPro else {
-            NSApp.appearance = nil
-            return
-        }
         let raw = UserDefaults.standard.string(forKey: "appearanceMode") ?? AppearanceMode.system.rawValue
         let mode = AppearanceMode(rawValue: raw) ?? .system
         switch mode {

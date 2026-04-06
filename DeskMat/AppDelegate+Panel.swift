@@ -5,6 +5,7 @@ extension AppDelegate {
     func setupPanel() {
         let content = ContentView()
             .environment(entitlements)
+            .environment(systemMonitor)
 
         let hostingView = NSHostingView(rootView: content)
         hostingView.setFrameSize(hostingView.fittingSize)

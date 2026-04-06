@@ -30,3 +30,9 @@ enum HideAnimation: String, CaseIterable {
     case fade  = "Fade"
     case slide = "Slide"
 }
+
+enum SystemMetric: String, CaseIterable {
+    case cpu     = "CPU"
+    case ram     = "RAM"
+    case network = "Network"
+}

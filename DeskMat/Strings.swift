@@ -50,7 +50,9 @@ enum Strings {
         static let ledBoardWide = "Wide LED Board"
         static let ledBoardCompact = "Compact"
         static let autoHideDock = "Auto-Hide Dock"
-        static let hideAnimation = "Hide Animation"
+        static let hideAnimation    = "Hide Animation"
+        static let showSystemWidget = "Show System Widget"
+        static let sysWidgetMetric  = "Metric"
         static let about = "About"
     }
 

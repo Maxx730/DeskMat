@@ -2,6 +2,12 @@ import AppKit
 import SwiftUI
 import UniformTypeIdentifiers
 
+private extension UTType {
+    // Declared here since dskm is not registered in the project's Info.plist.
+    // exportedAs always succeeds and lets open/save panels filter by extension.
+    static let dskm = UTType(exportedAs: "com.deskmat.dskm")
+}
+
 extension AppDelegate {
     @objc func addShortcut() {
         if let window = addShortcutWindow {
@@ -78,14 +84,13 @@ extension AppDelegate {
     }
 
     @objc func exportDock() {
-        guard entitlements.isPro else { return }
-        guard let dskmType = UTType(filenameExtension: "dskm") else { return }
         let savePanel = NSSavePanel()
         savePanel.title = Strings.Windows.exportDock
-        savePanel.allowedContentTypes = [dskmType]
+        savePanel.allowedContentTypes = [.dskm]
         savePanel.nameFieldStringValue = Strings.Defaults.exportFileName
         savePanel.canCreateDirectories = true
 
+        NSApp.activate(ignoringOtherApps: true)
         savePanel.begin { [weak self] response in
             guard response == .OK, let url = savePanel.url else { return }
             do {
@@ -98,14 +103,13 @@ extension AppDelegate {
     }
 
     @objc func importDock() {
-        guard entitlements.isPro else { return }
-        guard let dskmType = UTType(filenameExtension: "dskm") else { return }
         let openPanel = NSOpenPanel()
         openPanel.title = Strings.Windows.importDock
-        openPanel.allowedContentTypes = [dskmType]
+        openPanel.allowedContentTypes = [.dskm]
         openPanel.allowsMultipleSelection = false
         openPanel.canChooseDirectories = false
 
+        NSApp.activate(ignoringOtherApps: true)
         openPanel.begin { [weak self] response in
             guard response == .OK, let url = openPanel.url else { return }
             do {
