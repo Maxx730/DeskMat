@@ -1,5 +1,6 @@
 import SwiftUI
 import ServiceManagement
+import StoreKit
 import UniformTypeIdentifiers
 
 struct SettingsView: View {
@@ -13,12 +14,14 @@ struct SettingsView: View {
                 .tabItem { Label(Strings.Settings.dock, systemImage: "dock.rectangle") }
             WidgetsSettingsTab()
                 .tabItem { Label(Strings.Settings.widgets, systemImage: "square.grid.2x2") }
+            ProUnlockTab()
+                .tabItem { Label(Strings.Pro.tabLabel, systemImage: "star.circle") }
             AboutSettingsTab()
                 .tabItem { Label(Strings.Settings.about, systemImage: "info.circle") }
         }
         .padding(20)
         .frame(width: 480)
-        .frame(minHeight: 420)
+        .frame(minHeight: 560)
     }
 }
 
@@ -35,6 +38,7 @@ private func proLabel(_ title: String, isPro: Bool) -> some View {
 private struct GeneralSettingsTab: View {
     @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
     @AppStorage("finderDefaultDirectory") private var finderDefaultDirectory = "~/"
+    @State private var showingClearCacheConfirmation = false
     #if DEBUG
     @State private var showingResetConfirmation = false
     @AppStorage("debugProOverride") private var debugProOverride = false
@@ -62,6 +66,24 @@ private struct GeneralSettingsTab: View {
                     .foregroundStyle(.secondary)
             }
 
+            Section("Advanced") {
+                VStack(alignment: .leading, spacing: 4) {
+                    Button("Reset Icon Cache") {
+                        showingClearCacheConfirmation = true
+                    }
+                    .foregroundStyle(.red)
+                    .alert("Reset Icon Cache?", isPresented: $showingClearCacheConfirmation) {
+                        Button("Reset", role: .destructive) { resetIconCache() }
+                        Button("Cancel", role: .cancel) {}
+                    } message: {
+                        Text("This will delete all cached icon files and restore the default dock shortcuts.")
+                    }
+                    Text("Deletes all stored icon images and resets your dock to the default shortcuts.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
             #if DEBUG
             Section("Debug") {
                 Toggle("Pro Override", isOn: $debugProOverride)
@@ -84,6 +106,17 @@ private struct GeneralSettingsTab: View {
             #endif
         }
         .formStyle(.grouped)
+    }
+
+    private func resetIconCache() {
+        let fm = FileManager.default
+        if let files = try? fm.contentsOfDirectory(at: AppShortcutStore.iconsDirectory, includingPropertiesForKeys: nil) {
+            files.forEach { try? fm.removeItem(at: $0) }
+        }
+        AppShortcutStore.save([])
+        AppShortcutStore.initializeWithDefaults()
+        let reseeded = AppShortcutStore.load()
+        NotificationCenter.default.post(name: .dockImported, object: reseeded)
     }
 }
 
@@ -366,6 +399,145 @@ private struct WidgetsSettingsTab: View {
             geocodeError = true
         }
         isGeocoding = false
+    }
+}
+
+// MARK: - Pro Unlock
+
+private struct ProUnlockTab: View {
+    @Environment(EntitlementManager.self) private var entitlements
+    @State private var isPurchasing = false
+    @State private var transientMessage: String? = nil
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 20) {
+                Image(nsImage: NSApp.applicationIconImage)
+                    .resizable()
+                    .frame(width: 64, height: 64)
+                    .padding(.top, 20)
+
+                Text("DeskMat Pro")
+                    .font(.title2)
+                    .fontWeight(.semibold)
+
+                if entitlements.isPro {
+                    unlockedContent
+                } else {
+                    lockedContent
+                }
+
+                Spacer(minLength: 20)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.horizontal, 24)
+        }
+    }
+
+    @ViewBuilder
+    private var unlockedContent: some View {
+        VStack(spacing: 8) {
+            Text(Strings.Pro.headlineUnlocked)
+                .font(.headline)
+            Text(Strings.Pro.confirmedBody)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+        }
+        featureList
+    }
+
+    @ViewBuilder
+    private var lockedContent: some View {
+        VStack(spacing: 6) {
+            Text(Strings.Pro.headlineLocked)
+                .font(.headline)
+            Text(Strings.Pro.subheadline)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+        }
+
+        featureList
+
+        VStack(spacing: 10) {
+            if isPurchasing {
+                ProgressView(Strings.Pro.pendingLabel)
+                    .controlSize(.regular)
+            } else {
+                Button(action: startPurchase) {
+                    Text(entitlements.product.map { Strings.Pro.unlockCTAWithPrice($0.displayPrice) } ?? Strings.Pro.unlockCTA)
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+            }
+
+            Button(Strings.Pro.restoreCTA) {
+                Task {
+                    isPurchasing = true
+                    await entitlements.restorePurchases()
+                    isPurchasing = false
+                }
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(.secondary)
+            .font(.footnote)
+            .disabled(isPurchasing)
+
+            if let message = transientMessage {
+                Text(message)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(.top, 4)
+    }
+
+    private var featureList: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(Strings.Pro.featuresHeader)
+                .font(.caption)
+                .fontWeight(.semibold)
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            ForEach([
+                Strings.Pro.featureEffects,
+                Strings.Pro.featureWeather,
+                Strings.Pro.featureClock,
+                Strings.Pro.featureLED,
+                Strings.Pro.featureImage,
+                Strings.Pro.featureSystem
+            ], id: \.self) { label in
+                Label(label, systemImage: "checkmark.circle.fill")
+                    .foregroundStyle(.green)
+                    .font(.subheadline)
+            }
+        }
+        .padding(14)
+        .background(.quaternary, in: RoundedRectangle(cornerRadius: 10))
+    }
+
+    private func startPurchase() {
+        isPurchasing = true
+        transientMessage = nil
+        Task {
+            do {
+                let result = try await entitlements.purchase()
+                switch result {
+                case .success:
+                    break // isPro flips automatically via EntitlementManager
+                case .pending:
+                    transientMessage = Strings.Pro.pendingLabel
+                case .cancelled:
+                    break
+                }
+            } catch {
+                transientMessage = error.localizedDescription
+            }
+            isPurchasing = false
+        }
     }
 }
 

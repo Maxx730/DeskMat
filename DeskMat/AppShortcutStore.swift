@@ -125,105 +125,55 @@ enum AppShortcutStore {
 
     // MARK: - Export / Import (.dskm)
 
-    /// Exports the current dock configuration and icons to a .dskm archive at the given URL.
+    /// Flat archive format: shortcuts + base64-encoded icon data in a single JSON file.
+    private struct DskmArchive: Codable {
+        let shortcuts: [AppShortcut]
+        let icons: [String: String] // iconFileName → base64-encoded image data
+    }
+
+    /// Exports the current dock to a single .dskm JSON file (no subprocess, sandbox-safe).
     static func exportDock(to destinationURL: URL) throws {
         let fm = FileManager.default
-        let tempDir = fm.temporaryDirectory.appending(path: UUID().uuidString)
-        let tempIcons = tempDir.appending(path: "Icons")
 
-        defer { try? fm.removeItem(at: tempDir) }
-
-        try fm.createDirectory(at: tempIcons, withIntermediateDirectories: true)
-
-        // Copy shortcuts.json
+        let shortcuts: [AppShortcut]
         if fm.fileExists(atPath: shortcutsFileURL.path(percentEncoded: false)) {
-            try fm.copyItem(at: shortcutsFileURL, to: tempDir.appending(path: "shortcuts.json"))
+            let data = try Data(contentsOf: shortcutsFileURL)
+            shortcuts = try JSONDecoder().decode([AppShortcut].self, from: data)
         } else {
-            // Write an empty array if no shortcuts exist
-            try Data("[]".utf8).write(to: tempDir.appending(path: "shortcuts.json"))
+            shortcuts = []
         }
 
-        // Copy all icon files
+        var icons: [String: String] = [:]
         if fm.fileExists(atPath: iconsDirectory.path(percentEncoded: false)) {
             let iconFiles = try fm.contentsOfDirectory(at: iconsDirectory, includingPropertiesForKeys: nil)
             for file in iconFiles {
-                try fm.copyItem(at: file, to: tempIcons.appending(path: file.lastPathComponent))
+                let imageData = try Data(contentsOf: file)
+                icons[file.lastPathComponent] = imageData.base64EncodedString()
             }
         }
 
-        // Remove destination if it already exists
-        if fm.fileExists(atPath: destinationURL.path(percentEncoded: false)) {
-            try fm.removeItem(at: destinationURL)
-        }
-
-        // Use ditto to create a zip archive
-        let process = Process()
-        process.executableURL = URL(filePath: "/usr/bin/ditto")
-        process.arguments = ["-c", "-k", "--sequesterRsrc",
-                             tempDir.path(percentEncoded: false),
-                             destinationURL.path(percentEncoded: false)]
-        try process.run()
-        process.waitUntilExit()
-
-        guard process.terminationStatus == 0 else {
-            throw NSError(domain: "DeskMat", code: 1,
-                          userInfo: [NSLocalizedDescriptionKey: Strings.Errors.failedToCreateArchive])
-        }
+        let archive = DskmArchive(shortcuts: shortcuts, icons: icons)
+        let encoded = try JSONEncoder().encode(archive)
+        try encoded.write(to: destinationURL, options: .atomic)
     }
 
-    /// Imports a dock configuration from a .dskm archive, replacing the current shortcuts and icons.
+    /// Imports a dock from a .dskm JSON file, replacing the current shortcuts and icons.
     static func importDock(from sourceURL: URL) throws -> [AppShortcut] {
-        let fm = FileManager.default
-        let tempDir = fm.temporaryDirectory.appending(path: UUID().uuidString)
+        let data = try Data(contentsOf: sourceURL)
+        let archive = try JSONDecoder().decode(DskmArchive.self, from: data)
 
-        defer { try? fm.removeItem(at: tempDir) }
-
-        try fm.createDirectory(at: tempDir, withIntermediateDirectories: true)
-
-        // Extract the archive using ditto
-        let process = Process()
-        process.executableURL = URL(filePath: "/usr/bin/ditto")
-        process.arguments = ["-x", "-k",
-                             sourceURL.path(percentEncoded: false),
-                             tempDir.path(percentEncoded: false)]
-        try process.run()
-        process.waitUntilExit()
-
-        guard process.terminationStatus == 0 else {
-            throw NSError(domain: "DeskMat", code: 2,
-                          userInfo: [NSLocalizedDescriptionKey: Strings.Errors.failedToExtractArchive])
-        }
-
-        // Read the shortcuts from the extracted archive
-        let extractedJSON = tempDir.appending(path: "shortcuts.json")
-        guard fm.fileExists(atPath: extractedJSON.path(percentEncoded: false)) else {
-            throw NSError(domain: "DeskMat", code: 3,
-                          userInfo: [NSLocalizedDescriptionKey: Strings.Errors.invalidDskmFile])
-        }
-
-        let data = try Data(contentsOf: extractedJSON)
-        let shortcuts = try JSONDecoder().decode([AppShortcut].self, from: data)
-
-        // Ensure our store directories exist
         try ensureDirectories()
 
-        // Replace shortcuts.json
-        try data.write(to: shortcutsFileURL, options: .atomic)
+        let shortcutsData = try JSONEncoder().encode(archive.shortcuts)
+        try shortcutsData.write(to: shortcutsFileURL, options: .atomic)
 
-        // Replace icons — copy extracted icons into our Icons directory
-        let extractedIcons = tempDir.appending(path: "Icons")
-        if fm.fileExists(atPath: extractedIcons.path(percentEncoded: false)) {
-            let iconFiles = try fm.contentsOfDirectory(at: extractedIcons, includingPropertiesForKeys: nil)
-            for file in iconFiles {
-                let dest = iconsDirectory.appending(path: file.lastPathComponent)
-                if fm.fileExists(atPath: dest.path(percentEncoded: false)) {
-                    try fm.removeItem(at: dest)
-                }
-                try fm.copyItem(at: file, to: dest)
-            }
+        for (fileName, base64) in archive.icons {
+            guard let imageData = Data(base64Encoded: base64) else { continue }
+            let dest = iconsDirectory.appending(path: fileName)
+            try imageData.write(to: dest, options: .atomic)
         }
 
-        return shortcuts
+        return archive.shortcuts
     }
 
 }

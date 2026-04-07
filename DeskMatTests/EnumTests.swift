@@ -124,8 +124,8 @@ struct DockBackgroundEnumTests {
 
 struct VisualEffectTests {
 
-    @Test func allCasesContainsSixCases() {
-        #expect(VisualEffect.allCases.count == 6)
+    @Test func allCasesContainsEightCases() {
+        #expect(VisualEffect.allCases.count == 8)
     }
 
     @Test func rawValuesMatchDisplayNames() {
@@ -135,15 +135,19 @@ struct VisualEffectTests {
         #expect(VisualEffect.filmGrain.rawValue == "Film Grain")
         #expect(VisualEffect.pixelate.rawValue == "Pixelate")
         #expect(VisualEffect.softBloom.rawValue == "Soft Bloom")
+        #expect(VisualEffect.heatShimmer.rawValue == "Heat Shimmer")
+        #expect(VisualEffect.oldFilm.rawValue == "Old Film")
     }
 
     @Test func initFromRawValue() {
-        #expect(VisualEffect(rawValue: "None") == .none)
+        #expect(VisualEffect(rawValue: "None") == VisualEffect.none)
         #expect(VisualEffect(rawValue: "Scanline Wiggle") == .scanlineWiggle)
         #expect(VisualEffect(rawValue: "Hue Drift") == .hueDrift)
         #expect(VisualEffect(rawValue: "Film Grain") == .filmGrain)
         #expect(VisualEffect(rawValue: "Pixelate") == .pixelate)
         #expect(VisualEffect(rawValue: "Soft Bloom") == .softBloom)
+        #expect(VisualEffect(rawValue: "Heat Shimmer") == .heatShimmer)
+        #expect(VisualEffect(rawValue: "Old Film") == .oldFilm)
         #expect(VisualEffect(rawValue: "Invalid") == nil)
     }
 }

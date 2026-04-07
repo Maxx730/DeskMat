@@ -4,6 +4,13 @@ import AppKit
 @testable import DeskMat
 
 // MARK: - AppShortcutStore Tests
+//
+// All three suites below write to the shared shortcuts.json / Icons directory.
+// They are nested inside a single serialized parent suite so they never race
+// against each other when the test runner executes suites in parallel.
+
+@Suite(.serialized)
+struct AppShortcutDataStoreTests {
 
 @Suite(.serialized)
 struct AppShortcutStoreTests {
@@ -330,3 +337,5 @@ struct DefaultSeedingTests {
         #expect(seeded.count >= 0)
     }
 }
+
+} // AppShortcutDataStoreTests

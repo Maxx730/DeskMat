@@ -14,24 +14,34 @@ class EntitlementManager {
 
     private(set) var product: Product?
     private var transactionListener: Task<Void, Error>?
+    #if DEBUG
+    // Tracks the last-seen value so the observer only acts on actual transitions,
+    // not on every UserDefaults write (which would clear cachedIsPro on each grantPro call).
+    // @ObservationIgnored so the Observable macro doesn't require it initialized before self.
+    @ObservationIgnored
+    private var _lastDebugProOverride = UserDefaults.standard.bool(forKey: "debugProOverride")
+    #endif
 
     init() {
         transactionListener = listenForTransactions()
         Task { await refresh() }
 
         #if DEBUG
-        // Re-evaluate pro state whenever the debug override is toggled
+        // Re-evaluate pro state only when debugProOverride actually changes value.
         NotificationCenter.default.addObserver(
             forName: UserDefaults.didChangeNotification,
             object: nil,
             queue: .main
         ) { [weak self] _ in
             guard let self else { return }
-            if UserDefaults.standard.bool(forKey: "debugProOverride") {
-                self.grantPro()
+            let current = UserDefaults.standard.bool(forKey: "debugProOverride")
+            guard current != self._lastDebugProOverride else { return }
+            self._lastDebugProOverride = current
+            if current {
+                Task { @MainActor [weak self] in self?.grantPro() }
             } else {
                 self.clearProCache()
-                Task { await self.refresh() }
+                Task { [weak self] in await self?.refresh() }
             }
         }
         #endif

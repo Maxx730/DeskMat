@@ -168,6 +168,27 @@ enum Strings {
         }
     }
 
+    // MARK: - Pro
+
+    enum Pro {
+        static let tabLabel        = "Pro"
+        static let headlineLocked  = "Unlock DeskMat Pro"
+        static let headlineUnlocked = "You're Pro!"
+        static let subheadline     = "One-time purchase. All future features included."
+        static let confirmedBody   = "All Pro features are active on this Mac."
+        static let featuresHeader  = "What's included"
+        static let featureEffects  = "Visual Effects"
+        static let featureWeather  = "Weather Widget"
+        static let featureClock    = "Clock Widget"
+        static let featureLED      = "LED Board"
+        static let featureImage    = "Image Viewer Widget"
+        static let featureSystem   = "System Monitor Widget"
+        static func unlockCTAWithPrice(_ price: String) -> String { "Unlock for \(price)" }
+        static let unlockCTA       = "Unlock Pro"
+        static let restoreCTA      = "Restore Purchase"
+        static let pendingLabel    = "Purchase Pending\u{2026}"
+    }
+
     // MARK: - Errors
 
     enum Errors {
