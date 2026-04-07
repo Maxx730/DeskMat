@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct SystemWidget: View {
-    static let cellCount = 1
+    private var cellCount: Int { metric.cellCount }
 
     @Environment(SystemMonitorService.self) private var monitor
     @AppStorage("showLabels")      private var showLabels = true
@@ -9,7 +9,7 @@ struct SystemWidget: View {
 
     var body: some View {
         VStack(spacing: 10) {
-            DockWidget {
+            DockWidget(cells: cellCount) {
                 switch metric {
                 case .cpu:     CPUView(percent: monitor.cpuPercent)
                 case .ram:     RAMView(used: monitor.ramUsedGB, total: monitor.ramTotalGB)
@@ -20,7 +20,7 @@ struct SystemWidget: View {
                 Text(metric.rawValue)
                     .font(.caption2)
                     .lineLimit(1)
-                    .frame(width: DockWidget<EmptyView>.width(for: Self.cellCount))
+                    .frame(width: DockWidget<EmptyView>.width(for: cellCount))
                     .truncationMode(.tail)
             }
         }
@@ -35,11 +35,11 @@ private struct CPUView: View {
 
     var body: some View {
         VStack(spacing: 6) {
-            Text("CPU")
+            Text(Strings.Widgets.SystemMonitor.cpuHeader)
                 .font(.system(size: 10, weight: .semibold))
                 .foregroundStyle(.white.opacity(0.6))
             MeterBar(value: percent)
-            Text("\(Int(percent * 100))%")
+            Text(Strings.Widgets.SystemMonitor.cpuPercent(Int(percent * 100)))
                 .font(.system(size: 14, weight: .bold, design: .monospaced))
                 .foregroundStyle(.white)
         }
@@ -59,16 +59,13 @@ private struct RAMView: View {
 
     var body: some View {
         VStack(spacing: 6) {
-            Text("RAM")
+            Text(Strings.Widgets.SystemMonitor.ramHeader)
                 .font(.system(size: 10, weight: .semibold))
                 .foregroundStyle(.white.opacity(0.6))
             MeterBar(value: fraction)
-            Text(String(format: "%.1f / %.0f", used, total))
-                .font(.system(size: 10, weight: .medium, design: .monospaced))
+            Text(Strings.Widgets.SystemMonitor.ramUsage(used: used, total: total))
+                .font(.system(size: 11, weight: .medium, design: .monospaced))
                 .foregroundStyle(.white)
-            Text("GiB")
-                .font(.system(size: 8))
-                .foregroundStyle(.white.opacity(0.5))
         }
         .padding(.horizontal, 10)
     }
@@ -82,15 +79,14 @@ private struct NetworkView: View {
 
     var body: some View {
         VStack(spacing: 4) {
-            Text("NET")
+            Text(Strings.Widgets.SystemMonitor.netHeader)
                 .font(.system(size: 10, weight: .semibold))
                 .foregroundStyle(.white.opacity(0.6))
-            VStack(spacing: 3) {
+            VStack {
                 NetRow(direction: "arrow.down", value: inKBs)
                 NetRow(direction: "arrow.up",   value: outKBs)
             }
         }
-        .padding(.horizontal, 8)
     }
 }
 
@@ -100,8 +96,8 @@ private struct NetRow: View {
 
     private var formatted: (value: String, unit: String) {
         value >= 1024
-            ? (String(format: "%.1f", value / 1024), "MB/s")
-            : (String(format: "%.1f", value),         "KB/s")
+            ? (String(format: "%.1f", value / 1024), Strings.Widgets.SystemMonitor.mbPerSec)
+            : (String(format: "%.1f", value),         Strings.Widgets.SystemMonitor.kbPerSec)
     }
 
     var body: some View {
@@ -110,10 +106,10 @@ private struct NetRow: View {
                 .font(.system(size: 9, weight: .semibold))
                 .foregroundStyle(.white.opacity(0.5))
             Text(formatted.value)
-                .font(.system(size: 12, weight: .bold, design: .monospaced))
+                .font(.system(size: 14, weight: .bold, design: .monospaced))
                 .foregroundStyle(.white)
             Text(formatted.unit)
-                .font(.system(size: 8))
+                .font(.system(size: 10))
                 .foregroundStyle(.white.opacity(0.5))
         }
     }

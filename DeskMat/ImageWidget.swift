@@ -34,7 +34,7 @@ struct ImageWidget: View {
                 }
             }
             if showLabels {
-                Text("Images")
+                Text(Strings.Widgets.images)
                     .font(.caption2)
                     .lineLimit(1)
                     .frame(width: Self.widgetWidth)

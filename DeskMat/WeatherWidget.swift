@@ -44,7 +44,7 @@ struct WeatherWidget: View {
                 NSWorkspace.shared.open(URL(string: "weather://")!)
             }
             if showLabels {
-                Text("Weather")
+                Text(Strings.Widgets.weather)
                     .font(.caption2)
                     .lineLimit(1)
                     .frame(width: DockWidget<EmptyView>.width(for: Self.cellCount))

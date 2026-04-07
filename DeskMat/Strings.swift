@@ -168,6 +168,27 @@ enum Strings {
         }
     }
 
+    // MARK: - Widgets
+
+    enum Widgets {
+        static let weather  = "Weather"
+        static let clock    = "Clock"
+        static let ledBoard = "LED Board"
+        static let images   = "Images"
+
+        enum SystemMonitor {
+            static let cpuHeader = "CPU"
+            static let ramHeader = "RAM"
+            static let netHeader = "NET"
+            static let kbPerSec  = "KB/s"
+            static let mbPerSec  = "MB/s"
+            static func cpuPercent(_ value: Int) -> String { "\(value)%" }
+            static func ramUsage(used: Double, total: Double) -> String {
+                String(format: "%.1f / %.0f GB", used, total)
+            }
+        }
+    }
+
     // MARK: - Pro
 
     enum Pro {

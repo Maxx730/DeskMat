@@ -37,4 +37,11 @@ enum SystemMetric: String, CaseIterable {
     case cpu     = "CPU"
     case ram     = "RAM"
     case network = "Network"
+
+    var cellCount: Int {
+        switch self {
+        case .cpu:            return 1
+        case .ram, .network:  return 2
+        }
+    }
 }

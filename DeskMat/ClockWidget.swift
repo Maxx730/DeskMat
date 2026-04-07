@@ -17,7 +17,7 @@ struct ClockWidget: View {
                 }
             }
             if showLabels {
-                Text("Clock")
+                Text(Strings.Widgets.clock)
                     .font(.caption2)
                     .lineLimit(1)
                     .frame(width: DockWidget<EmptyView>.width(for: Self.cellCount))

@@ -192,6 +192,18 @@ struct SystemMetricTests {
         #expect(SystemMetric(rawValue: "Network") == .network)
         #expect(SystemMetric(rawValue: "Invalid") == nil)
     }
+
+    @Test func cpuCellCountIsOne() {
+        #expect(SystemMetric.cpu.cellCount == 1)
+    }
+
+    @Test func ramCellCountIsTwo() {
+        #expect(SystemMetric.ram.cellCount == 2)
+    }
+
+    @Test func networkCellCountIsTwo() {
+        #expect(SystemMetric.network.cellCount == 2)
+    }
 }
 
 // MARK: - PurchaseResult Enum Tests

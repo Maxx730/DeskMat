@@ -74,7 +74,7 @@ struct LEDBoardWidget: View {
                 }
             }
             if showLabels {
-                Text("LED Board")
+                Text(Strings.Widgets.ledBoard)
                     .font(.caption2)
                     .lineLimit(1)
                     .frame(width: DockWidget<EmptyView>.width(for: cellCount))
