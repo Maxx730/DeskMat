@@ -39,7 +39,7 @@ struct DockWidget<Content: View>: View {
             RoundedRectangle(cornerRadius: 10)
                 .inset(by: 1)
                 .fill(Color(red: 1.0, green: 1.0, blue: 1.0, opacity: 0.1))
-                .stroke(Color(red: 1.0, green: 1.0, blue: 1.0, opacity: 0.1), lineWidth: 2)
+                .stroke(Color(red: 1.0, green: 1.0, blue: 1.0, opacity: 0.1), lineWidth: 1.5)
 
             if isLoading {
                 ProgressView()
