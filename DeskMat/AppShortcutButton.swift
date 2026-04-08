@@ -45,6 +45,8 @@ struct AppShortcutButton: View {
     @State private var hasMinimizedWindows = false
     @State private var jiggleAngle: Double = 0
     @State private var suppressNextTap = false
+    @State private var launchFlashOpacity: Double = 0
+    @State private var isLaunching = false
 
     var body: some View {
         VStack(spacing: 10) {
@@ -70,6 +72,10 @@ struct AppShortcutButton: View {
             }
             .scaleEffect(bobScale)
             .rotationEffect(.degrees(jiggleAngle))
+            .overlay {
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(Color.white.opacity(launchFlashOpacity))
+            }
             .frame(width: 64, height: 64)
 
             if showLabels {
@@ -132,7 +138,11 @@ struct AppShortcutButton: View {
         .onReceive(NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.didDeactivateApplicationNotification)) { _ in
             updateWindowCount()
         }
-        .onReceive(NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.didLaunchApplicationNotification)) { _ in
+        .onReceive(NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.didLaunchApplicationNotification)) { notification in
+            if let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,
+               app.bundleIdentifier == shortcut.bundleIdentifier {
+                isLaunching = false
+            }
             updateWindowCount()
         }
         .onReceive(NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.didTerminateApplicationNotification)) { _ in
@@ -245,6 +255,19 @@ struct AppShortcutButton: View {
         }
     }
 
+    private func startLaunchBounce() {
+        guard isLaunching else { return }
+        Task {
+            while isLaunching {
+                withAnimation(.easeIn(duration: 0.15)) { launchFlashOpacity = 0.5 }
+                try? await Task.sleep(for: .milliseconds(150))
+                withAnimation(.easeOut(duration: 0.3)) { launchFlashOpacity = 0 }
+                try? await Task.sleep(for: .milliseconds(350))
+            }
+            withAnimation(.easeOut(duration: 0.2)) { launchFlashOpacity = 0 }
+        }
+    }
+
     private func unminimizeWindows(for app: NSRunningApplication) {
         let axApp = AXUIElementCreateApplication(app.processIdentifier)
         var windowsRef: CFTypeRef?
@@ -311,6 +334,12 @@ struct AppShortcutButton: View {
                 app.activate(options: [.activateAllWindows, .activateIgnoringOtherApps])
             }
         } else {
+            isLaunching = true
+            startLaunchBounce()
+            Task {
+                try? await Task.sleep(for: .seconds(30))
+                isLaunching = false
+            }
             let config = NSWorkspace.OpenConfiguration()
             config.activates = true
             NSWorkspace.shared.openApplication(at: shortcut.appURL, configuration: config)

@@ -1,5 +1,7 @@
 import AppKit
 
+private let peekFraction: CGFloat = 0.18
+
 extension AppDelegate {
     func startAutoHide() {
         guard mouseGlobalMonitorToken == nil else { return }
@@ -91,15 +93,23 @@ extension AppDelegate {
         }
     }
 
+    private func peekHiddenOrigin(screen: NSScreen, position: DockPosition) -> NSPoint {
+        let panelFrame = panel.frame
+        let visibleHeight = panelFrame.height * peekFraction
+        let hiddenHeight  = panelFrame.height - visibleHeight
+        var origin = panelFrame.origin
+        switch position {
+        case .bottom: origin.y = screen.frame.minY - hiddenHeight
+        case .top:    origin.y = screen.frame.maxY - visibleHeight
+        }
+        return origin
+    }
+
     private func slideOut() {
         guard let screen = panel.screen ?? NSScreen.main else { return }
         let position = DockPosition(rawValue: UserDefaults.standard.string(forKey: "dockPosition") ?? "Bottom") ?? .bottom
-        var hiddenOrigin = panel.frame.origin
-        switch position {
-        case .bottom: hiddenOrigin.y = screen.frame.minY - panel.frame.height
-        case .top:    hiddenOrigin.y = screen.frame.maxY
-        }
-        let targetFrame = NSRect(origin: hiddenOrigin, size: panel.frame.size)
+        let targetFrame = NSRect(origin: peekHiddenOrigin(screen: screen, position: position),
+                                 size: panel.frame.size)
         NSAnimationContext.runAnimationGroup { ctx in
             ctx.duration = 0.25
             ctx.timingFunction = CAMediaTimingFunction(name: .easeIn)
@@ -110,14 +120,8 @@ extension AppDelegate {
     private func slideIn() {
         guard let screen = panel.screen ?? NSScreen.main else { return }
         let position = DockPosition(rawValue: UserDefaults.standard.string(forKey: "dockPosition") ?? "Bottom") ?? .bottom
-        var hiddenOrigin = panel.frame.origin
-        switch position {
-        case .bottom: hiddenOrigin.y = screen.frame.minY - panel.frame.height
-        case .top:    hiddenOrigin.y = screen.frame.maxY
-        }
-        panel.setFrameOrigin(hiddenOrigin)
-        let panelSize = panel.frame.size
-        let targetFrame = NSRect(origin: dockedOrigin(for: screen), size: panelSize)
+        panel.setFrameOrigin(peekHiddenOrigin(screen: screen, position: position))
+        let targetFrame = NSRect(origin: dockedOrigin(for: screen), size: panel.frame.size)
         NSAnimationContext.runAnimationGroup { ctx in
             ctx.duration = 0.25
             ctx.timingFunction = CAMediaTimingFunction(name: .easeOut)
