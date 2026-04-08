@@ -86,14 +86,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
 
         if let button = statusItem.button {
-            let size: CGFloat = 18
-            let image = NSImage(size: NSSize(width: size, height: size), flipped: false) { rect in
-                NSColor.white.setFill()
-                let path = NSBezierPath(roundedRect: rect.insetBy(dx: 1, dy: 1), xRadius: 6, yRadius: 6)
-                path.fill()
-                return true
-            }
-            image.isTemplate = true
+            let image = NSImage(named: "MenuBarIcon")
+            image?.isTemplate = true
             button.image = image
         }
 
