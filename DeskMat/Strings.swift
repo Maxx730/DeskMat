@@ -54,6 +54,10 @@ enum Strings {
         static let showSystemWidget = "Show System Widget"
         static let sysWidgetMetric  = "Metric"
         static let about = "About"
+        static let advancedWindowManagement = "Advanced Window Management"
+        static let advancedWindowManagementSublabel = "Restores minimized windows when clicking a shortcut. Requires Accessibility permission."
+        static let accessibilityGranted = "Accessibility permission granted."
+        static let accessibilityNotGranted = "Accessibility permission not granted. Enable it in System Settings > Privacy & Security > Accessibility."
     }
 
     // MARK: - Menu

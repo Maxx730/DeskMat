@@ -2,6 +2,7 @@ import SwiftUI
 import ServiceManagement
 import StoreKit
 import UniformTypeIdentifiers
+import ApplicationServices
 
 struct SettingsView: View {
     var body: some View {
@@ -38,6 +39,8 @@ private func proLabel(_ title: String, isPro: Bool) -> some View {
 private struct GeneralSettingsTab: View {
     @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
     @AppStorage("finderDefaultDirectory") private var finderDefaultDirectory = "~/"
+    @AppStorage("advancedWindowManagement") private var advancedWindowManagement = false
+    @State private var isAccessibilityTrusted = AXIsProcessTrusted()
     @State private var showingClearCacheConfirmation = false
     #if DEBUG
     @State private var showingResetConfirmation = false
@@ -68,6 +71,36 @@ private struct GeneralSettingsTab: View {
 
             Section("Advanced") {
                 VStack(alignment: .leading, spacing: 4) {
+                    Toggle(Strings.Settings.advancedWindowManagement, isOn: $advancedWindowManagement)
+                        .onChange(of: advancedWindowManagement) { _, enabled in
+                            isAccessibilityTrusted = AXIsProcessTrusted()
+                            if enabled && !isAccessibilityTrusted {
+                                NSWorkspace.shared.open(
+                                    URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!
+                                )
+                            }
+                        }
+                    Group {
+                        if isAccessibilityTrusted {
+                            Text(Strings.Settings.accessibilityGranted)
+                                .foregroundStyle(.green)
+                        } else if advancedWindowManagement {
+                            Text("Accessibility permission not granted. Enable it in ") +
+                            Text("System Settings > Privacy & Security > Accessibility").bold() +
+                            Text(".")
+                        } else {
+                            Text(Strings.Settings.advancedWindowManagementSublabel)
+                        }
+                    }
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.trailing, 52)
+                }
+                .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+                    isAccessibilityTrusted = AXIsProcessTrusted()
+                }
+
+                VStack(alignment: .leading, spacing: 6) {
                     Button("Reset Icon Cache") {
                         showingClearCacheConfirmation = true
                     }
@@ -76,11 +109,13 @@ private struct GeneralSettingsTab: View {
                         Button("Reset", role: .destructive) { resetIconCache() }
                         Button("Cancel", role: .cancel) {}
                     } message: {
-                        Text("This will delete all cached icon files and restore the default dock shortcuts.")
+                        Text("This will delete all cached icon images. Your dock shortcuts will remain, but icons will reload on next launch.")
                     }
-                    Text("Deletes all stored icon images and resets your dock to the default shortcuts.")
+                    Text("Clears cached icon images. Icons will reload automatically on next launch.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.trailing, 52)
                 }
             }
 

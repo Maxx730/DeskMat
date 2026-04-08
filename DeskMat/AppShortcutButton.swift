@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import ApplicationServices
 
 enum HoverSize: String, CaseIterable {
     case small = "Small"
@@ -33,6 +34,7 @@ struct AppShortcutButton: View {
     @AppStorage("hoverSize") private var hoverSize: HoverSize = .small
     @AppStorage("hoverAnimation") private var hoverAnimation: HoverAnimation = .bounce
     @AppStorage("finderDefaultDirectory") private var finderDefaultDirectory = "~/"
+    @AppStorage("advancedWindowManagement") private var advancedWindowManagement = false
     
     @State private var isHovering = false
     @State private var bobScale: Double = 1.0
@@ -40,6 +42,7 @@ struct AppShortcutButton: View {
     @State private var cachedIcon: Image?
     @State private var isFrontmost = false
     @State private var windowCount = 0
+    @State private var hasMinimizedWindows = false
     @State private var jiggleAngle: Double = 0
     @State private var suppressNextTap = false
 
@@ -58,10 +61,10 @@ struct AppShortcutButton: View {
             .frame(width: 64, height: 64)
             .dockItemShader()
             .overlay(alignment: .bottom) {
-                if windowCount > 0 {
+                if windowCount > 0 || hasMinimizedWindows {
                     Capsule()
-                        .fill(avgColor)
-                        .frame(width: 20, height: 4)
+                        .fill(avgColor.opacity(windowCount > 0 ? 1.0 : 0.4))
+                        .frame(width: windowCount > 0 ? 20 : 12, height: 4)
                         .offset(y: showLabels ? 8 : 6)
                 }
             }
@@ -242,24 +245,48 @@ struct AppShortcutButton: View {
         }
     }
 
-    private func updateWindowCount() {
-        let apps = NSRunningApplication.runningApplications(withBundleIdentifier: shortcut.bundleIdentifier)
+    private func unminimizeWindows(for app: NSRunningApplication) {
+        let axApp = AXUIElementCreateApplication(app.processIdentifier)
+        var windowsRef: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(axApp, kAXWindowsAttribute as CFString, &windowsRef) == .success,
+              let windows = windowsRef as? [AXUIElement] else { return }
+        for window in windows {
+            // Set minimized=false unconditionally — no-op on visible windows,
+            // restores minimized ones. Avoids the CFBoolean bridging cast.
+            AXUIElementSetAttributeValue(window, kAXMinimizedAttribute as CFString, kCFBooleanFalse)
+        }
+    }
+
+    private func updateWindowCount(runningApps: [NSRunningApplication]? = nil) {
+        let apps = runningApps ?? NSRunningApplication.runningApplications(withBundleIdentifier: shortcut.bundleIdentifier)
         guard let pid = apps.first?.processIdentifier else {
             windowCount = 0
+            hasMinimizedWindows = false
             return
         }
-        guard let windowList = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] else {
+        guard let allWindows = CGWindowListCopyWindowInfo([.optionAll, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] else {
             windowCount = 0
+            hasMinimizedWindows = false
             return
         }
-        let count = windowList.filter {
+        let appWindows = allWindows.filter {
             ($0[kCGWindowOwnerPID as String] as? pid_t) == pid
                 && ($0[kCGWindowLayer as String] as? Int) == 0
+        }
+        let onScreenCount = appWindows.filter {
+            ($0[kCGWindowIsOnscreen as String] as? Bool) == true
         }.count
-        windowCount = count
+        windowCount = onScreenCount
+        hasMinimizedWindows = appWindows.count > onScreenCount
     }
 
     private func launchOrFocus() {
+        // Refresh window state synchronously before branching. Workspace notifications
+        // will also fire after activation and call updateWindowCount() again — that's
+        // expected and keeps the dot indicator up to date.
+        let runningApps = NSRunningApplication.runningApplications(withBundleIdentifier: shortcut.bundleIdentifier)
+        updateWindowCount(runningApps: runningApps)
+
         // Finder is always running — open a new window instead of just activating
         if shortcut.bundleIdentifier == "com.apple.finder" {
             let path = NSString(string: finderDefaultDirectory).expandingTildeInPath
@@ -267,19 +294,32 @@ struct AppShortcutButton: View {
             return
         }
 
-        let runningApps = NSRunningApplication.runningApplications(withBundleIdentifier: shortcut.bundleIdentifier)
-
         if let app = runningApps.first {
-            if app.isHidden {
-                app.unhide()
-            }
+            if app.isHidden { app.unhide() }
 
-            NSApp.yieldActivation(to: app)
-            app.activate(options: NSApplication.ActivationOptions.activateAllWindows)
+            if advancedWindowManagement && AXIsProcessTrusted() {
+                // Guaranteed unminimize via Accessibility API
+                unminimizeWindows(for: app)
+                app.activate(options: [.activateAllWindows, .activateIgnoringOtherApps])
+            } else if hasMinimizedWindows && windowCount == 0 {
+                // All windows are minimized — openApplication restores them
+                // the same way clicking an app in the macOS Dock does
+                let config = NSWorkspace.OpenConfiguration()
+                config.activates = true
+                NSWorkspace.shared.openApplication(at: shortcut.appURL, configuration: config)
+            } else {
+                app.activate(options: [.activateAllWindows, .activateIgnoringOtherApps])
+            }
         } else {
             let config = NSWorkspace.OpenConfiguration()
             config.activates = true
             NSWorkspace.shared.openApplication(at: shortcut.appURL, configuration: config)
+        }
+
+        // Refresh indicator after the window animation completes.
+        Task {
+            try? await Task.sleep(for: .milliseconds(650))
+            updateWindowCount()
         }
     }
 

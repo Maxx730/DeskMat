@@ -144,6 +144,35 @@ struct OnboardingStringsTests {
     }
 }
 
+// MARK: - Advanced Window Management Strings Tests
+
+struct AdvancedWindowManagementStringsTests {
+
+    @Test func advancedWindowManagementLabelExists() {
+        #expect(!Strings.Settings.advancedWindowManagement.isEmpty)
+    }
+
+    @Test func advancedWindowManagementSublabelExists() {
+        #expect(!Strings.Settings.advancedWindowManagementSublabel.isEmpty)
+    }
+
+    @Test func accessibilityGrantedStringExists() {
+        #expect(!Strings.Settings.accessibilityGranted.isEmpty)
+    }
+
+    @Test func accessibilityNotGrantedStringExists() {
+        #expect(!Strings.Settings.accessibilityNotGranted.isEmpty)
+    }
+
+    @Test func accessibilityGrantedAndNotGrantedAreDistinct() {
+        #expect(Strings.Settings.accessibilityGranted != Strings.Settings.accessibilityNotGranted)
+    }
+
+    @Test func accessibilityNotGrantedMentionsSystemSettings() {
+        #expect(Strings.Settings.accessibilityNotGranted.contains("System Settings"))
+    }
+}
+
 // MARK: - HideAnimation & System Widget Strings Tests
 
 struct HideAnimationAndSystemWidgetStringsTests {

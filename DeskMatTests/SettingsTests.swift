@@ -452,6 +452,43 @@ struct HideAnimationSettingsTests {
     }
 }
 
+// MARK: - Advanced Window Management Settings Tests
+
+@Suite(.serialized)
+struct AdvancedWindowManagementSettingsTests {
+
+    @Test func advancedWindowManagementDefaultsToFalse() {
+        let defaults = UserDefaults.standard
+        let existing = defaults.object(forKey: "advancedWindowManagement")
+        defer {
+            if let existing { defaults.set(existing, forKey: "advancedWindowManagement") }
+            else { defaults.removeObject(forKey: "advancedWindowManagement") }
+        }
+
+        defaults.removeObject(forKey: "advancedWindowManagement")
+        #expect(defaults.bool(forKey: "advancedWindowManagement") == false)
+    }
+
+    @Test func advancedWindowManagementPersistedToUserDefaults() {
+        let defaults = UserDefaults.standard
+        let existing = defaults.object(forKey: "advancedWindowManagement")
+        defer {
+            if let existing { defaults.set(existing, forKey: "advancedWindowManagement") }
+            else { defaults.removeObject(forKey: "advancedWindowManagement") }
+        }
+
+        defaults.set(true, forKey: "advancedWindowManagement")
+        #expect(defaults.bool(forKey: "advancedWindowManagement") == true)
+
+        defaults.set(false, forKey: "advancedWindowManagement")
+        #expect(defaults.bool(forKey: "advancedWindowManagement") == false)
+    }
+
+    @Test func advancedWindowManagementKeyIsDistinctFromAutoHide() {
+        #expect("advancedWindowManagement" != "autoHideDock")
+    }
+}
+
 // MARK: - System Widget Settings Tests
 
 @Suite(.serialized)

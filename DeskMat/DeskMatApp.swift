@@ -38,7 +38,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
-
+        cleanSandboxTmp()
         setupStatusItem()
         setupPanel()
         requestNotificationAuthorization()
@@ -107,6 +107,23 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(NSMenuItem(title: Strings.Menu.settings, action: #selector(openSettings), keyEquivalent: ","))
         menu.addItem(NSMenuItem(title: Strings.Menu.quitDeskMat, action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
         statusItem.menu = menu
+    }
+
+    /// Removes stale URLSession download temp files from the sandbox tmp directory.
+    /// CFNetworkDownload_*.tmp files are left behind when a download is in-flight
+    /// at the moment the app is killed. They are never needed after launch.
+    private func cleanSandboxTmp() {
+        let tmp = FileManager.default.temporaryDirectory
+        guard let files = try? FileManager.default.contentsOfDirectory(
+            at: tmp, includingPropertiesForKeys: [.creationDateKey], options: .skipsHiddenFiles
+        ) else { return }
+        let cutoff = Date().addingTimeInterval(-60 * 60) // older than 1 hour
+        for file in files where file.lastPathComponent.hasPrefix("CFNetworkDownload_") {
+            let created = (try? file.resourceValues(forKeys: [.creationDateKey]))?.creationDate ?? .distantPast
+            if created < cutoff {
+                try? FileManager.default.removeItem(at: file)
+            }
+        }
     }
 
     func requestNotificationAuthorization() {
