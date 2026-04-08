@@ -28,90 +28,60 @@ struct ClockWidget: View {
 }
 
 // MARK: - Analog Clock Face
+//
+// Implemented as a single Canvas draw call rather than a SwiftUI view hierarchy.
+// The previous GeometryReader + ZStack + ForEach + ClockHand views triggered a
+// full layout pass every second. Canvas draws everything imperatively in one pass
+// with no view diffing or layout overhead.
 
 private struct AnalogClockFace: View {
     let date: Date
 
-    private var calendar: Calendar { .current }
-
-    private var seconds: Double {
-        Double(calendar.component(.second, from: date))
-    }
-    private var minutes: Double {
-        let m = Double(calendar.component(.minute, from: date))
-        return m + seconds / 60
-    }
-    private var hours: Double {
-        let h = Double(calendar.component(.hour, from: date)).truncatingRemainder(dividingBy: 12)
-        return h + minutes / 60
-    }
-
     var body: some View {
-        GeometryReader { geo in
-            let size = max(geo.size.width, geo.size.height)
-            let center = CGPoint(x: geo.size.width / 2, y: geo.size.height / 2)
+        Canvas { context, size in
+            let dim    = min(size.width, size.height)
+            let center = CGPoint(x: size.width / 2, y: size.height / 2)
 
-            ZStack {
-                // Hour markers
-                ForEach(0..<12, id: \.self) { i in
-                    let angle = Angle(degrees: Double(i) / 12 * 360 - 90)
-                    let r = size * 0.44
-                    let markerLength = size * 0.04
-                    let x = center.x + r * cos(angle.radians)
-                    let y = center.y + r * sin(angle.radians)
-                    Circle()
-                        .fill(.white.opacity(0.3))
-                        .frame(width: markerLength, height: markerLength)
-                        .position(x: x, y: y)
-                }
+            let calendar = Calendar.current
+            let sec  = Double(calendar.component(.second, from: date))
+            let min  = Double(calendar.component(.minute, from: date)) + sec / 60
+            let hour = Double(calendar.component(.hour,   from: date)).truncatingRemainder(dividingBy: 12) + min / 60
 
-                // Hour hand
-                ClockHand(
-                    angle: .degrees(hours / 12 * 360 - 90),
-                    length: size * 0.27,
-                    width: size * 0.01,
-                    color: .white.opacity(0.6)
+            // Hour markers
+            for i in 0..<12 {
+                let angle = Double(i) / 12.0 * .pi * 2 - .pi / 2
+                let mr = dim * 0.04
+                let mx = center.x + CGFloat(cos(angle)) * dim * 0.44
+                let my = center.y + CGFloat(sin(angle)) * dim * 0.44
+                context.fill(
+                    Path(ellipseIn: CGRect(x: mx - mr, y: my - mr, width: mr * 2, height: mr * 2)),
+                    with: .color(.white.opacity(0.3))
                 )
-
-                // Minute hand
-                ClockHand(
-                    angle: .degrees(minutes / 60 * 360 - 90),
-                    length: size * 0.36,
-                    width: size * 0.01,
-                    color: .white.opacity(0.6)
-                )
-
-                // Second hand
-                ClockHand(
-                    angle: .degrees(seconds / 60 * 360 - 90),
-                    length: size * 0.38,
-                    width: size * 0.01,
-                    color: .red
-                )
-
-                // Center dot
-                Circle()
-                    .fill(.white)
-                    .frame(width: size * 0.1, height: size * 0.1)
-                Circle()
-                    .fill(.black)
-                    .frame(width: size * 0.05, height: size * 0.05)
             }
-        }.padding(6)
-    }
-}
 
-private struct ClockHand: View {
-    let angle: Angle
-    let length: CGFloat
-    let width: CGFloat
-    let color: Color
+            // Hands
+            let handWidth = dim * 0.01
+            func drawHand(fraction: Double, outOf: Double, length: CGFloat, color: Color) {
+                let angle = fraction / outOf * .pi * 2 - .pi / 2
+                var path = Path()
+                path.move(to: center)
+                path.addLine(to: CGPoint(x: center.x + CGFloat(cos(angle)) * length,
+                                         y: center.y + CGFloat(sin(angle)) * length))
+                context.stroke(path, with: .color(color),
+                               style: StrokeStyle(lineWidth: handWidth, lineCap: .round))
+            }
+            drawHand(fraction: hour, outOf: 12, length: dim * 0.27, color: .white.opacity(0.6))
+            drawHand(fraction: min,  outOf: 60, length: dim * 0.36, color: .white.opacity(0.6))
+            drawHand(fraction: sec,  outOf: 60, length: dim * 0.38, color: .red)
 
-    var body: some View {
-        Capsule()
-            .fill(color)
-            .frame(width: length, height: width)
-            .offset(x: length / 2, y: 0)
-            .rotationEffect(angle, anchor: .center)
+            // Center dot
+            let outerR = dim * 0.05
+            let innerR = dim * 0.025
+            context.fill(Path(ellipseIn: CGRect(x: center.x - outerR, y: center.y - outerR,
+                                                width: outerR * 2,    height: outerR * 2)), with: .color(.white))
+            context.fill(Path(ellipseIn: CGRect(x: center.x - innerR, y: center.y - innerR,
+                                                width: innerR * 2,    height: innerR * 2)), with: .color(.black))
+        }
+        .padding(6)
     }
 }

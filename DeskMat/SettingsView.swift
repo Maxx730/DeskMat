@@ -335,6 +335,11 @@ private struct WidgetsSettingsTab: View {
                     proLabel(Strings.Settings.showLEDBoard, isPro: entitlements.isPro)
                 }
                 .disabled(!entitlements.isPro)
+                if entitlements.isPro && showLEDBoard {
+                    Text(Strings.Settings.ledBoardPerformanceNote)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
                 if showLEDBoard && entitlements.isPro {
                     HStack {
                         Text(ledBoardImagePath.isEmpty ? Strings.Settings.ledBoardImageNone : URL(fileURLWithPath: ledBoardImagePath).lastPathComponent)

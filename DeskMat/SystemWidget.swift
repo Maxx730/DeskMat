@@ -24,7 +24,8 @@ struct SystemWidget: View {
                     .truncationMode(.tail)
             }
         }
-        .onAppear { monitor.start() }
+        .onAppear  { monitor.start() }
+        .onDisappear { monitor.stop() }
     }
 }
 

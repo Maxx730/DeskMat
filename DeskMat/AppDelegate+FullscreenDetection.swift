@@ -3,27 +3,36 @@ import AppKit
 extension AppDelegate {
 
     func startFullscreenObserver() {
-        fullscreenTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
-            self?.evaluateFullscreenState()
-        }
-
         let ws = NSWorkspace.shared.notificationCenter
-        ws.addObserver(self, selector: #selector(evaluateFullscreenState),
+        ws.addObserver(self, selector: #selector(scheduleFullscreenEval),
                        name: NSWorkspace.didActivateApplicationNotification, object: nil)
-        ws.addObserver(self, selector: #selector(evaluateFullscreenState),
+        ws.addObserver(self, selector: #selector(scheduleFullscreenEval),
+                       name: NSWorkspace.didDeactivateApplicationNotification, object: nil)
+        ws.addObserver(self, selector: #selector(scheduleFullscreenEval),
                        name: NSWorkspace.activeSpaceDidChangeNotification, object: nil)
+        // Evaluate once on startup to catch any pre-existing fullscreen state
+        scheduleFullscreenEval()
     }
 
     func stopFullscreenObserver() {
-        fullscreenTimer?.invalidate()
-        fullscreenTimer = nil
-        NSWorkspace.shared.notificationCenter.removeObserver(
-            self, name: NSWorkspace.didActivateApplicationNotification, object: nil)
-        NSWorkspace.shared.notificationCenter.removeObserver(
-            self, name: NSWorkspace.activeSpaceDidChangeNotification, object: nil)
+        fullscreenEvalWorkItem?.cancel()
+        fullscreenEvalWorkItem = nil
+        let ws = NSWorkspace.shared.notificationCenter
+        ws.removeObserver(self, name: NSWorkspace.didActivateApplicationNotification, object: nil)
+        ws.removeObserver(self, name: NSWorkspace.didDeactivateApplicationNotification, object: nil)
+        ws.removeObserver(self, name: NSWorkspace.activeSpaceDidChangeNotification, object: nil)
     }
 
-    @objc func evaluateFullscreenState() {
+    @objc func scheduleFullscreenEval() {
+        fullscreenEvalWorkItem?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            self?.performFullscreenEval()
+        }
+        fullscreenEvalWorkItem = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1, execute: work)
+    }
+
+    private func performFullscreenEval() {
         let fullscreen = isAnyWindowFullscreen()
         #if DEBUG
         print("[FullscreenDetection] fullscreen=\(fullscreen) isFullscreenHidden=\(isFullscreenHidden) isDockVisible=\(isDockVisible)")

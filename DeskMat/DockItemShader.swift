@@ -15,21 +15,49 @@ struct DockItemShader: ViewModifier {
 
     func body(content: Content) -> some View {
         if entitlements.isPro && visualEffect != .none {
-            let t = intensity
-            TimelineView(.animation) { context in
-                let elapsed = context.date.timeIntervalSince(startDate)
-                let application = shaderFor(visualEffect, elapsed: elapsed, intensity: t)
-                content
-                    .onGeometryChange(for: CGSize.self) { proxy in
-                        proxy.size
-                    } action: { newSize in
-                        viewSize = newSize
-                    }
-                    .applyShader(application)
-            }
+            animatedContent(content: content)
         } else {
             content
         }
+    }
+
+    // Picks the lowest frame rate that still looks correct for each effect.
+    // TimelineSchedule is a protocol — type erasure isn't available, so we
+    // use a @ViewBuilder switch to select the right concrete TimelineView.
+    @ViewBuilder
+    private func animatedContent(content: Content) -> some View {
+        let t = intensity
+        switch visualEffect {
+        case .none:
+            content
+        case .scanlineWiggle, .heatShimmer:
+            // Motion-dependent — needs full display refresh rate
+            TimelineView(.animation) { ctx in
+                tickedView(content: content, date: ctx.date, intensity: t)
+            }
+        case .filmGrain, .oldFilm:
+            // Grain/noise texture — 24 fps is imperceptible from 60 fps
+            TimelineView(.periodic(from: .now, by: 1.0 / 24.0)) { ctx in
+                tickedView(content: content, date: ctx.date, intensity: t)
+            }
+        case .hueDrift:
+            // Slow color drift — 10 fps is plenty
+            TimelineView(.periodic(from: .now, by: 1.0 / 10.0)) { ctx in
+                tickedView(content: content, date: ctx.date, intensity: t)
+            }
+        case .pixelate, .softBloom:
+            // Static effect — doesn't use elapsed time, 2 fps is invisible
+            TimelineView(.periodic(from: .now, by: 0.5)) { ctx in
+                tickedView(content: content, date: ctx.date, intensity: t)
+            }
+        }
+    }
+
+    private func tickedView(content: Content, date: Date, intensity: Double) -> some View {
+        let elapsed = date.timeIntervalSince(startDate)
+        return content
+            .onGeometryChange(for: CGSize.self) { $0.size } action: { viewSize = $0 }
+            .applyShader(shaderFor(visualEffect, elapsed: elapsed, intensity: intensity))
     }
 
     private func shaderFor(_ effect: VisualEffect, elapsed: TimeInterval, intensity: Double) -> ShaderApplication {

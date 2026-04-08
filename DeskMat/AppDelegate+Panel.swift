@@ -36,11 +36,21 @@ extension AppDelegate {
         panel.orderFrontRegardless()
 
         // Reposition when the setting changes
-        positionObserver = UserDefaults.standard.observe(\.dockPosition, options: [.new]) { [weak self] _, _ in
-            DispatchQueue.main.async { self?.repositionPanel() }
+        positionObserver = UserDefaults.standard.observe(\.dockPosition, options: [.new]) { [weak self] _, change in
+            DispatchQueue.main.async {
+                if let raw = change.newValue {
+                    self?.cachedDockPosition = DockPosition(rawValue: raw) ?? .bottom
+                }
+                self?.repositionPanel()
+            }
         }
-        offsetObserver = UserDefaults.standard.observe(\.dockOffset, options: [.new]) { [weak self] _, _ in
-            DispatchQueue.main.async { self?.repositionPanel() }
+        offsetObserver = UserDefaults.standard.observe(\.dockOffset, options: [.new]) { [weak self] _, change in
+            DispatchQueue.main.async {
+                if let val = change.newValue {
+                    self?.cachedDockOffset = CGFloat(val)
+                }
+                self?.repositionPanel()
+            }
         }
     }
 
@@ -54,8 +64,8 @@ extension AppDelegate {
         let screenFrame = screen.visibleFrame
         let panelSize = panel.frame.size
         let x = screenFrame.midX - panelSize.width / 2
-        let position = DockPosition(rawValue: UserDefaults.standard.string(forKey: "dockPosition") ?? "Bottom") ?? .bottom
-        let offset = CGFloat(UserDefaults.standard.integer(forKey: "dockOffset"))
+        let position = cachedDockPosition
+        let offset = cachedDockOffset
         let y: CGFloat
         switch position {
         case .bottom: y = screenFrame.minY + offset

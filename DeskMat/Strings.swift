@@ -43,6 +43,7 @@ enum Strings {
         static let pixelUnit = "px"
         static let icons = "Icons"
         static let showLEDBoard = "Show LED Board"
+        static let ledBoardPerformanceNote = "Animating an LED image increases CPU usage while active."
         static let ledBoardImage = "Choose Image..."
         static let ledBoardImageNone = "No image selected"
         static let ledBoardScrollSpeed = "Scroll Speed"

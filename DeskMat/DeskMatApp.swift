@@ -26,6 +26,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var positionObserver: Any?
     var offsetObserver: Any?
     var appearanceObserver: Any?
+    var cachedDockPosition: DockPosition = DockPosition(rawValue: UserDefaults.standard.string(forKey: "dockPosition") ?? "Bottom") ?? .bottom
+    var cachedDockOffset: CGFloat = CGFloat(UserDefaults.standard.integer(forKey: "dockOffset"))
     var globalHotkeyMonitor: Any?
     var localHotkeyMonitor: Any?
     var mouseGlobalMonitorToken: Any?
@@ -34,7 +36,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var isDockHidden = false
     var isDockVisible = true
     var isFullscreenHidden = false
-    var fullscreenTimer: Timer?
+    var fullscreenEvalWorkItem: DispatchWorkItem?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)

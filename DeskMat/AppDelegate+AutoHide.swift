@@ -53,8 +53,8 @@ extension AppDelegate {
         let sf = screen.frame
         let visibleFrame = screen.visibleFrame
         let threshold: CGFloat = 40
-        let position = DockPosition(rawValue: UserDefaults.standard.string(forKey: "dockPosition") ?? "Bottom") ?? .bottom
-        let offset = CGFloat(UserDefaults.standard.integer(forKey: "dockOffset"))
+        let position = cachedDockPosition
+        let offset = cachedDockOffset
         let panelHeight = panel.frame.height
         switch position {
         case .bottom:
@@ -107,7 +107,7 @@ extension AppDelegate {
 
     private func slideOut() {
         guard let screen = panel.screen ?? NSScreen.main else { return }
-        let position = DockPosition(rawValue: UserDefaults.standard.string(forKey: "dockPosition") ?? "Bottom") ?? .bottom
+        let position = cachedDockPosition
         let targetFrame = NSRect(origin: peekHiddenOrigin(screen: screen, position: position),
                                  size: panel.frame.size)
         NSAnimationContext.runAnimationGroup { ctx in
@@ -119,7 +119,7 @@ extension AppDelegate {
 
     private func slideIn() {
         guard let screen = panel.screen ?? NSScreen.main else { return }
-        let position = DockPosition(rawValue: UserDefaults.standard.string(forKey: "dockPosition") ?? "Bottom") ?? .bottom
+        let position = cachedDockPosition
         panel.setFrameOrigin(peekHiddenOrigin(screen: screen, position: position))
         let targetFrame = NSRect(origin: dockedOrigin(for: screen), size: panel.frame.size)
         NSAnimationContext.runAnimationGroup { ctx in
