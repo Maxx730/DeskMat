@@ -121,8 +121,9 @@ private struct GeneralSettingsTab: View {
                 .alert("Reset App?", isPresented: $showingResetConfirmation) {
                     Button("Reset & Quit", role: .destructive) {
                         try? FileManager.default.removeItem(at: AppShortcutStore.storeDirectory)
-                        UserDefaults.standard.removeObject(forKey: "hasCompletedOnboarding")
-                        UserDefaults.standard.removeObject(forKey: "debugProOverride")
+                        if let bundleID = Bundle.main.bundleIdentifier {
+                            UserDefaults.standard.removePersistentDomain(forName: bundleID)
+                        }
                         NSApp.terminate(nil)
                     }
                     Button("Cancel", role: .cancel) {}
@@ -271,11 +272,11 @@ private struct DockSettingsTab: View {
 
 private struct WidgetsSettingsTab: View {
     @Environment(LicenseManager.self) private var entitlements
-    @AppStorage("showWeatherWidget")    private var showWeatherWidget = true
-    @AppStorage("showClockWidget")      private var showClockWidget = true
-    @AppStorage("showImageWidget")      private var showImageWidget = true
-    @AppStorage("showLEDBoard")         private var showLEDBoard = true
-    @AppStorage("showSystemWidget")     private var showSystemWidget = true
+    @AppStorage("showWeatherWidget")    private var showWeatherWidget = false
+    @AppStorage("showClockWidget")      private var showClockWidget = false
+    @AppStorage("showImageWidget")      private var showImageWidget = false
+    @AppStorage("showLEDBoard")         private var showLEDBoard = false
+    @AppStorage("showSystemWidget")     private var showSystemWidget = false
     @AppStorage("sysWidgetMetric")      private var sysWidgetMetric: SystemMetric = .cpu
     @AppStorage("showStockWidget")      private var showStockWidget = false
     @AppStorage("stockTickerSymbols")   private var stockTickerSymbols = "AAPL,MSFT,GOOGL"

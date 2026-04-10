@@ -4,11 +4,11 @@ import AppKit
 struct ContentView: View {
     @Environment(LicenseManager.self) private var entitlements
     @State private var shortcuts: [AppShortcut] = AppShortcutStore.load()
-    @AppStorage("showWeatherWidget") private var showWeatherWidget = true
-    @AppStorage("showClockWidget") private var showClockWidget = true
-    @AppStorage("showImageWidget") private var showImageWidget = true
-    @AppStorage("showLEDBoard") private var showLEDBoard = true
-    @AppStorage("showSystemWidget") private var showSystemWidget = true
+    @AppStorage("showWeatherWidget") private var showWeatherWidget = false
+    @AppStorage("showClockWidget") private var showClockWidget = false
+    @AppStorage("showImageWidget") private var showImageWidget = false
+    @AppStorage("showLEDBoard") private var showLEDBoard = false
+    @AppStorage("showSystemWidget") private var showSystemWidget = false
     @AppStorage("showStockWidget")  private var showStockWidget = false
     @AppStorage("dockBackground") private var dockBackground: DockBackground = .system
     @AppStorage("dockBackgroundColorHex") private var dockBackgroundColorHex: String = "#000000ff"
