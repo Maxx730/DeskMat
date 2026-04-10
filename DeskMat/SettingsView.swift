@@ -1,6 +1,5 @@
 import SwiftUI
 import ServiceManagement
-import StoreKit
 import UniformTypeIdentifiers
 import ApplicationServices
 
@@ -41,8 +40,8 @@ private struct GeneralSettingsTab: View {
     @AppStorage("finderDefaultDirectory") private var finderDefaultDirectory = "~/"
     @AppStorage("advancedWindowManagement") private var advancedWindowManagement = false
     @State private var isAccessibilityTrusted = AXIsProcessTrusted()
-    @State private var showingClearCacheConfirmation = false
     #if DEBUG
+    @State private var showingClearCacheConfirmation = false
     @State private var showingResetConfirmation = false
     @AppStorage("debugProOverride") private var debugProOverride = false
     #endif
@@ -100,28 +99,21 @@ private struct GeneralSettingsTab: View {
                     isAccessibilityTrusted = AXIsProcessTrusted()
                 }
 
-                VStack(alignment: .leading, spacing: 6) {
-                    Button("Reset Icon Cache") {
-                        showingClearCacheConfirmation = true
-                    }
-                    .foregroundStyle(.red)
-                    .alert("Reset Icon Cache?", isPresented: $showingClearCacheConfirmation) {
-                        Button("Reset", role: .destructive) { resetIconCache() }
-                        Button("Cancel", role: .cancel) {}
-                    } message: {
-                        Text("This will delete all cached icon images. Your dock shortcuts will remain, but icons will reload on next launch.")
-                    }
-                    Text("Clears cached icon images. Icons will reload automatically on next launch.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .padding(.trailing, 52)
-                }
             }
 
             #if DEBUG
             Section("Debug") {
                 Toggle("Pro Override", isOn: $debugProOverride)
+                Button("Reset Icon Cache") {
+                    showingClearCacheConfirmation = true
+                }
+                .foregroundStyle(.red)
+                .alert("Reset Icon Cache?", isPresented: $showingClearCacheConfirmation) {
+                    Button("Reset", role: .destructive) { resetIconCache() }
+                    Button("Cancel", role: .cancel) {}
+                } message: {
+                    Text("This will delete all cached icon images. Your dock shortcuts will remain, but icons will reload on next launch.")
+                }
                 Button("Reset App & Quit") {
                     showingResetConfirmation = true
                 }
@@ -143,6 +135,7 @@ private struct GeneralSettingsTab: View {
         .formStyle(.grouped)
     }
 
+    #if DEBUG
     private func resetIconCache() {
         let fm = FileManager.default
         if let files = try? fm.contentsOfDirectory(at: AppShortcutStore.iconsDirectory, includingPropertiesForKeys: nil) {
@@ -153,12 +146,13 @@ private struct GeneralSettingsTab: View {
         let reseeded = AppShortcutStore.load()
         NotificationCenter.default.post(name: .dockImported, object: reseeded)
     }
+    #endif
 }
 
 // MARK: - Appearance
 
 private struct AppearanceSettingsTab: View {
-    @Environment(EntitlementManager.self) private var entitlements
+    @Environment(LicenseManager.self) private var entitlements
     @AppStorage("appearanceMode") private var appearanceMode: AppearanceMode = .system
     @AppStorage("showLabels") private var showLabels = true
     @AppStorage("showWidgetDivider") private var showWidgetDivider = true
@@ -276,13 +270,15 @@ private struct DockSettingsTab: View {
 // MARK: - Widgets
 
 private struct WidgetsSettingsTab: View {
-    @Environment(EntitlementManager.self) private var entitlements
+    @Environment(LicenseManager.self) private var entitlements
     @AppStorage("showWeatherWidget")    private var showWeatherWidget = true
     @AppStorage("showClockWidget")      private var showClockWidget = true
     @AppStorage("showImageWidget")      private var showImageWidget = true
     @AppStorage("showLEDBoard")         private var showLEDBoard = true
     @AppStorage("showSystemWidget")     private var showSystemWidget = true
     @AppStorage("sysWidgetMetric")      private var sysWidgetMetric: SystemMetric = .cpu
+    @AppStorage("showStockWidget")      private var showStockWidget = false
+    @AppStorage("stockTickerSymbols")   private var stockTickerSymbols = "AAPL,MSFT,GOOGL"
     @AppStorage(LEDBoardWidget.imagePathKey)  private var ledBoardImagePath = ""
     @AppStorage(LEDBoardWidget.scrollSpeedKey) private var ledBoardScrollSpeed = 80
     @AppStorage(LEDBoardWidget.frameSpeedKey)  private var ledBoardFrameSpeed = 150
@@ -292,9 +288,10 @@ private struct WidgetsSettingsTab: View {
     @AppStorage("weatherLongitude")     private var weatherLongitude    = -76.7075
     @AppStorage("weatherLocationName")  private var weatherLocationName = Strings.Weather.defaultLocationName
 
-    @State private var citySearchText = ""
-    @State private var isGeocoding    = false
-    @State private var geocodeError   = false
+    @State private var citySearchText  = ""
+    @State private var isGeocoding     = false
+    @State private var geocodeError    = false
+    @State private var newSymbolText   = ""
 
     var body: some View {
         Form {
@@ -420,8 +417,61 @@ private struct WidgetsSettingsTab: View {
                     }
                 }
             }
+            Section {
+                Toggle(isOn: $showStockWidget) {
+                    proLabel(Strings.Settings.showStockWidget, isPro: entitlements.isPro)
+                }
+                .disabled(!entitlements.isPro)
+                if showStockWidget && entitlements.isPro {
+                    ForEach(currentSymbols, id: \.self) { symbol in
+                        HStack {
+                            Text(symbol)
+                                .font(.system(.body, design: .monospaced))
+                            Spacer()
+                            Button {
+                                removeSymbol(symbol)
+                            } label: {
+                                Image(systemName: "minus.circle.fill")
+                                    .foregroundStyle(.red)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    HStack {
+                        TextField(Strings.Settings.stockSymbolField, text: $newSymbolText)
+                            .textFieldStyle(.roundedBorder)
+                            .onSubmit { addSymbol() }
+                        Button(Strings.Settings.stockSymbolAdd) { addSymbol() }
+                            .disabled(newSymbolText.trimmingCharacters(in: .whitespaces).isEmpty)
+                    }
+                    Text(Strings.Settings.stockTickerNote)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
         }
         .formStyle(.grouped)
+    }
+
+    private var currentSymbols: [String] {
+        StockTickerService.symbols(from: stockTickerSymbols)
+    }
+
+    private func addSymbol() {
+        let candidate = newSymbolText.trimmingCharacters(in: .whitespaces).uppercased()
+        guard !candidate.isEmpty, !currentSymbols.contains(candidate) else {
+            newSymbolText = ""
+            return
+        }
+        var updated = currentSymbols
+        updated.append(candidate)
+        stockTickerSymbols = updated.joined(separator: ",")
+        newSymbolText = ""
+    }
+
+    private func removeSymbol(_ symbol: String) {
+        let updated = currentSymbols.filter { $0 != symbol }
+        stockTickerSymbols = updated.joined(separator: ",")
     }
 
     private func performGeocode() async {
@@ -445,9 +495,12 @@ private struct WidgetsSettingsTab: View {
 // MARK: - Pro Unlock
 
 private struct ProUnlockTab: View {
-    @Environment(EntitlementManager.self) private var entitlements
-    @State private var isPurchasing = false
-    @State private var transientMessage: String? = nil
+    @Environment(LicenseManager.self) private var license
+    @State private var licenseKeyInput = ""
+    @State private var isActivating = false
+    @State private var isDeactivating = false
+    @State private var activationResult: ActivationResult? = nil
+    @State private var deactivationError: String? = nil
 
     var body: some View {
         ScrollView {
@@ -461,8 +514,8 @@ private struct ProUnlockTab: View {
                     .font(.title2)
                     .fontWeight(.semibold)
 
-                if entitlements.isPro {
-                    unlockedContent
+                if license.isPro {
+                    activatedContent
                 } else {
                     lockedContent
                 }
@@ -474,25 +527,56 @@ private struct ProUnlockTab: View {
         }
     }
 
+    // MARK: - Activated State
+
     @ViewBuilder
-    private var unlockedContent: some View {
-        VStack(spacing: 8) {
-            Text(Strings.Pro.headlineUnlocked)
+    private var activatedContent: some View {
+        VStack(spacing: 6) {
+            Label(Strings.Pro.activatedHeadline, systemImage: "checkmark.seal.fill")
                 .font(.headline)
-            Text(Strings.Pro.confirmedBody)
-                .font(.subheadline)
+                .foregroundStyle(.green)
+            if let hint = license.licenseKeyHint {
+                Text(hint)
+                    .font(.system(.caption, design: .monospaced))
+                    .foregroundStyle(.secondary)
+            }
+        }
+
+        featureList
+
+        VStack(spacing: 6) {
+            if isDeactivating {
+                ProgressView(Strings.Pro.deactivatingLabel)
+                    .controlSize(.small)
+            } else {
+                Button(Strings.Pro.deactivateLabel) {
+                    Task { await performDeactivate() }
+                }
+                .buttonStyle(.plain)
                 .foregroundStyle(.secondary)
+                .font(.footnote)
+            }
+            if let error = deactivationError {
+                Text(error)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+                    .multilineTextAlignment(.center)
+            }
+            Text(Strings.Pro.deactivateCaption)
+                .font(.caption)
+                .foregroundStyle(.tertiary)
                 .multilineTextAlignment(.center)
         }
-        featureList
     }
+
+    // MARK: - Locked State
 
     @ViewBuilder
     private var lockedContent: some View {
         VStack(spacing: 6) {
-            Text(Strings.Pro.headlineLocked)
+            Text("Unlock the full DeskMat experience")
                 .font(.headline)
-            Text(Strings.Pro.subheadline)
+            Text("Purchase a license to enable all pro features.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -500,43 +584,73 @@ private struct ProUnlockTab: View {
 
         featureList
 
-        VStack(spacing: 10) {
-            if isPurchasing {
-                ProgressView(Strings.Pro.pendingLabel)
-                    .controlSize(.regular)
+        // Buy CTA
+        Button {
+            NSWorkspace.shared.open(URL(string: "https://cepholotech.com/deskmat")!)
+        } label: {
+            Text("Buy DeskMat Pro")
+                .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(.borderedProminent)
+        .controlSize(.large)
+
+        // License key entry
+        VStack(spacing: 8) {
+            HStack {
+                TextField(Strings.Pro.licenseKeyPlaceholder, text: $licenseKeyInput)
+                    .textFieldStyle(.roundedBorder)
+                    .font(.system(.body, design: .monospaced))
+                    .autocorrectionDisabled()
+
+                if isActivating {
+                    ProgressView()
+                        .controlSize(.small)
+                        .frame(width: 60)
+                } else {
+                    Button(Strings.Pro.activateLabel) {
+                        Task { await performActivate() }
+                    }
+                    .disabled(licenseKeyInput.trimmingCharacters(in: .whitespaces).isEmpty)
+                    .frame(width: 60)
+                }
+            }
+
+            if let result = activationResult {
+                switch result {
+                case .success:
+                    Label(Strings.Pro.activationSuccess, systemImage: "checkmark.circle.fill")
+                        .font(.caption)
+                        .foregroundStyle(.green)
+                case .invalid:
+                    Text(Strings.Pro.activationInvalid)
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                        .multilineTextAlignment(.center)
+                case .alreadyActive:
+                    Text(Strings.Pro.activationAlreadyActive)
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                        .multilineTextAlignment(.center)
+                case .error(let msg):
+                    Text(msg)
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                        .multilineTextAlignment(.center)
+                }
             } else {
-                Button(action: startPurchase) {
-                    Text(entitlements.product.map { Strings.Pro.unlockCTAWithPrice($0.displayPrice) } ?? Strings.Pro.unlockCTA)
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
-            }
-
-            Button(Strings.Pro.restoreCTA) {
-                Task {
-                    isPurchasing = true
-                    await entitlements.restorePurchases()
-                    isPurchasing = false
-                }
-            }
-            .buttonStyle(.plain)
-            .foregroundStyle(.secondary)
-            .font(.footnote)
-            .disabled(isPurchasing)
-
-            if let message = transientMessage {
-                Text(message)
+                Text(Strings.Pro.enterKeyCaption)
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.tertiary)
             }
         }
         .padding(.top, 4)
     }
 
+    // MARK: - Feature List
+
     private var featureList: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(Strings.Pro.featuresHeader)
+            Text(Strings.Pro.featuresHeader.uppercased())
                 .font(.caption)
                 .fontWeight(.semibold)
                 .foregroundStyle(.secondary)
@@ -559,25 +673,24 @@ private struct ProUnlockTab: View {
         .background(.quaternary, in: RoundedRectangle(cornerRadius: 10))
     }
 
-    private func startPurchase() {
-        isPurchasing = true
-        transientMessage = nil
-        Task {
-            do {
-                let result = try await entitlements.purchase()
-                switch result {
-                case .success:
-                    break // isPro flips automatically via EntitlementManager
-                case .pending:
-                    transientMessage = Strings.Pro.pendingLabel
-                case .cancelled:
-                    break
-                }
-            } catch {
-                transientMessage = error.localizedDescription
-            }
-            isPurchasing = false
-        }
+    // MARK: - Actions
+
+    private func performActivate() async {
+        let key = licenseKeyInput.trimmingCharacters(in: .whitespaces)
+        guard !key.isEmpty else { return }
+        isActivating = true
+        activationResult = nil
+        activationResult = await license.activate(licenseKey: key)
+        if case .success = activationResult { licenseKeyInput = "" }
+        isActivating = false
+    }
+
+    private func performDeactivate() async {
+        isDeactivating = true
+        deactivationError = nil
+        let result = await license.deactivate()
+        if case .error(let msg) = result { deactivationError = msg }
+        isDeactivating = false
     }
 }
 

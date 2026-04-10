@@ -54,6 +54,10 @@ enum Strings {
         static let hideAnimation    = "Hide Animation"
         static let showSystemWidget = "Show System Widget"
         static let sysWidgetMetric  = "Metric"
+        static let showStockWidget      = "Show Stock Ticker"
+        static let stockSymbolAdd       = "Add"
+        static let stockSymbolField     = "Symbol (e.g. AAPL)"
+        static let stockTickerNote      = "Data provided by Yahoo Finance. Prices may be delayed ~15 min."
         static let about = "About"
         static let advancedWindowManagement = "Advanced Window Management"
         static let advancedWindowManagementSublabel = "Restores minimized windows when clicking a shortcut. Requires Accessibility permission."
@@ -145,12 +149,13 @@ enum Strings {
         }
 
         enum Widgets {
-            static let title    = "Choose Your Widgets"
-            static let subtitle = "Select which widgets appear alongside your shortcuts."
-            static let weather  = "Weather"
-            static let clock    = "Clock"
-            static let image    = "Image Viewer"
-            static let ledBoard = "LED Board"
+            static let title        = "Choose Your Widgets"
+            static let subtitle     = "Select which widgets appear alongside your shortcuts."
+            static let weather      = "Weather"
+            static let clock        = "Clock"
+            static let image        = "Image Viewer"
+            static let ledBoard     = "LED Board"
+            static let stockTicker  = "Stock Ticker"
         }
 
         enum Position {
@@ -176,10 +181,17 @@ enum Strings {
     // MARK: - Widgets
 
     enum Widgets {
-        static let weather  = "Weather"
-        static let clock    = "Clock"
-        static let ledBoard = "LED Board"
-        static let images   = "Images"
+        static let weather     = "Weather"
+        static let clock       = "Clock"
+        static let ledBoard    = "LED Board"
+        static let images      = "Images"
+        static let stockTicker = "Stocks"
+
+        enum StockTicker {
+            static let symbolPlaceholder = "---"
+            static let pricePlaceholder  = "$---.--"
+            static let changePlaceholder = "--.--%"
+        }
 
         enum SystemMonitor {
             static let cpuHeader = "CPU"
@@ -197,22 +209,25 @@ enum Strings {
     // MARK: - Pro
 
     enum Pro {
-        static let tabLabel        = "Pro"
-        static let headlineLocked  = "Unlock DeskMat Pro"
-        static let headlineUnlocked = "You're Pro!"
-        static let subheadline     = "One-time purchase. All future features included."
-        static let confirmedBody   = "All Pro features are active on this Mac."
-        static let featuresHeader  = "What's included"
-        static let featureEffects  = "Visual Effects"
-        static let featureWeather  = "Weather Widget"
-        static let featureClock    = "Clock Widget"
-        static let featureLED      = "LED Board"
-        static let featureImage    = "Image Viewer Widget"
-        static let featureSystem   = "System Monitor Widget"
-        static func unlockCTAWithPrice(_ price: String) -> String { "Unlock for \(price)" }
-        static let unlockCTA       = "Unlock Pro"
-        static let restoreCTA      = "Restore Purchase"
-        static let pendingLabel    = "Purchase Pending\u{2026}"
+        static let tabLabel            = "Pro"
+        static let featuresHeader      = "What's included"
+        static let featureEffects      = "Visual Effects"
+        static let featureWeather      = "Weather Widget"
+        static let featureClock        = "Clock Widget"
+        static let featureLED          = "LED Board"
+        static let featureImage        = "Image Viewer Widget"
+        static let featureSystem       = "System Monitor Widget"
+        static let buyLabel            = "Buy DeskMat Pro"
+        static let licenseKeyPlaceholder = "License Key"
+        static let activateLabel       = "Activate"
+        static let activatedHeadline   = "DeskMat Pro is active"
+        static let activationSuccess   = "Activated successfully!"
+        static let activationInvalid   = "Invalid license key. Please check and try again."
+        static let activationAlreadyActive = "This key is already activated on another Mac. Deactivate it there first, or contact support."
+        static let enterKeyCaption     = "Already have a license key? Enter it above."
+        static let deactivateLabel     = "Deactivate (transfer to another Mac)"
+        static let deactivatingLabel   = "Deactivating\u{2026}"
+        static let deactivateCaption   = "Deactivating frees up your activation slot so you can use your key on a different machine."
     }
 
     // MARK: - Errors

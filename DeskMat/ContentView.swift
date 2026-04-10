@@ -2,13 +2,14 @@ import SwiftUI
 import AppKit
 
 struct ContentView: View {
-    @Environment(EntitlementManager.self) private var entitlements
+    @Environment(LicenseManager.self) private var entitlements
     @State private var shortcuts: [AppShortcut] = AppShortcutStore.load()
     @AppStorage("showWeatherWidget") private var showWeatherWidget = true
     @AppStorage("showClockWidget") private var showClockWidget = true
     @AppStorage("showImageWidget") private var showImageWidget = true
     @AppStorage("showLEDBoard") private var showLEDBoard = true
     @AppStorage("showSystemWidget") private var showSystemWidget = true
+    @AppStorage("showStockWidget")  private var showStockWidget = false
     @AppStorage("dockBackground") private var dockBackground: DockBackground = .system
     @AppStorage("dockBackgroundColorHex") private var dockBackgroundColorHex: String = "#000000ff"
     @AppStorage("showWidgetDivider") private var showWidgetDivider = true
@@ -78,6 +79,10 @@ struct ContentView: View {
                 if entitlements.isPro && showSystemWidget {
                     SystemWidget()
                 }
+
+                if entitlements.isPro && showStockWidget {
+                    StockTickerWidget()
+                }
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 10)
@@ -142,7 +147,7 @@ struct ContentView: View {
     }
 
     private var anyWidgetVisible: Bool {
-        entitlements.isPro && (showWeatherWidget || showImageWidget || showLEDBoard || showClockWidget || showSystemWidget)
+        entitlements.isPro && (showWeatherWidget || showImageWidget || showLEDBoard || showClockWidget || showSystemWidget || showStockWidget)
     }
 
     private func removeShortcut(_ shortcut: AppShortcut) {
@@ -280,5 +285,5 @@ private struct DragGhostIcon: View {
 
 #Preview {
     ContentView()
-        .environment(EntitlementManager())
+        .environment(LicenseManager())
 }

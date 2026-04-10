@@ -150,8 +150,8 @@ extension AppDelegate {
 
     @objc func openSettings() {
         if let window = settingsWindow {
-            // Reuse the existing window — no need to re-inject entitlements.
-            // EntitlementManager is a reference type; @Observable propagates
+            // Reuse the existing window — no need to re-inject the license manager.
+            // LicenseManager is a reference type; @Observable propagates
             // updates through the same instance already held by the hosting view.
             window.makeKeyAndOrderFront(nil)
             NSApp.activate(ignoringOtherApps: true)

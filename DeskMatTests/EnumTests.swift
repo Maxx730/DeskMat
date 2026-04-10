@@ -34,8 +34,8 @@ struct HoverSizeTests {
 
 struct HoverAnimationTests {
 
-    @Test func allCasesContainsFiveCases() {
-        #expect(HoverAnimation.allCases.count == 5)
+    @Test func allCasesContainsSixCases() {
+        #expect(HoverAnimation.allCases.count == 6)
     }
 
     @Test func rawValuesMatchDisplayNames() {
@@ -43,6 +43,7 @@ struct HoverAnimationTests {
         #expect(HoverAnimation.pulse.rawValue == "Pulse")
         #expect(HoverAnimation.jiggle.rawValue == "Jiggle")
         #expect(HoverAnimation.pop.rawValue == "Pop")
+        #expect(HoverAnimation.shine.rawValue == "Shine")
         #expect(HoverAnimation.none.rawValue == "None")
     }
 
@@ -51,6 +52,7 @@ struct HoverAnimationTests {
         #expect(HoverAnimation(rawValue: "Pulse") == .pulse)
         #expect(HoverAnimation(rawValue: "Jiggle") == .jiggle)
         #expect(HoverAnimation(rawValue: "Pop") == .pop)
+        #expect(HoverAnimation(rawValue: "Shine") == .shine)
         #expect(HoverAnimation(rawValue: "None") == HoverAnimation.none)
         #expect(HoverAnimation(rawValue: "Invalid") == nil)
     }
@@ -206,18 +208,45 @@ struct SystemMetricTests {
     }
 }
 
-// MARK: - PurchaseResult Enum Tests
+// MARK: - ActivationResult Enum Tests
 
-struct PurchaseResultTests {
+struct ActivationResultTests {
 
     @Test func allCasesExist() {
-        let results: [PurchaseResult] = [.success, .cancelled, .pending]
-        #expect(results.count == 3)
+        let results: [ActivationResult] = [.success, .invalid, .alreadyActive, .error("test")]
+        #expect(results.count == 4)
     }
 
-    @Test func successIsDistinctFromCancelledAndPending() {
-        if case .success = PurchaseResult.success { } else { Issue.record("expected .success") }
-        if case .cancelled = PurchaseResult.cancelled { } else { Issue.record("expected .cancelled") }
-        if case .pending = PurchaseResult.pending { } else { Issue.record("expected .pending") }
+    @Test func casesAreDistinct() {
+        if case .success      = ActivationResult.success      { } else { Issue.record("expected .success") }
+        if case .invalid      = ActivationResult.invalid      { } else { Issue.record("expected .invalid") }
+        if case .alreadyActive = ActivationResult.alreadyActive { } else { Issue.record("expected .alreadyActive") }
+        if case .error        = ActivationResult.error("msg") { } else { Issue.record("expected .error") }
+    }
+
+    @Test func errorCarriesMessage() {
+        if case .error(let msg) = ActivationResult.error("network failure") {
+            #expect(msg == "network failure")
+        } else {
+            Issue.record("expected .error with message")
+        }
+    }
+}
+
+// MARK: - DeactivationResult Enum Tests
+
+struct DeactivationResultTests {
+
+    @Test func allCasesExist() {
+        let results: [DeactivationResult] = [.success, .error("test")]
+        #expect(results.count == 2)
+    }
+
+    @Test func errorCarriesMessage() {
+        if case .error(let msg) = DeactivationResult.error("no key found") {
+            #expect(msg == "no key found")
+        } else {
+            Issue.record("expected .error with message")
+        }
     }
 }

@@ -15,7 +15,7 @@ struct DeskMatApp: App {
 class AppDelegate: NSObject, NSApplicationDelegate {
     static let onboardingCompletedKey = "hasCompletedOnboarding"
 
-    let entitlements = EntitlementManager()
+    let entitlements = LicenseManager()
     let systemMonitor = SystemMonitorService()
     var panel: DeskMatPanel!
     var statusItem: NSStatusItem!

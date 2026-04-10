@@ -7,7 +7,7 @@ private enum ShaderApplication {
 
 /// Applies the selected visual effect shader to any dock item.
 struct DockItemShader: ViewModifier {
-    @Environment(EntitlementManager.self) private var entitlements
+    @Environment(LicenseManager.self) private var entitlements
     @AppStorage("visualEffect") private var visualEffect: VisualEffect = .none
     @AppStorage("dockItemShaderIntensity") private var intensity = 0.5
     @State private var viewSize: CGSize = CGSize(width: 64, height: 64)
