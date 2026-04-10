@@ -211,6 +211,87 @@ float scanlineNoise(float2 uv, float offset) {
     return half4(half3(rgb), color.a);
 }
 
+/// Shine glint layer effect — faithful port of the Godot canvas_item shine shader.
+///
+/// Algorithm:
+///   1. Compute an inverted Chebyshev-distance vignette that tapers the band
+///      towards the icon corners (gradient_to_edge).
+///   2. Rotate UV around the icon center by SHINE_ROTATION_DEG.
+///   3. Advance a sweep position with fract(time * speed) so the band loops
+///      continuously while the cursor hovers.
+///   4. Remap line distance to a brightness factor (smoothstep-equivalent via
+///      linear remap + sqrt, matching the Godot maths exactly).
+///   5. Lerp each pixel towards white by shine * alpha so transparent areas
+///      (outside the rounded-rect mask) are never illuminated.
+///
+/// Loops while active; stopped by clearing hoverStartDate in AppShortcutButton.
+/// - position:   pixel coordinate in user space
+/// - layer:      the rasterized SwiftUI layer
+/// - time:       elapsed seconds since hover began
+/// - viewWidth:  view width in points (for UV normalisation)
+/// - viewHeight: view height in points (for UV normalisation)
+
+#define SHINE_LINE_SMOOTHNESS  0.045f
+#define SHINE_LINE_WIDTH       0.09f
+#define SHINE_BRIGHTNESS       3.0f
+#define SHINE_ROTATION_DEG     30.0f
+#define SHINE_DISTORTION       1.8f
+#define SHINE_SPEED            1.4f
+#define SHINE_POSITION         0.0f
+#define SHINE_POSITION_MIN     0.25f
+#define SHINE_POSITION_MAX     0.5f
+
+[[stitchable]] half4 shineGlint(
+    float2 position,
+    SwiftUI::Layer layer,
+    float time,
+    float viewWidth,
+    float viewHeight
+) {
+    half4 col = layer.sample(position);
+    if (col.a < 0.01h) return col;
+
+    float2 uv = position / float2(viewWidth, viewHeight);
+
+    // --- Gradient to edge (inverted Chebyshev + distortion) ---
+    // 1 at center, falls to 0 (and negative) at corners — tapers the shine band.
+    float2 center_uv = uv - float2(0.5f, 0.5f);
+    float gradient_to_edge = max(abs(center_uv.x), abs(center_uv.y));
+    gradient_to_edge = 1.0f - gradient_to_edge * SHINE_DISTORTION;
+
+    // --- Rotate UV around center ---
+    float angle_rad = SHINE_ROTATION_DEG * (M_PI_F / 180.0f);
+    float cosA = cos(angle_rad);
+    float sinA = sin(angle_rad);
+    float2 rotated_uv = float2(
+        center_uv.x * cosA - center_uv.y * sinA + 0.5f,
+        center_uv.x * sinA + center_uv.y * cosA + 0.5f
+    );
+
+    // --- Sweep position (single pass) ---
+    float remapped_position = SHINE_POSITION_MIN
+                            + (SHINE_POSITION_MAX - SHINE_POSITION_MIN) * SHINE_POSITION;
+    float t = clamp(time * SHINE_SPEED + remapped_position, 0.0f, 1.0f); // 0..1, no loop
+    float remapped_time = -2.0f + 4.0f * t;                 // remap to -2..2
+
+    // --- Line distance in rotated UV space ---
+    float line = abs(rotated_uv.x + remapped_time);
+    line = gradient_to_edge * line;
+    line = sqrt(max(line, 0.0f));   // sqrt of a clipped non-negative value
+
+    // --- Remap to brightness (matches Godot's manual smoothstep-equivalent) ---
+    float offset_plus  = SHINE_LINE_WIDTH + SHINE_LINE_SMOOTHNESS;
+    float offset_minus = SHINE_LINE_WIDTH - SHINE_LINE_SMOOTHNESS;
+    float input_range  = offset_minus - offset_plus; // always negative
+    float shine = (line - offset_plus) / input_range; // 1 at centre, 0 at outer edge
+    shine = clamp(shine * SHINE_BRIGHTNESS, 0.0f, 1.0f);
+
+    // --- Blend towards white, respecting per-pixel alpha ---
+    // Lerping towards white at shine intensity — transparent pixels stay unlit.
+    float3 result = mix(float3(col.rgb), float3(1.0f), shine * float(col.a));
+    return half4(half3(result), col.a);
+}
+
 /// Hue drift color effect.
 /// Slowly rotates the hue of each pixel over time using YUV hue rotation.
 /// At low speed the shift is nearly subliminal — icons feel alive without

@@ -21,6 +21,7 @@ enum HoverAnimation: String, CaseIterable {
     case pulse = "Pulse"
     case jiggle = "Jiggle"
     case pop = "Pop"
+    case shine = "Shine"
     case none = "None"
 }
 
@@ -47,34 +48,39 @@ struct AppShortcutButton: View {
     @State private var suppressNextTap = false
     @State private var launchFlashOpacity: Double = 0
     @State private var isLaunching = false
+    @State private var hoverStartDate: Date? = nil
 
     var body: some View {
         VStack(spacing: 10) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 10)
-                    .fill(avgColor)
-                (cachedIcon ?? Image(systemName: "questionmark.app"))
-                if isFrontmost {
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(ColorUtils.brightenedHSV(avgColor), lineWidth: 2)
-                        .padding(1)
+            ZStack(alignment: .bottom) {
+                // Icon + all hover effects (scale, rotation, shader, flash)
+                ZStack {
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(avgColor)
+                    (cachedIcon ?? Image(systemName: "questionmark.app"))
+                    if isFrontmost {
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(ColorUtils.brightenedHSV(avgColor), lineWidth: 2)
+                            .padding(1)
+                    }
                 }
-            }
-            .frame(width: 64, height: 64)
-            .dockItemShader()
-            .overlay(alignment: .bottom) {
+                .frame(width: 64, height: 64)
+                .dockItemShader()
+                .overlay {
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(Color.white.opacity(launchFlashOpacity))
+                }
+                .modifier(ShineModifier(hoverStartDate: hoverAnimation == .shine ? hoverStartDate : nil))
+                .scaleEffect(bobScale)
+                .rotationEffect(.degrees(jiggleAngle))
+
+                // Window indicator — lives outside all hover effects
                 if windowCount > 0 || hasMinimizedWindows {
                     Capsule()
                         .fill(avgColor.opacity(windowCount > 0 ? 1.0 : 0.4))
                         .frame(width: windowCount > 0 ? 20 : 12, height: 4)
                         .offset(y: showLabels ? 8 : 6)
                 }
-            }
-            .scaleEffect(bobScale)
-            .rotationEffect(.degrees(jiggleAngle))
-            .overlay {
-                RoundedRectangle(cornerRadius: 10)
-                    .fill(Color.white.opacity(launchFlashOpacity))
             }
             .frame(width: 64, height: 64)
 
@@ -110,8 +116,10 @@ struct AppShortcutButton: View {
         .onHover { hovering in
             isHovering = hovering
             if hovering && !isReordering {
+                if hoverAnimation == .shine { hoverStartDate = Date.now }
                 startHoverAnimation()
             } else if !hovering && !isReordering {
+                hoverStartDate = nil
                 withAnimation(.easeOut(duration: 0.2)) {
                     bobScale = 1.0
                     jiggleAngle = 0
@@ -185,6 +193,8 @@ struct AppShortcutButton: View {
             animateJiggle()
         case .pop:
             animatePop()
+        case .shine:
+            break  // driven entirely by ShineModifier / TimelineView
         case .none:
             break
         }
@@ -356,3 +366,30 @@ struct AppShortcutButton: View {
 }
 
 
+
+// MARK: - Shine Modifier
+
+/// Drives the shineGlint Metal shader continuously while hovering.
+/// The TimelineView only runs while `hoverStartDate` is non-nil, so idle CPU cost is zero.
+private struct ShineModifier: ViewModifier {
+    let hoverStartDate: Date?
+
+    func body(content: Content) -> some View {
+        if let startDate = hoverStartDate {
+            TimelineView(.animation) { ctx in
+                let elapsed = ctx.date.timeIntervalSince(startDate)
+                content
+                    .layerEffect(
+                        ShaderLibrary.shineGlint(
+                            .float(Float(elapsed)),
+                            .float(64),
+                            .float(64)
+                        ),
+                        maxSampleOffset: .zero
+                    )
+            }
+        } else {
+            content
+        }
+    }
+}
