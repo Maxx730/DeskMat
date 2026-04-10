@@ -217,6 +217,8 @@ enum Strings {
         static let featureLED          = "LED Board"
         static let featureImage        = "Image Viewer Widget"
         static let featureSystem       = "System Monitor Widget"
+        static let lockedHeadline      = "Unlock the full DeskMat experience"
+        static let lockedSubheadline   = "Purchase a license to enable all pro features."
         static let buyLabel            = "Buy DeskMat Pro"
         static let licenseKeyPlaceholder = "License Key"
         static let activateLabel       = "Activate"
@@ -228,6 +230,8 @@ enum Strings {
         static let deactivateLabel     = "Deactivate (transfer to another Mac)"
         static let deactivatingLabel   = "Deactivating\u{2026}"
         static let deactivateCaption   = "Deactivating frees up your activation slot so you can use your key on a different machine."
+        static func lastVerified(_ date: String) -> String { "Last verified: \(date)" }
+        static let offlineBadge        = "Not verified (offline)"
     }
 
     // MARK: - Errors

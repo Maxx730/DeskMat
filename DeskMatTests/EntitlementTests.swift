@@ -20,8 +20,8 @@ struct LicenseManagerTests {
     private func cleanState() {
         let query: [CFString: Any] = [
             kSecClass:       kSecClassGenericPassword,
-            kSecAttrService: "com.kinghorn.deskmat",
-            kSecAttrAccount: "license"
+            kSecAttrService: LicenseManager.keychainService,
+            kSecAttrAccount: LicenseManager.keychainAccount
         ]
         SecItemDelete(query as CFDictionary)
         UserDefaults.standard.set(false, forKey: "debugProOverride")

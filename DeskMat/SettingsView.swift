@@ -41,6 +41,7 @@ private struct GeneralSettingsTab: View {
     @AppStorage("advancedWindowManagement") private var advancedWindowManagement = false
     @State private var isAccessibilityTrusted = AXIsProcessTrusted()
     #if DEBUG
+    @Environment(LicenseManager.self) private var license
     @State private var showingClearCacheConfirmation = false
     @State private var showingResetConfirmation = false
     @AppStorage("debugProOverride") private var debugProOverride = false
@@ -124,6 +125,7 @@ private struct GeneralSettingsTab: View {
                         if let bundleID = Bundle.main.bundleIdentifier {
                             UserDefaults.standard.removePersistentDomain(forName: bundleID)
                         }
+                        license.resetForDebug()
                         NSApp.terminate(nil)
                     }
                     Button("Cancel", role: .cancel) {}
@@ -153,7 +155,7 @@ private struct GeneralSettingsTab: View {
 // MARK: - Appearance
 
 private struct AppearanceSettingsTab: View {
-    @Environment(LicenseManager.self) private var entitlements
+    @Environment(LicenseManager.self) private var license
     @AppStorage("appearanceMode") private var appearanceMode: AppearanceMode = .system
     @AppStorage("showLabels") private var showLabels = true
     @AppStorage("showWidgetDivider") private var showWidgetDivider = true
@@ -195,11 +197,11 @@ private struct AppearanceSettingsTab: View {
                     Text(effect.rawValue).tag(effect)
                 }
             } label: {
-                proLabel(Strings.Settings.visualEffect, isPro: entitlements.isPro)
+                proLabel(Strings.Settings.visualEffect, isPro: license.isPro)
             }
-            .disabled(!entitlements.isPro)
+            .disabled(!license.isPro)
 
-            if visualEffect != .none && entitlements.isPro {
+            if visualEffect != .none && license.isPro {
                 Slider(value: $dockItemShaderIntensity, in: 0.0...1.0) {
                     Text(Strings.Settings.effectIntensity)
                 }
@@ -271,7 +273,7 @@ private struct DockSettingsTab: View {
 // MARK: - Widgets
 
 private struct WidgetsSettingsTab: View {
-    @Environment(LicenseManager.self) private var entitlements
+    @Environment(LicenseManager.self) private var license
     @AppStorage("showWeatherWidget")    private var showWeatherWidget = false
     @AppStorage("showClockWidget")      private var showClockWidget = false
     @AppStorage("showImageWidget")      private var showImageWidget = false
@@ -298,10 +300,10 @@ private struct WidgetsSettingsTab: View {
         Form {
             Section {
                 Toggle(isOn: $showWeatherWidget) {
-                    proLabel(Strings.Settings.showWeatherWidget, isPro: entitlements.isPro)
+                    proLabel(Strings.Settings.showWeatherWidget, isPro: license.isPro)
                 }
-                .disabled(!entitlements.isPro)
-                if showWeatherWidget && entitlements.isPro {
+                .disabled(!license.isPro)
+                if showWeatherWidget && license.isPro {
                     HStack {
                         TextField(Strings.Settings.weatherLocationField, text: $citySearchText)
                             .onSubmit { Task { await performGeocode() } }
@@ -325,20 +327,20 @@ private struct WidgetsSettingsTab: View {
                 }
             }
             Toggle(isOn: $showClockWidget) {
-                proLabel(Strings.Settings.showClockWidget, isPro: entitlements.isPro)
+                proLabel(Strings.Settings.showClockWidget, isPro: license.isPro)
             }
-            .disabled(!entitlements.isPro)
+            .disabled(!license.isPro)
             Section {
                 Toggle(isOn: $showLEDBoard) {
-                    proLabel(Strings.Settings.showLEDBoard, isPro: entitlements.isPro)
+                    proLabel(Strings.Settings.showLEDBoard, isPro: license.isPro)
                 }
-                .disabled(!entitlements.isPro)
-                if entitlements.isPro && showLEDBoard {
+                .disabled(!license.isPro)
+                if license.isPro && showLEDBoard {
                     Text(Strings.Settings.ledBoardPerformanceNote)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
-                if showLEDBoard && entitlements.isPro {
+                if showLEDBoard && license.isPro {
                     HStack {
                         Text(ledBoardImagePath.isEmpty ? Strings.Settings.ledBoardImageNone : URL(fileURLWithPath: ledBoardImagePath).lastPathComponent)
                             .foregroundStyle(.secondary)
@@ -381,10 +383,10 @@ private struct WidgetsSettingsTab: View {
             }
             Section {
                 Toggle(isOn: $showImageWidget) {
-                    proLabel(Strings.Settings.showImageWidget, isPro: entitlements.isPro)
+                    proLabel(Strings.Settings.showImageWidget, isPro: license.isPro)
                 }
-                .disabled(!entitlements.isPro)
-                if showImageWidget && entitlements.isPro {
+                .disabled(!license.isPro)
+                if showImageWidget && license.isPro {
                     HStack {
                         Text(imageWidgetDirectory)
                             .foregroundStyle(.secondary)
@@ -407,10 +409,10 @@ private struct WidgetsSettingsTab: View {
             }
             Section {
                 Toggle(isOn: $showSystemWidget) {
-                    proLabel(Strings.Settings.showSystemWidget, isPro: entitlements.isPro)
+                    proLabel(Strings.Settings.showSystemWidget, isPro: license.isPro)
                 }
-                .disabled(!entitlements.isPro)
-                if showSystemWidget && entitlements.isPro {
+                .disabled(!license.isPro)
+                if showSystemWidget && license.isPro {
                     Picker(Strings.Settings.sysWidgetMetric, selection: $sysWidgetMetric) {
                         ForEach(SystemMetric.allCases, id: \.self) { metric in
                             Text(metric.rawValue).tag(metric)
@@ -420,10 +422,10 @@ private struct WidgetsSettingsTab: View {
             }
             Section {
                 Toggle(isOn: $showStockWidget) {
-                    proLabel(Strings.Settings.showStockWidget, isPro: entitlements.isPro)
+                    proLabel(Strings.Settings.showStockWidget, isPro: license.isPro)
                 }
-                .disabled(!entitlements.isPro)
-                if showStockWidget && entitlements.isPro {
+                .disabled(!license.isPro)
+                if showStockWidget && license.isPro {
                     ForEach(currentSymbols, id: \.self) { symbol in
                         HStack {
                             Text(symbol)
@@ -541,6 +543,15 @@ private struct ProUnlockTab: View {
                     .font(.system(.caption, design: .monospaced))
                     .foregroundStyle(.secondary)
             }
+            if let validated = license.lastValidated {
+                Text(Strings.Pro.lastVerified(validated.formatted(date: .abbreviated, time: .shortened)))
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+            } else {
+                Text(Strings.Pro.offlineBadge)
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+            }
         }
 
         featureList
@@ -575,9 +586,9 @@ private struct ProUnlockTab: View {
     @ViewBuilder
     private var lockedContent: some View {
         VStack(spacing: 6) {
-            Text("Unlock the full DeskMat experience")
+            Text(Strings.Pro.lockedHeadline)
                 .font(.headline)
-            Text("Purchase a license to enable all pro features.")
+            Text(Strings.Pro.lockedSubheadline)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -587,7 +598,7 @@ private struct ProUnlockTab: View {
 
         // Buy CTA
         Button {
-            NSWorkspace.shared.open(URL(string: "https://cepholotech.com/deskmat")!)
+            NSWorkspace.shared.open(URL(string: "https://cepholotech.lemonsqueezy.com/checkout/buy/e76ff2c0-32cd-41b7-b770-7b6b9873ab23")!)
         } label: {
             Text("Buy DeskMat Pro")
                 .frame(maxWidth: .infinity)
