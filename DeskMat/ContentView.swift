@@ -24,7 +24,6 @@ struct ContentView: View {
     @State private var windowContentHeight: CGFloat = 0
     @State private var isShaking: Bool = false
     private static var dragMonitorToken: Any?
-    static var isDragging = false
 
     var body: some View {
         ZStack {
@@ -166,7 +165,7 @@ struct ContentView: View {
 
     private func dragStart(shortcut: AppShortcut, icon: Image?) {
         let originalIndex = shortcuts.firstIndex(where: { $0.id == shortcut.id }) ?? 0
-        ContentView.isDragging = true
+        (NSApp.delegate as? AppDelegate)?.isDragging = true
         draggingID = shortcut.id
         draggingShortcut = shortcut
         targetIndex = originalIndex
@@ -234,7 +233,7 @@ struct ContentView: View {
             }
         }
 
-        ContentView.isDragging = false
+        (NSApp.delegate as? AppDelegate)?.isDragging = false
         isShaking = false
         draggingID = nil
         draggingShortcut = nil

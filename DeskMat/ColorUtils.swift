@@ -3,29 +3,6 @@ import SwiftUI
 
 enum ColorUtils {
 
-    /// Returns the average color of an application's icon, given its bundle identifier.
-    /// Returns nil if the app can't be found or the icon can't be processed.
-    static func averageColor(forBundleIdentifier bundleID: String) -> Color? {
-        guard let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID),
-              let bundle = Bundle(url: appURL),
-              let iconName = bundle.infoDictionary?["CFBundleIconFile"] as? String ?? bundle.infoDictionary?["CFBundleIconName"] as? String else {
-            // Fall back to NSWorkspace icon
-            return averageColor(of: NSWorkspace.shared.icon(forFile: NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID)?.path(percentEncoded: false) ?? ""))
-        }
-
-        let iconPath = bundle.pathForImageResource(iconName) ?? bundle.path(forResource: iconName, ofType: "icns")
-        if let path = iconPath, let image = NSImage(contentsOfFile: path) {
-            return averageColor(of: image)
-        }
-
-        // Fall back to NSWorkspace icon for the app
-        if let appPath = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID)?.path(percentEncoded: false) {
-            return averageColor(of: NSWorkspace.shared.icon(forFile: appPath))
-        }
-
-        return nil
-    }
-
     /// Returns a darkened version of a SwiftUI Color by the given factor (0.0–1.0).
     /// A factor of 0.8 means the color retains 80% of its brightness.
     static func darkened(_ color: Color, by factor: Double = 0.7) -> Color {

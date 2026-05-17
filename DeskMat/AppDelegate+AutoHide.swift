@@ -26,17 +26,20 @@ extension AppDelegate {
         }
         hideWorkItem?.cancel()
         hideWorkItem = nil
-        setDockVisible(true, animated: true)
+        if !isDockVisible {
+            setDockVisible(true, animated: true)
+        }
     }
 
     func evaluateMousePosition() {
-        guard !ContentView.isDragging else { return }
+        guard UserDefaults.standard.bool(forKey: "autoHideDock") else { return }
+        guard !isDragging else { return }
         let mouse = NSEvent.mouseLocation
         let inZone = isMouseInThresholdZone(mouse)
         if inZone {
             hideWorkItem?.cancel()
             hideWorkItem = nil
-            if !isDockVisible { setDockVisible(true, animated: true) }
+            if !isDockVisible && !isFullscreenHidden { setDockVisible(true, animated: true) }
         } else {
             guard isDockVisible, hideWorkItem == nil else { return }
             let work = DispatchWorkItem { [weak self] in

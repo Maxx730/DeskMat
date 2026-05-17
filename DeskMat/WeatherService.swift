@@ -1,4 +1,7 @@
 import Foundation
+import OSLog
+
+private let logger = Logger(subsystem: "com.kinghorn.deskmat", category: "WeatherService")
 
 // MARK: - Open-Meteo API Response
 
@@ -86,7 +89,7 @@ class WeatherService {
                 isLoading = false
             }
         } catch {
-            print("Weather fetch failed: \(error)")
+            logger.error("Weather fetch failed: \(error.localizedDescription)")
             _ = try? await minimumDelay
             await MainActor.run { isLoading = false }
         }

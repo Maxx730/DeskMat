@@ -262,6 +262,48 @@ struct ImportExportTests {
         #expect(Notification.Name.importDock.rawValue == "importDock")
         #expect(Notification.Name.dockImported.rawValue == "dockImported")
     }
+
+    @Test func importIgnoresPathTraversalFilenames() throws {
+        let original = AppShortcutStore.load()
+        defer { AppShortcutStore.save(original) }
+
+        // Build an archive whose icon map contains a traversal filename.
+        let url = URL(fileURLWithPath: "/Applications/Safari.app")
+        let shortcuts = [AppShortcut(displayName: "T", bundleIdentifier: "com.t", appURL: url, iconFileName: "legit.png")]
+
+        // Construct the JSON manually to inject an evil filename.
+        let payload = """
+        {
+            "shortcuts": [],
+            "icons": {
+                "../../../evil.png": "\(Data("evil".utf8).base64EncodedString())",
+                ".hidden.png": "\(Data("hidden".utf8).base64EncodedString())",
+                "legit.png": "\(Data("ok".utf8).base64EncodedString())"
+            }
+        }
+        """
+        let archiveURL = FileManager.default.temporaryDirectory.appending(path: "traversal-test.dskm")
+        defer { try? FileManager.default.removeItem(at: archiveURL) }
+        try Data(payload.utf8).write(to: archiveURL)
+
+        _ = try AppShortcutStore.importDock(from: archiveURL)
+
+        // The traversal and hidden entries must not have landed outside the icons dir.
+        let evilURL = AppShortcutStore.iconsDirectory
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appending(path: "evil.png")
+        #expect(!FileManager.default.fileExists(atPath: evilURL.path(percentEncoded: false)))
+
+        let hiddenURL = AppShortcutStore.iconsDirectory.appending(path: ".hidden.png")
+        #expect(!FileManager.default.fileExists(atPath: hiddenURL.path(percentEncoded: false)))
+
+        // The legitimate entry should have been written.
+        let legitURL = AppShortcutStore.iconsDirectory.appending(path: "legit.png")
+        defer { try? FileManager.default.removeItem(at: legitURL) }
+        #expect(FileManager.default.fileExists(atPath: legitURL.path(percentEncoded: false)))
+    }
 }
 
 // MARK: - Default Seeding Tests

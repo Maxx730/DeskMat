@@ -40,10 +40,10 @@ private struct GeneralSettingsTab: View {
     @AppStorage("finderDefaultDirectory") private var finderDefaultDirectory = "~/"
     @AppStorage("advancedWindowManagement") private var advancedWindowManagement = false
     @State private var isAccessibilityTrusted = AXIsProcessTrusted()
+    @State private var showingResetConfirmation = false
     #if DEBUG
     @Environment(LicenseManager.self) private var license
     @State private var showingClearCacheConfirmation = false
-    @State private var showingResetConfirmation = false
     @AppStorage("debugProOverride") private var debugProOverride = false
     #endif
 
@@ -102,6 +102,22 @@ private struct GeneralSettingsTab: View {
 
             }
 
+            Section {
+                Button(Strings.Reset.buttonLabel) {
+                    showingResetConfirmation = true
+                }
+                .foregroundStyle(.red)
+                .alert(Strings.Reset.alertTitle, isPresented: $showingResetConfirmation) {
+                    Button(Strings.Reset.alertConfirm, role: .destructive) { resetToDefaults() }
+                    Button(Strings.Common.cancel, role: .cancel) {}
+                } message: {
+                    Text(Strings.Reset.alertMessage)
+                }
+                Text(Strings.Reset.buttonCaption)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
             #if DEBUG
             Section("Debug") {
                 Toggle("Pro Override", isOn: $debugProOverride)
@@ -138,6 +154,46 @@ private struct GeneralSettingsTab: View {
         .formStyle(.grouped)
     }
 
+    private func resetToDefaults() {
+        let ud = UserDefaults.standard
+        // Appearance
+        ud.set(AppearanceMode.system.rawValue,  forKey: "appearanceMode")
+        ud.set(true,                            forKey: "showLabels")
+        ud.set(true,                            forKey: "showWidgetDivider")
+        ud.set(DockBackground.system.rawValue,  forKey: "dockBackground")
+        ud.set("#000000ff",                     forKey: "dockBackgroundColorHex")
+        ud.set(VisualEffect.none.rawValue,      forKey: "visualEffect")
+        ud.set(0.5,                             forKey: "dockItemShaderIntensity")
+        // Dock
+        ud.set(DockPosition.bottom.rawValue,    forKey: "dockPosition")
+        ud.set(0,                               forKey: "dockOffset")
+        ud.set(HoverSize.small.rawValue,        forKey: "hoverSize")
+        ud.set(HoverAnimation.bounce.rawValue,  forKey: "hoverAnimation")
+        ud.set(false,                           forKey: "autoHideDock")
+        ud.set(HideAnimation.fade.rawValue,     forKey: "hideAnimation")
+        // Widgets
+        ud.set(false,                           forKey: "showWeatherWidget")
+        ud.set(false,                           forKey: "showClockWidget")
+        ud.set(false,                           forKey: "showImageWidget")
+        ud.set(false,                           forKey: "showLEDBoard")
+        ud.set(false,                           forKey: "showSystemWidget")
+        ud.set(SystemMetric.cpu.rawValue,       forKey: "sysWidgetMetric")
+        ud.set(false,                           forKey: "showStockWidget")
+        ud.set("AAPL,MSFT,GOOGL",              forKey: "stockTickerSymbols")
+        ud.set("~/Pictures",                    forKey: "imageWidgetDirectory")
+        ud.set(37.2707,                         forKey: "weatherLatitude")
+        ud.set(-76.7075,                        forKey: "weatherLongitude")
+        ud.set(Strings.Weather.defaultLocationName, forKey: "weatherLocationName")
+        // General
+        ud.set("~/",  forKey: "finderDefaultDirectory")
+        ud.set(false, forKey: "advancedWindowManagement")
+        // LED Board
+        ud.set("",    forKey: LEDBoardWidget.imagePathKey)
+        ud.set(80,    forKey: LEDBoardWidget.scrollSpeedKey)
+        ud.set(150,   forKey: LEDBoardWidget.frameSpeedKey)
+        ud.set(true,  forKey: LEDBoardWidget.widthModeKey)
+    }
+
     #if DEBUG
     private func resetIconCache() {
         let fm = FileManager.default
@@ -158,6 +214,7 @@ private struct AppearanceSettingsTab: View {
     @Environment(LicenseManager.self) private var license
     @AppStorage("appearanceMode") private var appearanceMode: AppearanceMode = .system
     @AppStorage("showLabels") private var showLabels = true
+    @AppStorage("showIconBackground") private var showIconBackground = true
     @AppStorage("showWidgetDivider") private var showWidgetDivider = true
     @AppStorage("dockBackground") private var dockBackground: DockBackground = .system
     @AppStorage("dockBackgroundColorHex") private var dockBackgroundColorHex: String = "#000000ff"
@@ -177,6 +234,7 @@ private struct AppearanceSettingsTab: View {
             }
 
             Toggle(Strings.Settings.showLabels, isOn: $showLabels)
+            Toggle(Strings.Settings.showIconBackground, isOn: $showIconBackground)
             Toggle(Strings.Settings.showWidgetDivider, isOn: $showWidgetDivider)
 
             Picker(Strings.Settings.dockBackground, selection: $dockBackground) {
@@ -418,38 +476,6 @@ private struct WidgetsSettingsTab: View {
                             Text(metric.rawValue).tag(metric)
                         }
                     }
-                }
-            }
-            Section {
-                Toggle(isOn: $showStockWidget) {
-                    proLabel(Strings.Settings.showStockWidget, isPro: license.isPro)
-                }
-                .disabled(!license.isPro)
-                if showStockWidget && license.isPro {
-                    ForEach(currentSymbols, id: \.self) { symbol in
-                        HStack {
-                            Text(symbol)
-                                .font(.system(.body, design: .monospaced))
-                            Spacer()
-                            Button {
-                                removeSymbol(symbol)
-                            } label: {
-                                Image(systemName: "minus.circle.fill")
-                                    .foregroundStyle(.red)
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-                    HStack {
-                        TextField(Strings.Settings.stockSymbolField, text: $newSymbolText)
-                            .textFieldStyle(.roundedBorder)
-                            .onSubmit { addSymbol() }
-                        Button(Strings.Settings.stockSymbolAdd) { addSymbol() }
-                            .disabled(newSymbolText.trimmingCharacters(in: .whitespaces).isEmpty)
-                    }
-                    Text(Strings.Settings.stockTickerNote)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
                 }
             }
         }

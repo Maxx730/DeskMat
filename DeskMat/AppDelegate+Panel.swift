@@ -6,6 +6,7 @@ extension AppDelegate {
         let content = ContentView()
             .environment(entitlements)
             .environment(systemMonitor)
+            .environment(windowState)
 
         let hostingView = NSHostingView(rootView: content)
         hostingView.setFrameSize(hostingView.fittingSize)
@@ -32,6 +33,7 @@ extension AppDelegate {
         hostingView.postsFrameChangedNotifications = true
         NotificationCenter.default.addObserver(self, selector: #selector(hostingViewFrameChanged(_:)), name: NSView.frameDidChangeNotification, object: hostingView)
 
+        updatePanelShadow()
         repositionPanel()
         panel.orderFrontRegardless()
 
@@ -52,6 +54,12 @@ extension AppDelegate {
                 self?.repositionPanel()
             }
         }
+    }
+
+    func updatePanelShadow() {
+        let raw = UserDefaults.standard.string(forKey: "dockBackground") ?? DockBackground.system.rawValue
+        let background = DockBackground(rawValue: raw) ?? .system
+        panel.hasShadow = background == .system
     }
 
     @objc func hostingViewFrameChanged(_ notification: Notification) {
