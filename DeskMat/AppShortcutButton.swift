@@ -32,18 +32,24 @@ struct AppShortcutButton: View {
     let onDragStart: (Image?) -> Void
 
     @AppStorage("showLabels") private var showLabels = true
+    @AppStorage("showIconBackground") private var showIconBackground = true
     @AppStorage("hoverSize") private var hoverSize: HoverSize = .small
     @AppStorage("hoverAnimation") private var hoverAnimation: HoverAnimation = .bounce
     @AppStorage("finderDefaultDirectory") private var finderDefaultDirectory = "~/"
     @AppStorage("advancedWindowManagement") private var advancedWindowManagement = false
-    
+
+    @Environment(WindowStateService.self) private var windowState
+
     @State private var isHovering = false
     @State private var bobScale: Double = 1.0
     @State private var avgColor: Color = .gray
     @State private var cachedIcon: Image?
+    @State private var cachedIconFull: Image?
     @State private var isFrontmost = false
-    @State private var windowCount = 0
-    @State private var hasMinimizedWindows = false
+
+    private var windowCount: Int { windowState.info(for: shortcut.bundleIdentifier).count }
+    private var hasMinimizedWindows: Bool { windowState.info(for: shortcut.bundleIdentifier).hasMinimized }
+
     @State private var jiggleAngle: Double = 0
     @State private var suppressNextTap = false
     @State private var launchFlashOpacity: Double = 0
@@ -55,13 +61,23 @@ struct AppShortcutButton: View {
             ZStack(alignment: .bottom) {
                 // Icon + all hover effects (scale, rotation, shader, flash)
                 ZStack {
-                    RoundedRectangle(cornerRadius: 10)
-                        .fill(avgColor)
-                    (cachedIcon ?? Image(systemName: "questionmark.app"))
-                    if isFrontmost {
-                        RoundedRectangle(cornerRadius: 8)
-                            .stroke(ColorUtils.brightenedHSV(avgColor), lineWidth: 2)
-                            .padding(1)
+                    if showIconBackground {
+                        RoundedRectangle(cornerRadius: 10)
+                            .fill(avgColor)
+                        (cachedIcon ?? Image(systemName: "questionmark.app"))
+                        if isFrontmost {
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(ColorUtils.brightenedHSV(avgColor), lineWidth: 2)
+                                .padding(1)
+                        }
+                    } else {
+                        if let icon = cachedIconFull {
+                            icon
+                        } else {
+                            Image(systemName: "questionmark.app")
+                                .resizable()
+                                .scaledToFit()
+                        }
                     }
                 }
                 .frame(width: 64, height: 64)
@@ -133,7 +149,7 @@ struct AppShortcutButton: View {
             Button(Strings.Menu.remove, role: .destructive) { onRemove() }
         }
         .task(id: shortcut.iconFileName) {
-            loadIcon()
+            await loadIcon()
         }
         .onReceive(NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.didActivateApplicationNotification)) { notification in
             if let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication {
@@ -141,46 +157,43 @@ struct AppShortcutButton: View {
                     isFrontmost = app.bundleIdentifier == shortcut.bundleIdentifier
                 }
             }
-            updateWindowCount()
-        }
-        .onReceive(NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.didDeactivateApplicationNotification)) { _ in
-            updateWindowCount()
         }
         .onReceive(NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.didLaunchApplicationNotification)) { notification in
             if let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,
                app.bundleIdentifier == shortcut.bundleIdentifier {
                 isLaunching = false
             }
-            updateWindowCount()
-        }
-        .onReceive(NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.didTerminateApplicationNotification)) { _ in
-            updateWindowCount()
         }
         .onAppear {
             isFrontmost = NSWorkspace.shared.frontmostApplication?.bundleIdentifier == shortcut.bundleIdentifier
-            updateWindowCount()
         }
     }
 
-    private func loadIcon() {
+    private func loadIcon() async {
         let url = AppShortcutStore.iconURL(for: shortcut.iconFileName)
-        guard let nsImage = NSImage(contentsOf: url) else { return }
+        guard let result = await Task.detached(priority: .userInitiated) { () -> (Image, Image, Color)? in
+            guard let nsImage = NSImage(contentsOf: url) else { return nil }
 
-        // Pre-render at exact pixel size for crisp display
-        let targetSize = NSSize(width: 48, height: 48)
-        let sharpImage = NSImage(size: targetSize)
-        sharpImage.lockFocus()
-        NSGraphicsContext.current?.imageInterpolation = .high
-        nsImage.draw(in: NSRect(origin: .zero, size: targetSize),
-                     from: NSRect(origin: .zero, size: nsImage.size),
-                     operation: .copy, fraction: 1.0)
-        sharpImage.unlockFocus()
+            func render(into size: NSSize) -> NSImage {
+                let img = NSImage(size: size)
+                img.lockFocus()
+                NSGraphicsContext.current?.imageInterpolation = .high
+                nsImage.draw(in: NSRect(origin: .zero, size: size),
+                             from: NSRect(origin: .zero, size: nsImage.size),
+                             operation: .copy, fraction: 1.0)
+                img.unlockFocus()
+                return img
+            }
 
-        cachedIcon = Image(nsImage: sharpImage)
+            let icon     = Image(nsImage: render(into: NSSize(width: 48, height: 48)))
+            let iconFull = Image(nsImage: render(into: NSSize(width: 64, height: 64)))
+            let color    = ColorUtils.averageColor(of: nsImage) ?? .gray
+            return (icon, iconFull, color)
+        }.value else { return }
 
-        if let color = ColorUtils.averageColor(of: nsImage) {
-            avgColor = color
-        }
+        cachedIcon     = result.0
+        cachedIconFull = result.1
+        avgColor       = result.2
     }
 
     private func startHoverAnimation() {
@@ -290,35 +303,9 @@ struct AppShortcutButton: View {
         }
     }
 
-    private func updateWindowCount(runningApps: [NSRunningApplication]? = nil) {
-        let apps = runningApps ?? NSRunningApplication.runningApplications(withBundleIdentifier: shortcut.bundleIdentifier)
-        guard let pid = apps.first?.processIdentifier else {
-            windowCount = 0
-            hasMinimizedWindows = false
-            return
-        }
-        guard let allWindows = CGWindowListCopyWindowInfo([.optionAll, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] else {
-            windowCount = 0
-            hasMinimizedWindows = false
-            return
-        }
-        let appWindows = allWindows.filter {
-            ($0[kCGWindowOwnerPID as String] as? pid_t) == pid
-                && ($0[kCGWindowLayer as String] as? Int) == 0
-        }
-        let onScreenCount = appWindows.filter {
-            ($0[kCGWindowIsOnscreen as String] as? Bool) == true
-        }.count
-        windowCount = onScreenCount
-        hasMinimizedWindows = appWindows.count > onScreenCount
-    }
-
     private func launchOrFocus() {
-        // Refresh window state synchronously before branching. Workspace notifications
-        // will also fire after activation and call updateWindowCount() again — that's
-        // expected and keeps the dot indicator up to date.
+        windowState.refresh()
         let runningApps = NSRunningApplication.runningApplications(withBundleIdentifier: shortcut.bundleIdentifier)
-        updateWindowCount(runningApps: runningApps)
 
         // Finder is always running — open a new window instead of just activating
         if shortcut.bundleIdentifier == "com.apple.finder" {
@@ -355,11 +342,6 @@ struct AppShortcutButton: View {
             NSWorkspace.shared.openApplication(at: shortcut.appURL, configuration: config)
         }
 
-        // Refresh indicator after the window animation completes.
-        Task {
-            try? await Task.sleep(for: .milliseconds(650))
-            updateWindowCount()
-        }
     }
 
 

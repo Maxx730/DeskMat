@@ -12,7 +12,7 @@ struct ClockWidget: View {
                 }
             }
             .onTapGesture {
-                if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.clock") {
+                if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.iCal") {
                     NSWorkspace.shared.open(url)
                 }
             }
@@ -38,50 +38,55 @@ private struct AnalogClockFace: View {
     let date: Date
 
     var body: some View {
-        Canvas { context, size in
-            let dim    = min(size.width, size.height)
-            let center = CGPoint(x: size.width / 2, y: size.height / 2)
+        Canvas(renderer: render)
+            .padding(6)
+    }
 
-            let calendar = Calendar.current
-            let sec  = Double(calendar.component(.second, from: date))
-            let min  = Double(calendar.component(.minute, from: date)) + sec / 60
-            let hour = Double(calendar.component(.hour,   from: date)).truncatingRemainder(dividingBy: 12) + min / 60
+    private func render(context: inout GraphicsContext, size: CGSize) {
+        let dim    = min(size.width, size.height)
+        let center = CGPoint(x: size.width / 2, y: size.height / 2)
 
-            // Hour markers
-            for i in 0..<12 {
-                let angle = Double(i) / 12.0 * .pi * 2 - .pi / 2
-                let mr = dim * 0.04
-                let mx = center.x + CGFloat(cos(angle)) * dim * 0.44
-                let my = center.y + CGFloat(sin(angle)) * dim * 0.44
-                context.fill(
-                    Path(ellipseIn: CGRect(x: mx - mr, y: my - mr, width: mr * 2, height: mr * 2)),
-                    with: .color(.white.opacity(0.3))
-                )
-            }
+        let calendar = Calendar.current
+        let sec  = Double(calendar.component(.second, from: date))
+        let min  = Double(calendar.component(.minute, from: date)) + sec / 60
+        let hour = Double(calendar.component(.hour,   from: date)).truncatingRemainder(dividingBy: 12) + min / 60
 
-            // Hands
-            let handWidth = dim * 0.01
-            func drawHand(fraction: Double, outOf: Double, length: CGFloat, color: Color) {
-                let angle = fraction / outOf * .pi * 2 - .pi / 2
-                var path = Path()
-                path.move(to: center)
-                path.addLine(to: CGPoint(x: center.x + CGFloat(cos(angle)) * length,
-                                         y: center.y + CGFloat(sin(angle)) * length))
-                context.stroke(path, with: .color(color),
-                               style: StrokeStyle(lineWidth: handWidth, lineCap: .round))
-            }
-            drawHand(fraction: hour, outOf: 12, length: dim * 0.27, color: .white.opacity(0.6))
-            drawHand(fraction: min,  outOf: 60, length: dim * 0.36, color: .white.opacity(0.6))
-            drawHand(fraction: sec,  outOf: 60, length: dim * 0.38, color: .red)
-
-            // Center dot
-            let outerR = dim * 0.05
-            let innerR = dim * 0.025
-            context.fill(Path(ellipseIn: CGRect(x: center.x - outerR, y: center.y - outerR,
-                                                width: outerR * 2,    height: outerR * 2)), with: .color(.white))
-            context.fill(Path(ellipseIn: CGRect(x: center.x - innerR, y: center.y - innerR,
-                                                width: innerR * 2,    height: innerR * 2)), with: .color(.black))
+        // Hour markers
+        for i in 0..<12 {
+            let angle = Double(i) / 12.0 * .pi * 2 - .pi / 2
+            let mr = dim * 0.04
+            let mx = center.x + CGFloat(cos(angle)) * dim * 0.44
+            let my = center.y + CGFloat(sin(angle)) * dim * 0.44
+            context.fill(
+                Path(ellipseIn: CGRect(x: mx - mr, y: my - mr, width: mr * 1, height: mr * 1)),
+                with: .color(.white.opacity(0.3))
+            )
         }
-        .padding(6)
+
+        // Hands
+        let handWidth = dim * 0.01
+        drawHand(&context, center: center, fraction: hour, outOf: 12, length: dim * 0.27, width: handWidth, color: .white.opacity(0.6))
+        drawHand(&context, center: center, fraction: min,  outOf: 60, length: dim * 0.36, width: handWidth, color: .white.opacity(0.6))
+        drawHand(&context, center: center, fraction: sec,  outOf: 60, length: dim * 0.38, width: handWidth, color: .red)
+
+        // Center dot
+        let outerR = dim * 0.05
+        let innerR = dim * 0.025
+        context.fill(Path(ellipseIn: CGRect(x: center.x - outerR, y: center.y - outerR,
+                                            width: outerR * 2,    height: outerR * 2)), with: .color(.white))
+        context.fill(Path(ellipseIn: CGRect(x: center.x - innerR, y: center.y - innerR,
+                                            width: innerR * 2,    height: innerR * 2)), with: .color(.black))
+    }
+
+    private func drawHand(_ context: inout GraphicsContext, center: CGPoint,
+                           fraction: Double, outOf: Double,
+                           length: CGFloat, width: CGFloat, color: Color) {
+        let angle = fraction / outOf * .pi * 2 - .pi / 2
+        var path = Path()
+        path.move(to: center)
+        path.addLine(to: CGPoint(x: center.x + CGFloat(cos(angle)) * length,
+                                 y: center.y + CGFloat(sin(angle)) * length))
+        context.stroke(path, with: .color(color),
+                       style: StrokeStyle(lineWidth: width, lineCap: .round))
     }
 }

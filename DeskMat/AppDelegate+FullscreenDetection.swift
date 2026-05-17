@@ -1,42 +1,65 @@
 import AppKit
 
+// MARK: - Private CGS bridge
+// These are undocumented Core Graphics Services symbols used by the system itself
+// (Dock, Mission Control) and widely used by window-manager apps. Stable across
+// macOS versions. Not App Store safe — gate behind a build flag if that changes.
+
+private typealias CGSConnectionID = UInt32
+private typealias CGSSpaceID = UInt64
+
+@_silgen_name("CGSMainConnectionID")
+private func CGSMainConnectionID() -> CGSConnectionID
+
+@_silgen_name("CGSGetActiveSpace")
+private func CGSGetActiveSpace(_ cid: CGSConnectionID) -> CGSSpaceID
+
+@_silgen_name("CGSSpaceGetType")
+private func CGSSpaceGetType(_ cid: CGSConnectionID, _ space: CGSSpaceID) -> Int32
+
+private let kCGSSpaceTypeFullscreen: Int32 = 4
+
+// MARK: - Detection
+
 extension AppDelegate {
 
     func startFullscreenObserver() {
-        let ws = NSWorkspace.shared.notificationCenter
-        ws.addObserver(self, selector: #selector(scheduleFullscreenEval),
-                       name: NSWorkspace.didActivateApplicationNotification, object: nil)
-        ws.addObserver(self, selector: #selector(scheduleFullscreenEval),
-                       name: NSWorkspace.didDeactivateApplicationNotification, object: nil)
-        ws.addObserver(self, selector: #selector(scheduleFullscreenEval),
-                       name: NSWorkspace.activeSpaceDidChangeNotification, object: nil)
-        // Evaluate once on startup to catch any pre-existing fullscreen state
-        scheduleFullscreenEval()
+        NSWorkspace.shared.notificationCenter.addObserver(
+            self,
+            selector: #selector(handleSpaceChanged),
+            name: NSWorkspace.activeSpaceDidChangeNotification,
+            object: nil
+        )
+
+        // Safety poll for any case the Space-change notification doesn't fire.
+        let timer = DispatchSource.makeTimerSource(queue: .main)
+        timer.schedule(deadline: .now() + 5.0, repeating: 5.0)
+        timer.setEventHandler { [weak self] in self?.performFullscreenEval() }
+        timer.resume()
+        fullscreenPollTimer = timer
+
+        performFullscreenEval()
     }
 
     func stopFullscreenObserver() {
-        fullscreenEvalWorkItem?.cancel()
-        fullscreenEvalWorkItem = nil
-        let ws = NSWorkspace.shared.notificationCenter
-        ws.removeObserver(self, name: NSWorkspace.didActivateApplicationNotification, object: nil)
-        ws.removeObserver(self, name: NSWorkspace.didDeactivateApplicationNotification, object: nil)
-        ws.removeObserver(self, name: NSWorkspace.activeSpaceDidChangeNotification, object: nil)
+        fullscreenPollTimer?.cancel()
+        fullscreenPollTimer = nil
+        NSWorkspace.shared.notificationCenter.removeObserver(
+            self,
+            name: NSWorkspace.activeSpaceDidChangeNotification,
+            object: nil
+        )
     }
 
-    @objc func scheduleFullscreenEval() {
-        fullscreenEvalWorkItem?.cancel()
-        let work = DispatchWorkItem { [weak self] in
+    @objc private func handleSpaceChanged() {
+        // Brief delay so CGS has settled on the new Space ID before we query it.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
             self?.performFullscreenEval()
         }
-        fullscreenEvalWorkItem = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1, execute: work)
     }
 
     private func performFullscreenEval() {
-        let fullscreen = isAnyWindowFullscreen()
-        #if DEBUG
-        print("[FullscreenDetection] fullscreen=\(fullscreen) isFullscreenHidden=\(isFullscreenHidden) isDockVisible=\(isDockVisible)")
-        #endif
+        let fullscreen = isOnFullscreenSpace()
         if fullscreen {
             guard !isFullscreenHidden && isDockVisible else { return }
             isFullscreenHidden = true
@@ -51,46 +74,10 @@ extension AppDelegate {
         }
     }
 
-    private func isAnyWindowFullscreen() -> Bool {
-        // --- Signal 1: system presentation options ---
-        let opts = NSApp.currentSystemPresentationOptions
-        #if DEBUG
-        print("[FullscreenDetection] presentationOpts=\(opts)")
-        #endif
-        if opts.contains(.fullScreen) { return true }
-        if opts.contains(.autoHideMenuBar) && opts.contains(.hideDock) { return true }
-
-        // --- Signal 2: window list ---
-        guard let windows = CGWindowListCopyWindowInfo(
-            [.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID
-        ) as? [[String: Any]] else { return false }
-
-        let ourPID = ProcessInfo.processInfo.processIdentifier
-        let screens = NSScreen.screens
-
-        for info in windows {
-            guard
-                let pid = info[kCGWindowOwnerPID as String] as? Int32,
-                pid != ourPID,
-                let layer = info[kCGWindowLayer as String] as? Int,
-                layer >= 0 && layer < 20,
-                let boundsValue = info[kCGWindowBounds as String] as? NSDictionary,
-                let bounds = CGRect(dictionaryRepresentation: boundsValue)
-            else { continue }
-
-            #if DEBUG
-            let name = info[kCGWindowOwnerName as String] as? String ?? "?"
-            print("[FullscreenDetection] window '\(name)' pid=\(pid) layer=\(layer) bounds=\(bounds)")
-            #endif
-
-            for screen in screens {
-                if abs(bounds.width  - screen.frame.width)  < 2,
-                   abs(bounds.height - screen.frame.height) < 2 {
-                    return true
-                }
-            }
-        }
-        return false
+    private func isOnFullscreenSpace() -> Bool {
+        let cid = CGSMainConnectionID()
+        let activeSpace = CGSGetActiveSpace(cid)
+        return CGSSpaceGetType(cid, activeSpace) == kCGSSpaceTypeFullscreen
     }
 
     func applicationWillTerminate(_ notification: Notification) {

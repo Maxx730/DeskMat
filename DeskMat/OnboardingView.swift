@@ -129,6 +129,7 @@ private struct WidgetsStep: View {
     @AppStorage("showClockWidget")   private var showClockWidget   = true
     @AppStorage("showImageWidget")   private var showImageWidget   = true
     @AppStorage("showLEDBoard")      private var showLEDBoard      = true
+    @AppStorage("showStockWidget")   private var showStockWidget   = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
@@ -138,13 +139,15 @@ private struct WidgetsStep: View {
             )
 
             VStack(spacing: 0) {
-                WidgetRow(icon: "cloud.sun",   label: Strings.Onboarding.Widgets.weather,  isOn: $showWeatherWidget)
+                WidgetRow(icon: "cloud.sun",         label: Strings.Onboarding.Widgets.weather,  isOn: $showWeatherWidget)
                 Divider().padding(.leading, 44)
-                WidgetRow(icon: "clock",       label: Strings.Onboarding.Widgets.clock,    isOn: $showClockWidget)
+                WidgetRow(icon: "clock",             label: Strings.Onboarding.Widgets.clock,    isOn: $showClockWidget)
                 Divider().padding(.leading, 44)
-                WidgetRow(icon: "photo",       label: Strings.Onboarding.Widgets.image,    isOn: $showImageWidget)
+                WidgetRow(icon: "photo",             label: Strings.Onboarding.Widgets.image,    isOn: $showImageWidget)
                 Divider().padding(.leading, 44)
-                WidgetRow(icon: "lightbulb",   label: Strings.Onboarding.Widgets.ledBoard, isOn: $showLEDBoard)
+                WidgetRow(icon: "lightbulb",         label: Strings.Onboarding.Widgets.ledBoard, isOn: $showLEDBoard)
+                Divider().padding(.leading, 44)
+                WidgetRow(icon: "chart.line.uptrend.xyaxis", label: Strings.Onboarding.Widgets.stockTicker, isOn: $showStockWidget)
             }
             .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 10))
         }

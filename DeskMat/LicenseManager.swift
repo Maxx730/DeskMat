@@ -62,15 +62,8 @@ final class LicenseManager {
             return .invalid
         }
 
-        // Issue #8: Log if hostname encoding falls back
         let rawHostname = Host.current().localizedName ?? "Mac"
-        if rawHostname != "Mac", let encoded = rawHostname.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) {
-            log.debug("Activating with instance name: \(encoded)")
-        } else {
-            log.warning("Hostname encoding fell back to default 'Mac'")
-        }
-        let instanceName = rawHostname.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "Mac"
-        let body = "license_key=\(trimmed)&instance_name=\(instanceName)"
+        let body = formBody(["license_key": trimmed, "instance_name": rawHostname])
 
         // Issue #10: Log activation attempt (last 4 chars only)
         log.info("Activating license key ending in …\(trimmed.suffix(4))")
@@ -121,7 +114,7 @@ final class LicenseManager {
         // Optimistically grant pro while network call is in flight
         await MainActor.run { isPro = true }
 
-        let body = "license_key=\(licenseKey)&instance_id=\(instanceId)"
+        let body = formBody(["license_key": licenseKey, "instance_id": instanceId])
 
         for attempt in 1...2 {
             do {
@@ -160,7 +153,7 @@ final class LicenseManager {
         // Issue #10: Log deactivation attempt
         log.info("Deactivating license key ending in …\(licenseKey.suffix(4))")
 
-        let body = "license_key=\(licenseKey)&instance_id=\(instanceId)"
+        let body = formBody(["license_key": licenseKey, "instance_id": instanceId])
 
         do {
             let (json, status) = try await post(endpoint: "deactivate", body: body)
@@ -205,6 +198,12 @@ final class LicenseManager {
     }
 
     // MARK: - Networking
+
+    private func formBody(_ params: [String: String]) -> String {
+        var components = URLComponents()
+        components.queryItems = params.map { URLQueryItem(name: $0.key, value: $0.value) }
+        return components.percentEncodedQuery ?? ""
+    }
 
     private func post(endpoint: String, body: String) async throws -> ([String: Any], Int) {
         guard let url = URL(string: "\(Self.baseURL)/\(endpoint)") else {

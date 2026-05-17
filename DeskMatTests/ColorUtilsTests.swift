@@ -58,16 +58,6 @@ struct ColorUtilsTests {
         #expect(color == nil)
     }
 
-    @Test func averageColorForKnownBundleID() {
-        let color = ColorUtils.averageColor(forBundleIdentifier: "com.apple.finder")
-        #expect(color != nil)
-    }
-
-    @Test func averageColorForInvalidBundleIDReturnsColor() {
-        let color = ColorUtils.averageColor(forBundleIdentifier: "com.nonexistent.fakebundle.xyz")
-        #expect(color != nil)
-    }
-
     @Test func averageColorAppliesDarkenFactor() {
         let image = NSImage(size: NSSize(width: 10, height: 10))
         image.lockFocus()

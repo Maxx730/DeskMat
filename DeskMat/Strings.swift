@@ -19,6 +19,7 @@ enum Strings {
         static let finderDefaultDirectorySublabel = "Only applies to Finder"
         static let appearance = "Appearance"
         static let showLabels = "Show Labels"
+        static let showIconBackground = "Show Icon Background"
         static let showWidgetDivider = "Show Widget Divider"
         static let dockBackground = "Dock Background"
         static let dockBackgroundColor = "Color"
@@ -232,6 +233,16 @@ enum Strings {
         static let deactivateCaption   = "Deactivating frees up your activation slot so you can use your key on a different machine."
         static func lastVerified(_ date: String) -> String { "Last verified: \(date)" }
         static let offlineBadge        = "Not verified (offline)"
+    }
+
+    // MARK: - Reset
+
+    enum Reset {
+        static let buttonLabel   = "Reset to Defaults"
+        static let alertTitle    = "Reset All Settings?"
+        static let alertMessage  = "This will restore all settings to their defaults. Your dock shortcuts and license will not be affected."
+        static let alertConfirm  = "Reset"
+        static let buttonCaption = "Restores all appearance, dock, and widget settings to their defaults. Shortcuts and your license are not affected."
     }
 
     // MARK: - Errors

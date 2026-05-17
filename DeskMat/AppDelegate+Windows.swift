@@ -9,6 +9,28 @@ private extension UTType {
 }
 
 extension AppDelegate {
+
+    // MARK: - Window factory
+
+    private func makeStandardWindow<V: View>(title: String, rootView: V) -> NSWindow {
+        let hostingView = NSHostingView(rootView: rootView)
+        hostingView.setFrameSize(NSSize(width: 480, height: 0))
+        hostingView.setFrameSize(NSSize(width: 480, height: hostingView.fittingSize.height))
+        let window = NSWindow(
+            contentRect: NSRect(origin: .zero, size: hostingView.frame.size),
+            styleMask: [.titled, .closable],
+            backing: .buffered,
+            defer: false
+        )
+        window.title = title
+        window.contentView = hostingView
+        window.center()
+        window.isReleasedWhenClosed = false
+        return window
+    }
+
+    // MARK: - Shortcuts
+
     @objc func addShortcut() {
         if let window = addShortcutWindow {
             window.makeKeyAndOrderFront(nil)
@@ -24,24 +46,11 @@ extension AppDelegate {
             self?.addShortcutWindow?.close()
             self?.addShortcutWindow = nil
         })
-        let hostingView = NSHostingView(rootView: addView)
-        hostingView.setFrameSize(NSSize(width: 480, height: 0))
-        let size = NSSize(width: 480, height: hostingView.fittingSize.height)
-        hostingView.setFrameSize(size)
 
-        let window = NSWindow(
-            contentRect: NSRect(origin: .zero, size: size),
-            styleMask: [.titled, .closable],
-            backing: .buffered,
-            defer: false
-        )
-        window.title = Strings.Windows.addShortcut
-        window.contentView = hostingView
-        window.center()
-        window.isReleasedWhenClosed = false
+        let window = makeStandardWindow(title: Strings.Windows.addShortcut, rootView: addView)
+        window.delegate = self
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
-
         addShortcutWindow = window
     }
 
@@ -62,26 +71,15 @@ extension AppDelegate {
             self?.editShortcutWindow?.close()
             self?.editShortcutWindow = nil
         })
-        let hostingView = NSHostingView(rootView: editView)
-        hostingView.setFrameSize(NSSize(width: 480, height: 0))
-        let size = NSSize(width: 480, height: hostingView.fittingSize.height)
-        hostingView.setFrameSize(size)
 
-        let window = NSWindow(
-            contentRect: NSRect(origin: .zero, size: size),
-            styleMask: [.titled, .closable],
-            backing: .buffered,
-            defer: false
-        )
-        window.title = Strings.Windows.editShortcut
-        window.contentView = hostingView
-        window.center()
-        window.isReleasedWhenClosed = false
+        let window = makeStandardWindow(title: Strings.Windows.editShortcut, rootView: editView)
+        window.delegate = self
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
-
         editShortcutWindow = window
     }
+
+    // MARK: - Export / Import
 
     @objc func exportDock() {
         let savePanel = NSSavePanel()
@@ -122,29 +120,16 @@ extension AppDelegate {
         }
     }
 
+    // MARK: - Onboarding / Settings
+
     func showOnboarding() {
         let view = OnboardingView(onComplete: { [weak self] in
             self?.onboardingWindow?.close()
         })
-        let hostingView = NSHostingView(rootView: view)
-        hostingView.setFrameSize(NSSize(width: 480, height: 0))
-        let size = NSSize(width: 480, height: hostingView.fittingSize.height)
-        hostingView.setFrameSize(size)
-
-        let window = NSWindow(
-            contentRect: NSRect(origin: .zero, size: size),
-            styleMask: [.titled, .closable],
-            backing: .buffered,
-            defer: false
-        )
-        window.title = Strings.Onboarding.windowTitle
-        window.contentView = hostingView
-        window.center()
-        window.isReleasedWhenClosed = false
+        let window = makeStandardWindow(title: Strings.Onboarding.windowTitle, rootView: view)
         window.delegate = self
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
-
         onboardingWindow = window
     }
 
@@ -160,33 +145,23 @@ extension AppDelegate {
 
         let settingsView = SettingsView()
             .environment(entitlements)
-        let hostingView = NSHostingView(rootView: settingsView)
-        hostingView.setFrameSize(NSSize(width: 480, height: 0))
-        let settingsSize = NSSize(width: 480, height: hostingView.fittingSize.height)
-        hostingView.setFrameSize(settingsSize)
-
-        let window = NSWindow(
-            contentRect: NSRect(origin: .zero, size: settingsSize),
-            styleMask: [.titled, .closable],
-            backing: .buffered,
-            defer: false
-        )
-        window.title = Strings.Windows.settings
-        window.contentView = hostingView
-        window.center()
-        window.isReleasedWhenClosed = false
+        let window = makeStandardWindow(title: Strings.Windows.settings, rootView: settingsView)
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
-
         settingsWindow = window
     }
 }
 
 extension AppDelegate: NSWindowDelegate {
     public func windowWillClose(_ notification: Notification) {
-        guard let window = notification.object as? NSWindow,
-              window === onboardingWindow else { return }
-        UserDefaults.standard.set(true, forKey: AppDelegate.onboardingCompletedKey)
-        onboardingWindow = nil
+        guard let window = notification.object as? NSWindow else { return }
+        if window === onboardingWindow {
+            UserDefaults.standard.set(true, forKey: AppDelegate.onboardingCompletedKey)
+            onboardingWindow = nil
+        } else if window === addShortcutWindow {
+            addShortcutWindow = nil
+        } else if window === editShortcutWindow {
+            editShortcutWindow = nil
+        }
     }
 }

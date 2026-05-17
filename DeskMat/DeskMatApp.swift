@@ -17,6 +17,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     let entitlements = LicenseManager()
     let systemMonitor = SystemMonitorService()
+    let windowState = WindowStateService()
     var panel: DeskMatPanel!
     var statusItem: NSStatusItem!
     var settingsWindow: NSWindow?
@@ -33,10 +34,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var mouseGlobalMonitorToken: Any?
     var mouseLocalMonitorToken: Any?
     var hideWorkItem: DispatchWorkItem?
+    var isDragging = false
     var isDockHidden = false
     var isDockVisible = true
     var isFullscreenHidden = false
-    var fullscreenEvalWorkItem: DispatchWorkItem?
+    var fullscreenPollTimer: DispatchSourceTimer?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
@@ -65,6 +67,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             } else {
                 self.stopAutoHide()
             }
+            self.updatePanelShadow()
         }
 
         NotificationCenter.default.addObserver(forName: NSApplication.didChangeScreenParametersNotification,

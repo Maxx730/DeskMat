@@ -1,5 +1,8 @@
 import AppKit
 import Foundation
+import OSLog
+
+private let logger = Logger(subsystem: "com.kinghorn.deskmat", category: "AppShortcutStore")
 
 enum AppShortcutStore {
 
@@ -48,7 +51,7 @@ enum AppShortcutStore {
             let data = try JSONEncoder().encode(shortcuts)
             try data.write(to: shortcutsFileURL, options: .atomic)
         } catch {
-            // Silently fail for MVP
+            logger.error("Failed to save shortcuts: \(error.localizedDescription)")
         }
     }
 
@@ -168,8 +171,12 @@ enum AppShortcutStore {
         try shortcutsData.write(to: shortcutsFileURL, options: .atomic)
 
         for (fileName, base64) in archive.icons {
+            // Reject names with path separators or hidden-file prefixes to prevent
+            // a malicious archive from writing outside the icons directory.
+            let sanitized = URL(fileURLWithPath: fileName).lastPathComponent
+            guard !sanitized.isEmpty, !sanitized.hasPrefix(".") else { continue }
             guard let imageData = Data(base64Encoded: base64) else { continue }
-            let dest = iconsDirectory.appending(path: fileName)
+            let dest = iconsDirectory.appending(path: sanitized)
             try imageData.write(to: dest, options: .atomic)
         }
 

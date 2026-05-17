@@ -1,5 +1,10 @@
 import Foundation
 
+enum LocationError: LocalizedError {
+    case notFound
+    var errorDescription: String? { "No location found for that search." }
+}
+
 struct LocationResult {
     let latitude: Double
     let longitude: Double
@@ -27,7 +32,7 @@ enum LocationService {
         let (data, _) = try await URLSession.shared.data(from: url)
         let response = try JSONDecoder().decode(GeocodingResponse.self, from: data)
 
-        guard let place = response.results?.first else { throw URLError(.cannotFindHost) }
+        guard let place = response.results?.first else { throw LocationError.notFound }
 
         var display = place.name
         if let state = place.admin1 { display += ", \(state)" }
