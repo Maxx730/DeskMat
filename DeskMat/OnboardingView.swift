@@ -5,7 +5,7 @@ struct OnboardingView: View {
     var onComplete: () -> Void
 
     private enum Step: Int, CaseIterable {
-        case welcome, position, appearance, finish
+        case welcome, shortcuts, position, appearance, finish
     }
 
     var body: some View {
@@ -19,6 +19,7 @@ struct OnboardingView: View {
             Group {
                 switch Step(rawValue: step) ?? .welcome {
                 case .welcome:    WelcomeStep()
+                case .shortcuts:  ShortcutsStep()
                 case .position:   PositionStep()
                 case .appearance: AppearanceStep()
                 case .finish:     FinishStep()
@@ -121,7 +122,42 @@ private struct WelcomeStep: View {
     }
 }
 
-// MARK: - Step 2: Dock Position
+// MARK: - Step 2: Shortcuts
+
+private struct ShortcutsStep: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            StepHeader(
+                title: Strings.Onboarding.Shortcuts.title,
+                subtitle: Strings.Onboarding.Shortcuts.subtitle
+            )
+
+            HStack(alignment: .top, spacing: 16) {
+                instructionCard(image: "button-instruct",   caption: Strings.Onboarding.Shortcuts.iconCaption)
+                instructionCard(image: "dropdown-instruct", caption: Strings.Onboarding.Shortcuts.menuCaption)
+            }
+        }
+        .padding(.horizontal, 32)
+        .padding(.vertical, 24)
+    }
+
+    @ViewBuilder
+    private func instructionCard(image: String, caption: String) -> some View {
+        VStack(spacing: 8) {
+            Image(image)
+                .resizable()
+                .scaledToFit()
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+            Text(caption)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+    }
+}
+
+// MARK: - Step 3: Dock Position
 
 private struct PositionStep: View {
     @AppStorage("dockPosition") private var dockPosition: DockPosition = .bottom
