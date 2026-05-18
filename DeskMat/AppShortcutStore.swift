@@ -65,6 +65,18 @@ enum AppShortcutStore {
         return fileName
     }
 
+    static func copyIcon(from image: NSImage, for shortcutID: UUID) throws -> String {
+        try ensureDirectories()
+        guard
+            let tiffData = image.tiffRepresentation,
+            let bitmap   = NSBitmapImageRep(data: tiffData),
+            let pngData  = bitmap.representation(using: .png, properties: [:])
+        else { throw CocoaError(.fileWriteUnknown) }
+        let fileName = "\(shortcutID.uuidString).png"
+        try pngData.write(to: iconsDirectory.appending(path: fileName), options: .atomic)
+        return fileName
+    }
+
     static func deleteIcon(named fileName: String) {
         let url = iconsDirectory.appending(path: fileName)
         try? FileManager.default.removeItem(at: url)
