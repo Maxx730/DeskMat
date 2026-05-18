@@ -122,11 +122,20 @@ extension AppDelegate {
 
     // MARK: - Onboarding / Settings
 
+    #if DEBUG
+    @objc func showOnboardingDebug() {
+        UserDefaults.standard.set(false, forKey: AppDelegate.onboardingCompletedKey)
+        showOnboarding()
+    }
+    #endif
+
     func showOnboarding() {
-        let view = OnboardingView(onComplete: { [weak self] in
-            self?.onboardingWindow?.close()
+        weak var windowRef: NSWindow?
+        let view = OnboardingView(onComplete: {
+            windowRef?.close()
         })
         let window = makeStandardWindow(title: Strings.Onboarding.windowTitle, rootView: view)
+        windowRef = window
         window.delegate = self
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)

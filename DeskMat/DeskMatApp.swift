@@ -52,6 +52,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         NotificationCenter.default.addObserver(self, selector: #selector(importDock), name: .importDock, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(addShortcut), name: .addShortcut, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(editShortcut(_:)), name: .editShortcut, object: nil)
+        #if DEBUG
+        NotificationCenter.default.addObserver(self, selector: #selector(showOnboardingDebug), name: .showOnboarding, object: nil)
+        #endif
 
         applyAppearance()
 
