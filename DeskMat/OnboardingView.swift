@@ -5,7 +5,7 @@ struct OnboardingView: View {
     var onComplete: () -> Void
 
     private enum Step: Int, CaseIterable {
-        case welcome, widgets, position, appearance, finish
+        case welcome, position, appearance, finish
     }
 
     var body: some View {
@@ -19,7 +19,6 @@ struct OnboardingView: View {
             Group {
                 switch Step(rawValue: step) ?? .welcome {
                 case .welcome:    WelcomeStep()
-                case .widgets:    WidgetsStep()
                 case .position:   PositionStep()
                 case .appearance: AppearanceStep()
                 case .finish:     FinishStep()
@@ -122,56 +121,7 @@ private struct WelcomeStep: View {
     }
 }
 
-// MARK: - Step 2: Widgets
-
-private struct WidgetsStep: View {
-    @AppStorage("showWeatherWidget") private var showWeatherWidget = true
-    @AppStorage("showClockWidget")   private var showClockWidget   = true
-    @AppStorage("showImageWidget")   private var showImageWidget   = true
-    @AppStorage("showLEDBoard")      private var showLEDBoard      = true
-    @AppStorage("showStockWidget")   private var showStockWidget   = false
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            StepHeader(
-                title: Strings.Onboarding.Widgets.title,
-                subtitle: Strings.Onboarding.Widgets.subtitle
-            )
-
-            VStack(spacing: 0) {
-                WidgetRow(icon: "cloud.sun",         label: Strings.Onboarding.Widgets.weather,  isOn: $showWeatherWidget)
-                Divider().padding(.leading, 44)
-                WidgetRow(icon: "clock",             label: Strings.Onboarding.Widgets.clock,    isOn: $showClockWidget)
-                Divider().padding(.leading, 44)
-                WidgetRow(icon: "photo",             label: Strings.Onboarding.Widgets.image,    isOn: $showImageWidget)
-                Divider().padding(.leading, 44)
-                WidgetRow(icon: "lightbulb",         label: Strings.Onboarding.Widgets.ledBoard, isOn: $showLEDBoard)
-                Divider().padding(.leading, 44)
-                WidgetRow(icon: "chart.line.uptrend.xyaxis", label: Strings.Onboarding.Widgets.stockTicker, isOn: $showStockWidget)
-            }
-            .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 10))
-        }
-        .padding(.horizontal, 32)
-        .padding(.vertical, 24)
-    }
-}
-
-private struct WidgetRow: View {
-    let icon: String
-    let label: String
-    @Binding var isOn: Bool
-
-    var body: some View {
-        Toggle(isOn: $isOn) {
-            Label(label, systemImage: icon)
-                .padding(.vertical, 10)
-        }
-        .toggleStyle(.switch)
-        .padding(.horizontal, 14)
-    }
-}
-
-// MARK: - Step 3: Dock Position
+// MARK: - Step 2: Dock Position
 
 private struct PositionStep: View {
     @AppStorage("dockPosition") private var dockPosition: DockPosition = .bottom

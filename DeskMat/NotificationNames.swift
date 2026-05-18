@@ -9,4 +9,7 @@ extension Notification.Name {
     static let shortcutAdded  = Notification.Name("shortcutAdded")
     static let editShortcut   = Notification.Name("editShortcut")
     static let shortcutEdited = Notification.Name("shortcutEdited")
+    #if DEBUG
+    static let showOnboarding = Notification.Name("showOnboarding")
+    #endif
 }

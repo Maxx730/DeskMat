@@ -489,6 +489,81 @@ struct AdvancedWindowManagementSettingsTests {
     }
 }
 
+// MARK: - Corner Radius Settings Tests
+
+@Suite(.serialized)
+struct CornerRadiusSettingsTests {
+
+    private let key = "dockCornerRadius"
+
+    @Test func cornerRadiusAbsentWhenKeyNotSet() {
+        let defaults = UserDefaults.standard
+        let existing = defaults.object(forKey: key)
+        defer {
+            if let existing { defaults.set(existing, forKey: key) }
+            else { defaults.removeObject(forKey: key) }
+        }
+
+        defaults.removeObject(forKey: key)
+        // UserDefaults returns 0 for an absent Double key, so @AppStorage's
+        // default of 16 is what fills the gap — verify the key is truly absent.
+        #expect(defaults.object(forKey: key) == nil)
+    }
+
+    @Test func cornerRadiusDefaultValueRoundTrips() {
+        let defaults = UserDefaults.standard
+        let existing = defaults.object(forKey: key)
+        defer {
+            if let existing { defaults.set(existing, forKey: key) }
+            else { defaults.removeObject(forKey: key) }
+        }
+
+        defaults.set(16.0, forKey: key)
+        #expect(abs(defaults.double(forKey: key) - 16.0) < 0.001)
+    }
+
+    @Test func cornerRadiusMinBoundaryRoundTrips() {
+        let defaults = UserDefaults.standard
+        let existing = defaults.object(forKey: key)
+        defer {
+            if let existing { defaults.set(existing, forKey: key) }
+            else { defaults.removeObject(forKey: key) }
+        }
+
+        defaults.set(0.0, forKey: key)
+        #expect(abs(defaults.double(forKey: key) - 0.0) < 0.001)
+    }
+
+    @Test func cornerRadiusMaxBoundaryRoundTrips() {
+        let defaults = UserDefaults.standard
+        let existing = defaults.object(forKey: key)
+        defer {
+            if let existing { defaults.set(existing, forKey: key) }
+            else { defaults.removeObject(forKey: key) }
+        }
+
+        defaults.set(64.0, forKey: key)
+        #expect(abs(defaults.double(forKey: key) - 64.0) < 0.001)
+    }
+
+    @Test func cornerRadiusArbitraryValueRoundTrips() {
+        let defaults = UserDefaults.standard
+        let existing = defaults.object(forKey: key)
+        defer {
+            if let existing { defaults.set(existing, forKey: key) }
+            else { defaults.removeObject(forKey: key) }
+        }
+
+        defaults.set(32.0, forKey: key)
+        #expect(abs(defaults.double(forKey: key) - 32.0) < 0.001)
+    }
+
+    @Test func cornerRadiusKeyIsDistinctFromOffsetKey() {
+        #expect(key != "dockOffset")
+        #expect(key != "dockBackgroundColorHex")
+    }
+}
+
 // MARK: - System Widget Settings Tests
 
 @Suite(.serialized)

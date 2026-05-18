@@ -131,6 +131,9 @@ private struct GeneralSettingsTab: View {
                 } message: {
                     Text("This will delete all cached icon images. Your dock shortcuts will remain, but icons will reload on next launch.")
                 }
+                Button("Show Onboarding") {
+                    NotificationCenter.default.post(name: .showOnboarding, object: nil)
+                }
                 Button("Reset App & Quit") {
                     showingResetConfirmation = true
                 }
@@ -162,6 +165,7 @@ private struct GeneralSettingsTab: View {
         ud.set(true,                            forKey: "showWidgetDivider")
         ud.set(DockBackground.system.rawValue,  forKey: "dockBackground")
         ud.set("#000000ff",                     forKey: "dockBackgroundColorHex")
+        ud.set(16.0,                            forKey: "dockCornerRadius")
         ud.set(VisualEffect.none.rawValue,      forKey: "visualEffect")
         ud.set(0.5,                             forKey: "dockItemShaderIntensity")
         // Dock
@@ -218,6 +222,7 @@ private struct AppearanceSettingsTab: View {
     @AppStorage("showWidgetDivider") private var showWidgetDivider = true
     @AppStorage("dockBackground") private var dockBackground: DockBackground = .system
     @AppStorage("dockBackgroundColorHex") private var dockBackgroundColorHex: String = "#000000ff"
+    @AppStorage("dockCornerRadius") private var dockCornerRadius: Double = 16
     @AppStorage("visualEffect") private var visualEffect: VisualEffect = .none
     @AppStorage("dockItemShaderIntensity") private var dockItemShaderIntensity = 0.5
 
@@ -227,41 +232,57 @@ private struct AppearanceSettingsTab: View {
 
     var body: some View {
         Form {
-            Picker(Strings.Settings.theme, selection: $appearanceMode) {
-                ForEach(AppearanceMode.allCases, id: \.self) { mode in
-                    Text(mode.rawValue).tag(mode)
+            Section("General") {
+                Picker(Strings.Settings.theme, selection: $appearanceMode) {
+                    ForEach(AppearanceMode.allCases, id: \.self) { mode in
+                        Text(mode.rawValue).tag(mode)
+                    }
+                }
+                Toggle(Strings.Settings.showLabels, isOn: $showLabels)
+                Toggle(Strings.Settings.showIconBackground, isOn: $showIconBackground)
+                Toggle(Strings.Settings.showWidgetDivider, isOn: $showWidgetDivider)
+            }
+
+            Section("Background") {
+                Picker(Strings.Settings.dockBackground, selection: $dockBackground) {
+                    ForEach(DockBackground.allCases, id: \.self) { style in
+                        Text(style.rawValue).tag(style)
+                    }
+                }
+                if dockBackground == .color {
+                    ColorPicker(Strings.Settings.dockBackgroundColor, selection: Binding(
+                        get: { dockBackgroundColor },
+                        set: { newColor in dockBackgroundColorHex = ColorUtils.toHex(newColor) }
+                    ))
+                    HStack {
+                        Text(Strings.Settings.cornerRadius)
+                        Spacer()
+                        TextField("", value: $dockCornerRadius, format: .number)
+                            .textFieldStyle(.roundedBorder)
+                            .frame(width: 60)
+                            .multilineTextAlignment(.trailing)
+                            .onChange(of: dockCornerRadius) { _, val in
+                                dockCornerRadius = max(0, min(64, val))
+                            }
+                        Stepper("", value: $dockCornerRadius, in: 0...64, step: 1)
+                            .labelsHidden()
+                    }
                 }
             }
 
-            Toggle(Strings.Settings.showLabels, isOn: $showLabels)
-            Toggle(Strings.Settings.showIconBackground, isOn: $showIconBackground)
-            Toggle(Strings.Settings.showWidgetDivider, isOn: $showWidgetDivider)
-
-            Picker(Strings.Settings.dockBackground, selection: $dockBackground) {
-                ForEach(DockBackground.allCases, id: \.self) { style in
-                    Text(style.rawValue).tag(style)
+            Section("Effects") {
+                Picker(selection: $visualEffect) {
+                    ForEach(VisualEffect.allCases, id: \.self) { effect in
+                        Text(effect.rawValue).tag(effect)
+                    }
+                } label: {
+                    proLabel(Strings.Settings.visualEffect, isPro: license.isPro)
                 }
-            }
-
-            if dockBackground == .color {
-                ColorPicker(Strings.Settings.dockBackgroundColor, selection: Binding(
-                    get: { dockBackgroundColor },
-                    set: { newColor in dockBackgroundColorHex = ColorUtils.toHex(newColor) }
-                ))
-            }
-
-            Picker(selection: $visualEffect) {
-                ForEach(VisualEffect.allCases, id: \.self) { effect in
-                    Text(effect.rawValue).tag(effect)
-                }
-            } label: {
-                proLabel(Strings.Settings.visualEffect, isPro: license.isPro)
-            }
-            .disabled(!license.isPro)
-
-            if visualEffect != .none && license.isPro {
-                Slider(value: $dockItemShaderIntensity, in: 0.0...1.0) {
-                    Text(Strings.Settings.effectIntensity)
+                .disabled(!license.isPro)
+                if visualEffect != .none && license.isPro {
+                    Slider(value: $dockItemShaderIntensity, in: 0.0...1.0) {
+                        Text(Strings.Settings.effectIntensity)
+                    }
                 }
             }
         }

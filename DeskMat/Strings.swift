@@ -41,6 +41,7 @@ enum Strings {
         static let dock = "Dock"
         static let position = "Position"
         static let offset = "Offset"
+        static let cornerRadius = "Corner Radius"
         static let pixelUnit = "px"
         static let icons = "Icons"
         static let showLEDBoard = "Show LED Board"

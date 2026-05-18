@@ -12,6 +12,7 @@ struct ContentView: View {
     @AppStorage("showStockWidget")  private var showStockWidget = false
     @AppStorage("dockBackground") private var dockBackground: DockBackground = .system
     @AppStorage("dockBackgroundColorHex") private var dockBackgroundColorHex: String = "#000000ff"
+    @AppStorage("dockCornerRadius") private var dockCornerRadius: Double = 16
     @AppStorage("showWidgetDivider") private var showWidgetDivider = true
 
     // Drag-to-reorder state
@@ -137,7 +138,7 @@ struct ContentView: View {
             case .system:
                 VisualEffectBackground()
             case .color:
-                RoundedRectangle(cornerRadius: 16)
+                RoundedRectangle(cornerRadius: dockCornerRadius)
                     .fill(ColorUtils.fromHex(dockBackgroundColorHex))
             case .transparent:
                 Color.clear
