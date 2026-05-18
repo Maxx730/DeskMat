@@ -99,7 +99,7 @@ struct ShortcutSheet: View {
                     Button(Strings.Common.cancel) { onDismiss() }
                         .buttonStyle(.bordered)
                     Button(isEditing ? Strings.Common.save : Strings.Shortcuts.add) { save() }
-                        .disabled(isEditing ? selectedBundleID.isEmpty : (selectedAppURL == nil || selectedIconURL == nil))
+                        .disabled(isEditing ? selectedBundleID.isEmpty : (selectedAppURL == nil || (selectedIconURL == nil && selectedIconImage == nil)))
                         .buttonStyle(.borderedProminent)
                         .keyboardShortcut(.defaultAction)
                 }
@@ -155,6 +155,10 @@ struct ShortcutSheet: View {
             if customLabel.isEmpty {
                 customLabel = selectedAppName
             }
+            let icon = NSWorkspace.shared.icon(forFile: url.path(percentEncoded: false))
+            selectedIconImage = icon
+            selectedIconURL   = nil
+            if isEditing { iconChanged = true }
         }
     }
 
@@ -180,16 +184,22 @@ struct ShortcutSheet: View {
     }
 
     private func saveNew() {
-        guard let appURL = selectedAppURL,
-              let iconSourceURL = selectedIconURL,
-              !selectedBundleID.isEmpty else {
+        guard let appURL = selectedAppURL, !selectedBundleID.isEmpty else {
             errorMessage = Strings.Errors.selectBothAppAndIcon
             return
         }
 
         let shortcutID = UUID()
         do {
-            let iconFileName = try AppShortcutStore.copyIcon(from: iconSourceURL, for: shortcutID)
+            let iconFileName: String
+            if let url = selectedIconURL {
+                iconFileName = try AppShortcutStore.copyIcon(from: url, for: shortcutID)
+            } else if let image = selectedIconImage {
+                iconFileName = try AppShortcutStore.copyIcon(from: image, for: shortcutID)
+            } else {
+                errorMessage = Strings.Errors.selectBothAppAndIcon
+                return
+            }
             let newShortcut = AppShortcut(
                 displayName: selectedAppName,
                 bundleIdentifier: selectedBundleID,
@@ -214,9 +224,13 @@ struct ShortcutSheet: View {
         do {
             var iconFileName = shortcut.iconFileName
 
-            if iconChanged, let iconSourceURL = selectedIconURL {
+            if iconChanged {
                 AppShortcutStore.deleteIcon(named: shortcut.iconFileName)
-                iconFileName = try AppShortcutStore.copyIcon(from: iconSourceURL, for: UUID())
+                if let url = selectedIconURL {
+                    iconFileName = try AppShortcutStore.copyIcon(from: url, for: UUID())
+                } else if let image = selectedIconImage {
+                    iconFileName = try AppShortcutStore.copyIcon(from: image, for: UUID())
+                }
             }
 
             var updated = shortcut
