@@ -160,6 +160,13 @@ enum Strings {
             static let stockTicker  = "Stock Ticker"
         }
 
+        enum Shortcuts {
+            static let title          = "Getting Around"
+            static let subtitle       = "Here's how to interact with your dock."
+            static let iconCaption    = "Right-click any icon to edit or remove it."
+            static let menuCaption    = "Click the menu bar icon to add shortcuts and open settings."
+        }
+
         enum Position {
             static let title    = "Dock Position"
             static let subtitle = "Choose where the dock sits on your screen."
