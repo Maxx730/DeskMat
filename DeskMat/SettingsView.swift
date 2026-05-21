@@ -775,7 +775,7 @@ private struct AboutSettingsTab: View {
             Text("Version \(version) (\(build))")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
-            Text("by John Kinghorn")
+            Text("by Cepholotech LLC")
                 .font(.caption)
                 .foregroundStyle(.tertiary)
             Spacer()
