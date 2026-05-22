@@ -167,6 +167,7 @@ private struct GeneralSettingsTab: View {
         ud.set("#000000ff",                     forKey: "dockBackgroundColorHex")
         ud.set(16.0,                            forKey: "dockCornerRadius")
         ud.set(VisualEffect.none.rawValue,      forKey: "visualEffect")
+        ud.set(ReactiveStyle.lockOn.rawValue,   forKey: "reactiveStyle")
         ud.set(0.5,                             forKey: "dockItemShaderIntensity")
         // Dock
         ud.set(DockPosition.bottom.rawValue,    forKey: "dockPosition")
@@ -222,6 +223,7 @@ private struct AppearanceSettingsTab: View {
     @AppStorage("showWidgetDivider") private var showWidgetDivider = true
     @AppStorage("dockBackground") private var dockBackground: DockBackground = .system
     @AppStorage("dockBackgroundColorHex") private var dockBackgroundColorHex: String = "#000000ff"
+    @AppStorage("reactiveStyle") private var reactiveStyle: ReactiveStyle = .lockOn
     @AppStorage("dockCornerRadius") private var dockCornerRadius: Double = 16
     @AppStorage("visualEffect") private var visualEffect: VisualEffect = .none
     @AppStorage("dockItemShaderIntensity") private var dockItemShaderIntensity = 0.5
@@ -247,6 +249,13 @@ private struct AppearanceSettingsTab: View {
                 Picker(Strings.Settings.dockBackground, selection: $dockBackground) {
                     ForEach(DockBackground.allCases, id: \.self) { style in
                         Text(style.rawValue).tag(style)
+                    }
+                }
+                if dockBackground == .reactive {
+                    Picker(Strings.Settings.reactiveStyle, selection: $reactiveStyle) {
+                        ForEach(ReactiveStyle.allCases, id: \.self) { style in
+                            Text(style.rawValue).tag(style)
+                        }
                     }
                 }
                 if dockBackground == .color {
@@ -775,7 +784,7 @@ private struct AboutSettingsTab: View {
             Text("Version \(version) (\(build))")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
-            Text("by John Kinghorn")
+            Text("by Cepholotech LLC")
                 .font(.caption)
                 .foregroundStyle(.tertiary)
             Spacer()

@@ -17,11 +17,11 @@ enum DeactivationResult {
 @Observable
 final class LicenseManager {
     internal static let keychainService = "com.kinghorn.deskmat"
-    internal static let keychainAccount = "license"
+    internal static let keychainAccount = "license_v2"
     #if DEBUG
-    internal static let baseURL: String = ProcessInfo.processInfo.environment["DESKMAT_API_URL"] ?? "https://api.lemonsqueezy.com/v1/licenses"
+    internal static let baseURL: String = ProcessInfo.processInfo.environment["DESKMAT_API_URL"] ?? "https://auth.cepholotech.com"
     #else
-    private static let baseURL = "https://api.lemonsqueezy.com/v1/licenses"
+    private static let baseURL = "https://auth.cepholotech.com"
     #endif
 
     private let log = Logger(subsystem: "com.kinghorn.deskmat", category: "LicenseManager")
@@ -53,49 +53,39 @@ final class LicenseManager {
 
     // MARK: - Public API
 
-    /// Activate a license key on this machine. Stores the key + instance ID in Keychain on success.
     func activate(licenseKey: String) async -> ActivationResult {
-        // Issue #6: Validate key format before hitting the network
         let trimmed = licenseKey.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty, trimmed.count >= 8, trimmed.contains("-") else {
+        let parts = trimmed.split(separator: "_", omittingEmptySubsequences: false)
+        guard parts.count == 3, parts[0] == "ceph", parts[2].count >= 8 else {
             log.warning("Activation rejected — invalid key format")
             return .invalid
         }
 
-        let rawHostname = Host.current().localizedName ?? "Mac"
-        let body = formBody(["license_key": trimmed, "instance_name": rawHostname])
-
-        // Issue #10: Log activation attempt (last 4 chars only)
+        let hardwareId = generateOrRetrieveHardwareId()
         log.info("Activating license key ending in …\(trimmed.suffix(4))")
 
         do {
-            let (json, status) = try await post(endpoint: "activate", body: body)
+            let (json, status) = try await post(endpoint: "verify", body: ["key": trimmed, "hardware_id": hardwareId])
 
-            if status == 200,
-               let activated = json["activated"] as? Bool, activated,
-               let instance  = json["instance"]  as? [String: Any],
-               let instanceId = instance["id"] as? String {
-                guard saveToKeychain(licenseKey: trimmed, instanceId: instanceId) else {
-                    return .error("License activated but could not be saved. Please try again.")
+            if status == 200, let valid = json["valid"] as? Bool {
+                if valid {
+                    guard saveToKeychain(key: trimmed, hardwareId: hardwareId) else {
+                        return .error("License activated but could not be saved. Please try again.")
+                    }
+                    await MainActor.run { isPro = true; lastValidated = Date() }
+                    log.info("Activation succeeded")
+                    return .success
+                } else {
+                    log.warning("Activation rejected — key invalid or seat limit reached")
+                    return .invalid
                 }
-                await MainActor.run { isPro = true; lastValidated = Date() }
-                log.info("Activation succeeded")
-                return .success
-            }
-
-            // Issue #7: Log unexpected response shape for debugging
-            if status == 200 {
-                log.warning("Activate returned 200 but unexpected shape: \(json.keys.joined(separator: ", "))")
             }
 
             let error = json["error"] as? String ?? ""
-            if status == 400 && error.lowercased().contains("already") { return .alreadyActive }
-            if status == 404 { return .invalid }
             log.warning("Activation failed — status: \(status), error: \(error)")
             return error.isEmpty ? .invalid : .error(error)
 
         } catch {
-            // Issue #11: Distinguish offline from other errors
             if let urlError = error as? URLError, urlError.code == .notConnectedToInternet || urlError.code == .networkConnectionLost {
                 return .error("No internet connection. Please check your network and try again.")
             }
@@ -104,9 +94,8 @@ final class LicenseManager {
         }
     }
 
-    /// Validate the stored key against Lemon Squeezy. Soft-fails offline (keeps isPro = true).
     func refreshFromKeychain() async {
-        guard let (licenseKey, instanceId) = readFromKeychain() else {
+        guard let (key, hardwareId) = readFromKeychain() else {
             await MainActor.run { isPro = false }
             return
         }
@@ -114,11 +103,9 @@ final class LicenseManager {
         // Optimistically grant pro while network call is in flight
         await MainActor.run { isPro = true }
 
-        let body = formBody(["license_key": licenseKey, "instance_id": instanceId])
-
         for attempt in 1...2 {
             do {
-                let (json, status) = try await post(endpoint: "validate", body: body)
+                let (json, status) = try await post(endpoint: "verify", body: ["key": key, "hardware_id": hardwareId])
 
                 if status == 200, let valid = json["valid"] as? Bool {
                     if !valid {
@@ -144,37 +131,27 @@ final class LicenseManager {
         }
     }
 
-    /// Deactivate this machine so the key can be used on another Mac.
     func deactivate() async -> DeactivationResult {
-        guard let (licenseKey, instanceId) = readFromKeychain() else {
+        guard let (key, hardwareId) = readFromKeychain() else {
             return .error("No active license found.")
         }
 
-        // Issue #10: Log deactivation attempt
-        log.info("Deactivating license key ending in …\(licenseKey.suffix(4))")
-
-        let body = formBody(["license_key": licenseKey, "instance_id": instanceId])
+        log.info("Deactivating license key ending in …\(key.suffix(4))")
 
         do {
-            let (json, status) = try await post(endpoint: "deactivate", body: body)
+            let (json, status) = try await post(endpoint: "deactivate", body: ["key": key, "hardware_id": hardwareId])
 
-            if status == 200, let deactivated = json["deactivated"] as? Bool, deactivated {
+            if status == 200, let success = json["success"] as? Bool, success {
                 clearKeychain()
                 await MainActor.run { isPro = false }
                 log.info("Deactivation succeeded")
                 return .success
             }
 
-            // Issue #7: Log unexpected response shape
-            if status == 200 {
-                log.warning("Deactivate returned 200 but unexpected shape: \(json.keys.joined(separator: ", "))")
-            }
-
             let error = json["error"] as? String ?? "Deactivation failed."
             log.warning("Deactivation failed — status: \(status), error: \(error)")
             return .error(error)
         } catch {
-            // Issue #11: Distinguish offline from other errors
             if let urlError = error as? URLError, urlError.code == .notConnectedToInternet || urlError.code == .networkConnectionLost {
                 return .error("No internet connection. Please check your network and try again.")
             }
@@ -191,28 +168,30 @@ final class LicenseManager {
     }
     #endif
 
-    /// Last 4 characters of the stored key, for display. e.g. "••••-••••-••••-AB12"
     var licenseKeyHint: String? {
         guard let (key, _) = readFromKeychain() else { return nil }
-        return "••••-••••-••••-\(key.suffix(4))"
+        let parts = key.split(separator: "_", omittingEmptySubsequences: false)
+        let slug = parts.count == 3 ? String(parts[1]) : "•••"
+        return "ceph_\(slug)_…\(key.suffix(4))"
+    }
+
+    // MARK: - Hardware ID
+
+    private func generateOrRetrieveHardwareId() -> String {
+        if let (_, existingId) = readFromKeychain() { return existingId }
+        return UUID().uuidString
     }
 
     // MARK: - Networking
 
-    private func formBody(_ params: [String: String]) -> String {
-        var components = URLComponents()
-        components.queryItems = params.map { URLQueryItem(name: $0.key, value: $0.value) }
-        return components.percentEncodedQuery ?? ""
-    }
-
-    private func post(endpoint: String, body: String) async throws -> ([String: Any], Int) {
+    private func post(endpoint: String, body: [String: String]) async throws -> ([String: Any], Int) {
         guard let url = URL(string: "\(Self.baseURL)/\(endpoint)") else {
             throw URLError(.badURL)
         }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
-        request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
-        request.httpBody = body.data(using: .utf8)
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try? JSONEncoder().encode(body)
 
         let (data, response) = try await URLSession.shared.data(for: request)
         let status = (response as? HTTPURLResponse)?.statusCode ?? 0
@@ -223,28 +202,20 @@ final class LicenseManager {
     // MARK: - Keychain
 
     private struct StoredLicense: Codable {
-        let licenseKey: String
-        let instanceId: String
+        let key: String
+        let hardwareId: String
         let version: Int
 
-        init(licenseKey: String, instanceId: String, version: Int = 1) {
-            self.licenseKey = licenseKey
-            self.instanceId = instanceId
+        init(key: String, hardwareId: String, version: Int = 2) {
+            self.key = key
+            self.hardwareId = hardwareId
             self.version = version
-        }
-
-        init(from decoder: Decoder) throws {
-            let c = try decoder.container(keyedBy: CodingKeys.self)
-            licenseKey = try c.decode(String.self, forKey: .licenseKey)
-            instanceId = try c.decode(String.self, forKey: .instanceId)
-            // version defaults to 1 for data written before this field was added
-            version = (try? c.decode(Int.self, forKey: .version)) ?? 1
         }
     }
 
     @discardableResult
-    private func saveToKeychain(licenseKey: String, instanceId: String) -> Bool {
-        guard let data = try? JSONEncoder().encode(StoredLicense(licenseKey: licenseKey, instanceId: instanceId)) else {
+    private func saveToKeychain(key: String, hardwareId: String) -> Bool {
+        guard let data = try? JSONEncoder().encode(StoredLicense(key: key, hardwareId: hardwareId)) else {
             log.error("Failed to encode license for Keychain storage")
             return false
         }
@@ -264,7 +235,7 @@ final class LicenseManager {
         return true
     }
 
-    private func readFromKeychain() -> (licenseKey: String, instanceId: String)? {
+    private func readFromKeychain() -> (key: String, hardwareId: String)? {
         let query: [CFString: Any] = [
             kSecClass:        kSecClassGenericPassword,
             kSecAttrService:  Self.keychainService,
@@ -276,7 +247,7 @@ final class LicenseManager {
         guard SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess,
               let data   = result as? Data,
               let stored = try? JSONDecoder().decode(StoredLicense.self, from: data) else { return nil }
-        return (stored.licenseKey, stored.instanceId)
+        return (stored.key, stored.hardwareId)
     }
 
     private func clearKeychain() {

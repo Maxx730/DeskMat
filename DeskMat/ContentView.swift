@@ -11,6 +11,7 @@ struct ContentView: View {
     @AppStorage("showSystemWidget") private var showSystemWidget = false
     @AppStorage("showStockWidget")  private var showStockWidget = false
     @AppStorage("dockBackground") private var dockBackground: DockBackground = .system
+    @AppStorage("reactiveStyle") private var reactiveStyle: ReactiveStyle = .lockOn
     @AppStorage("dockBackgroundColorHex") private var dockBackgroundColorHex: String = "#000000ff"
     @AppStorage("dockCornerRadius") private var dockCornerRadius: Double = 16
     @AppStorage("showWidgetDivider") private var showWidgetDivider = true
@@ -142,6 +143,8 @@ struct ContentView: View {
                     .fill(ColorUtils.fromHex(dockBackgroundColorHex))
             case .transparent:
                 Color.clear
+            case .reactive:
+                ReactiveBackgroundRepresentable(style: reactiveStyle, cornerRadius: dockCornerRadius)
             }
         }
     }

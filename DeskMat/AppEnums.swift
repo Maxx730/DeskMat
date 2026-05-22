@@ -26,6 +26,12 @@ enum DockBackground: String, CaseIterable {
     case system = "System"
     case color = "Color"
     case transparent = "Transparent"
+    case reactive = "Reactive"
+}
+
+enum ReactiveStyle: String, CaseIterable {
+    case lockOn     = "Lock-On"
+    case liquidFill = "Liquid Fill"
 }
 
 enum HideAnimation: String, CaseIterable {
