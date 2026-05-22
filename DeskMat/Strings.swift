@@ -23,6 +23,7 @@ enum Strings {
         static let showWidgetDivider = "Show Widget Divider"
         static let dockBackground = "Dock Background"
         static let dockBackgroundColor = "Color"
+        static let reactiveStyle = "Reactive Style"
         static let showWeatherWidget = "Show Weather Widget"
         static let weatherLocationField = "Search city..."
         static let weatherLocationSearch = "Search"
