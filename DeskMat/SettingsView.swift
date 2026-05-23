@@ -40,8 +40,6 @@ private func proLabel(_ title: String, isPro: Bool) -> some View {
 private struct GeneralSettingsTab: View {
     @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
     @AppStorage("finderDefaultDirectory") private var finderDefaultDirectory = "~/"
-    @AppStorage("advancedWindowManagement") private var advancedWindowManagement = false
-    @State private var isAccessibilityTrusted = AXIsProcessTrusted()
     @State private var showingResetConfirmation = false
     #if DEBUG
     @Environment(LicenseManager.self) private var license
@@ -71,38 +69,6 @@ private struct GeneralSettingsTab: View {
                     .foregroundStyle(.secondary)
             }
 
-            Section("Advanced") {
-                VStack(alignment: .leading, spacing: 4) {
-                    Toggle(Strings.Settings.advancedWindowManagement, isOn: $advancedWindowManagement)
-                        .onChange(of: advancedWindowManagement) { _, enabled in
-                            isAccessibilityTrusted = AXIsProcessTrusted()
-                            if enabled && !isAccessibilityTrusted {
-                                NSWorkspace.shared.open(
-                                    URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!
-                                )
-                            }
-                        }
-                    Group {
-                        if isAccessibilityTrusted {
-                            Text(Strings.Settings.accessibilityGranted)
-                                .foregroundStyle(.green)
-                        } else if advancedWindowManagement {
-                            Text("Accessibility permission not granted. Enable it in ") +
-                            Text("System Settings > Privacy & Security > Accessibility").bold() +
-                            Text(".")
-                        } else {
-                            Text(Strings.Settings.advancedWindowManagementSublabel)
-                        }
-                    }
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .padding(.trailing, 52)
-                }
-                .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
-                    isAccessibilityTrusted = AXIsProcessTrusted()
-                }
-
-            }
 
             Section {
                 Button(Strings.Reset.buttonLabel) {
@@ -185,15 +151,12 @@ private struct GeneralSettingsTab: View {
         ud.set(false,                           forKey: "showLEDBoard")
         ud.set(false,                           forKey: "showSystemWidget")
         ud.set(SystemMetric.cpu.rawValue,       forKey: "sysWidgetMetric")
-        ud.set(false,                           forKey: "showStockWidget")
-        ud.set("AAPL,MSFT,GOOGL",              forKey: "stockTickerSymbols")
         ud.set("~/Pictures",                    forKey: "imageWidgetDirectory")
         ud.set(37.2707,                         forKey: "weatherLatitude")
         ud.set(-76.7075,                        forKey: "weatherLongitude")
         ud.set(Strings.Weather.defaultLocationName, forKey: "weatherLocationName")
         // General
         ud.set("~/",  forKey: "finderDefaultDirectory")
-        ud.set(false, forKey: "advancedWindowManagement")
         // LED Board
         ud.set("",    forKey: LEDBoardWidget.imagePathKey)
         ud.set(80,    forKey: LEDBoardWidget.scrollSpeedKey)
@@ -368,8 +331,6 @@ private struct WidgetsSettingsTab: View {
     @AppStorage("showLEDBoard")         private var showLEDBoard = false
     @AppStorage("showSystemWidget")     private var showSystemWidget = false
     @AppStorage("sysWidgetMetric")      private var sysWidgetMetric: SystemMetric = .cpu
-    @AppStorage("showStockWidget")      private var showStockWidget = false
-    @AppStorage("stockTickerSymbols")   private var stockTickerSymbols = "AAPL,MSFT,GOOGL"
     @AppStorage(LEDBoardWidget.imagePathKey)  private var ledBoardImagePath = ""
     @AppStorage(LEDBoardWidget.scrollSpeedKey) private var ledBoardScrollSpeed = 80
     @AppStorage(LEDBoardWidget.frameSpeedKey)  private var ledBoardFrameSpeed = 150
@@ -382,7 +343,6 @@ private struct WidgetsSettingsTab: View {
     @State private var citySearchText  = ""
     @State private var isGeocoding     = false
     @State private var geocodeError    = false
-    @State private var newSymbolText   = ""
 
     var body: some View {
         Form {
@@ -512,26 +472,6 @@ private struct WidgetsSettingsTab: View {
         .formStyle(.grouped)
     }
 
-    private var currentSymbols: [String] {
-        StockTickerService.symbols(from: stockTickerSymbols)
-    }
-
-    private func addSymbol() {
-        let candidate = newSymbolText.trimmingCharacters(in: .whitespaces).uppercased()
-        guard !candidate.isEmpty, !currentSymbols.contains(candidate) else {
-            newSymbolText = ""
-            return
-        }
-        var updated = currentSymbols
-        updated.append(candidate)
-        stockTickerSymbols = updated.joined(separator: ",")
-        newSymbolText = ""
-    }
-
-    private func removeSymbol(_ symbol: String) {
-        let updated = currentSymbols.filter { $0 != symbol }
-        stockTickerSymbols = updated.joined(separator: ",")
-    }
 
     private func performGeocode() async {
         let query = citySearchText.trimmingCharacters(in: .whitespaces)

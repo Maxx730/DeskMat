@@ -36,7 +36,6 @@ struct AppShortcutButton: View {
     @AppStorage("hoverSize") private var hoverSize: HoverSize = .small
     @AppStorage("hoverAnimation") private var hoverAnimation: HoverAnimation = .bounce
     @AppStorage("finderDefaultDirectory") private var finderDefaultDirectory = "~/"
-    @AppStorage("advancedWindowManagement") private var advancedWindowManagement = false
 
     @Environment(WindowStateService.self) private var windowState
 
@@ -291,17 +290,6 @@ struct AppShortcutButton: View {
         }
     }
 
-    private func unminimizeWindows(for app: NSRunningApplication) {
-        let axApp = AXUIElementCreateApplication(app.processIdentifier)
-        var windowsRef: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(axApp, kAXWindowsAttribute as CFString, &windowsRef) == .success,
-              let windows = windowsRef as? [AXUIElement] else { return }
-        for window in windows {
-            // Set minimized=false unconditionally — no-op on visible windows,
-            // restores minimized ones. Avoids the CFBoolean bridging cast.
-            AXUIElementSetAttributeValue(window, kAXMinimizedAttribute as CFString, kCFBooleanFalse)
-        }
-    }
 
     private func launchOrFocus() {
         windowState.refresh()
@@ -317,11 +305,7 @@ struct AppShortcutButton: View {
         if let app = runningApps.first {
             if app.isHidden { app.unhide() }
 
-            if advancedWindowManagement && AXIsProcessTrusted() {
-                // Guaranteed unminimize via Accessibility API
-                unminimizeWindows(for: app)
-                app.activate(options: [.activateAllWindows, .activateIgnoringOtherApps])
-            } else if hasMinimizedWindows && windowCount == 0 {
+            if hasMinimizedWindows && windowCount == 0 {
                 // All windows are minimized — openApplication restores them
                 // the same way clicking an app in the macOS Dock does
                 let config = NSWorkspace.OpenConfiguration()
