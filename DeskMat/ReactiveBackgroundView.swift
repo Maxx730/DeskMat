@@ -26,10 +26,15 @@ class ReactiveBackgroundView: NSView, MTKViewDelegate {
     private var localMouseMonitor: Any?
 
     // Metal
-    private var metalView:     MTKView!
-    private var device:        MTLDevice!
-    private var commandQueue:  MTLCommandQueue!
-    private var pipelineState: MTLRenderPipelineState?
+    private var metalView:        MTKView!
+    private var device:           MTLDevice!
+    private var commandQueue:     MTLCommandQueue!
+    private var pipelineState:           MTLRenderPipelineState?
+    private var crtPipelineState:        MTLRenderPipelineState?
+    private var crtWarpPipelineState:    MTLRenderPipelineState?
+    private var cornerMaskPipelineState: MTLRenderPipelineState?
+    private var offscreenTexture:     MTLTexture?
+    private var offscreenTexture2:    MTLTexture?
 
     // Fade state — interpolated in draw(in:) without a timer
     private var startTime:      CFTimeInterval = CACurrentMediaTime()
@@ -51,8 +56,15 @@ class ReactiveBackgroundView: NSView, MTKViewDelegate {
     var vertexShaderName: String { "reactiveVertex" }
     var fragmentShaderName: String {
         switch reactiveStyle {
+        case .none:       return ""
         case .lockOn:     return "lockOnFragment"
         case .liquidFill: return "liquidFillFragment"
+        case .rainbow:    return "rainbowFragment"
+        case .dvd:        return "dvdFragment"
+        case .eighties:   return "eightiesFragment"
+        case .voronoi:    return "voronoiFragment"
+        case .subpixel:   return "subpixelFragment"
+        case .joker:      return "jokerFragment"
         }
     }
 
@@ -129,17 +141,38 @@ class ReactiveBackgroundView: NSView, MTKViewDelegate {
     func rebuildPipeline() {
         guard let device,
               let library = device.makeDefaultLibrary() else { return }
-        let descriptor = MTLRenderPipelineDescriptor()
-        descriptor.vertexFunction   = library.makeFunction(name: vertexShaderName)
-        descriptor.fragmentFunction = library.makeFunction(name: fragmentShaderName)
-        let attachment = descriptor.colorAttachments[0]!
-        attachment.pixelFormat                 = .bgra8Unorm
-        attachment.isBlendingEnabled           = true
-        attachment.sourceRGBBlendFactor        = .sourceAlpha
-        attachment.destinationRGBBlendFactor   = .oneMinusSourceAlpha
-        attachment.sourceAlphaBlendFactor      = .one
-        attachment.destinationAlphaBlendFactor = .oneMinusSourceAlpha
-        pipelineState = try? device.makeRenderPipelineState(descriptor: descriptor)
+
+        func makePipeline(vertex: String, fragment: String) -> MTLRenderPipelineState? {
+            let desc = MTLRenderPipelineDescriptor()
+            desc.vertexFunction   = library.makeFunction(name: vertex)
+            desc.fragmentFunction = library.makeFunction(name: fragment)
+            let att = desc.colorAttachments[0]!
+            att.pixelFormat                 = .bgra8Unorm
+            att.isBlendingEnabled           = true
+            att.sourceRGBBlendFactor        = .sourceAlpha
+            att.destinationRGBBlendFactor   = .oneMinusSourceAlpha
+            att.sourceAlphaBlendFactor      = .one
+            att.destinationAlphaBlendFactor = .oneMinusSourceAlpha
+            return try? device.makeRenderPipelineState(descriptor: desc)
+        }
+
+        pipelineState           = makePipeline(vertex: vertexShaderName, fragment: fragmentShaderName)
+        crtPipelineState        = makePipeline(vertex: "reactiveVertex", fragment: "crtFragment")
+        crtWarpPipelineState    = makePipeline(vertex: "reactiveVertex", fragment: "crtWarpFragment")
+        cornerMaskPipelineState = makePipeline(vertex: "reactiveVertex", fragment: "cornerMaskFragment")
+    }
+
+    private func makeOffscreenTexture(size: CGSize) {
+        guard let device, size.width > 0, size.height > 0 else { return }
+        let desc = MTLTextureDescriptor.texture2DDescriptor(
+            pixelFormat: .bgra8Unorm,
+            width:       Int(size.width),
+            height:      Int(size.height),
+            mipmapped:   false
+        )
+        desc.usage = [.renderTarget, .shaderRead]
+        offscreenTexture  = device.makeTexture(descriptor: desc)
+        offscreenTexture2 = device.makeTexture(descriptor: desc)
     }
 
     // MARK: - Layout & tracking
@@ -182,14 +215,20 @@ class ReactiveBackgroundView: NSView, MTKViewDelegate {
 
     // MARK: - MTKViewDelegate
 
-    func mtkView(_ view: MTKView, drawableSizeWillChange size: CGSize) {}
+    func mtkView(_ view: MTKView, drawableSizeWillChange size: CGSize) {
+        makeOffscreenTexture(size: size)
+    }
 
     func draw(in view: MTKView) {
         guard let pipelineState,
+              let crtPipelineState,
+              let crtWarpPipelineState,
+              let cornerMaskPipelineState,
               let commandBuffer = commandQueue.makeCommandBuffer(),
-              let descriptor    = view.currentRenderPassDescriptor,
-              let encoder       = commandBuffer.makeRenderCommandEncoder(descriptor: descriptor),
               let drawable      = view.currentDrawable else { return }
+
+        if offscreenTexture == nil { makeOffscreenTexture(size: view.drawableSize) }
+        guard let offscreenTexture, let offscreenTexture2 else { return }
 
         let now = CACurrentMediaTime()
         if isHovering {
@@ -201,13 +240,57 @@ class ReactiveBackgroundView: NSView, MTKViewDelegate {
         let elapsed = Float(now - startTime)
         var uniforms = makeUniforms(time: elapsed, opacity: indicatorOpacity)
 
-        encoder.setRenderPipelineState(pipelineState)
-        encoder.setFragmentBytes(&uniforms,
-                                 length: MemoryLayout<ReactiveUniforms>.stride,
-                                 index: 0)
-        configureEncoder(encoder, uniforms: &uniforms)
-        encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
-        encoder.endEncoding()
+        func offscreenPass(to texture: MTLTexture) -> MTLRenderPassDescriptor {
+            let desc = MTLRenderPassDescriptor()
+            desc.colorAttachments[0].texture     = texture
+            desc.colorAttachments[0].loadAction  = .clear
+            desc.colorAttachments[0].storeAction = .store
+            desc.colorAttachments[0].clearColor  = MTLClearColorMake(0, 0, 0, 0)
+            return desc
+        }
+
+        func encode(_ enc: MTLRenderCommandEncoder, pipeline: MTLRenderPipelineState,
+                    texture: MTLTexture? = nil, configure: Bool = false) {
+            enc.setRenderPipelineState(pipeline)
+            enc.setFragmentBytes(&uniforms, length: MemoryLayout<ReactiveUniforms>.stride, index: 0)
+            if let texture { enc.setFragmentTexture(texture, index: 0) }
+            if configure { configureEncoder(enc, uniforms: &uniforms) }
+            enc.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
+            enc.endEncoding()
+        }
+
+        let useCRT = reactiveStyle == .eighties || reactiveStyle == .dvd
+
+        // The final texture whose contents get corner-masked to screen
+        let premaskedTexture: MTLTexture
+
+        if useCRT {
+            // Pass 1 — reactive → offscreenTexture
+            if let enc = commandBuffer.makeRenderCommandEncoder(descriptor: offscreenPass(to: offscreenTexture)) {
+                encode(enc, pipeline: pipelineState, configure: true)
+            }
+            // Pass 2 — CRT scanlines/aberration → offscreenTexture2
+            if let enc = commandBuffer.makeRenderCommandEncoder(descriptor: offscreenPass(to: offscreenTexture2)) {
+                encode(enc, pipeline: crtPipelineState, texture: offscreenTexture)
+            }
+            // Pass 3 — CRT warp → offscreenTexture (safe to reuse: pass 2 has finished reading it)
+            if let enc = commandBuffer.makeRenderCommandEncoder(descriptor: offscreenPass(to: offscreenTexture)) {
+                encode(enc, pipeline: crtWarpPipelineState, texture: offscreenTexture2)
+            }
+            premaskedTexture = offscreenTexture
+        } else {
+            // Pass 1 — reactive → offscreenTexture
+            if let enc = commandBuffer.makeRenderCommandEncoder(descriptor: offscreenPass(to: offscreenTexture)) {
+                encode(enc, pipeline: pipelineState, configure: true)
+            }
+            premaskedTexture = offscreenTexture
+        }
+
+        // Final pass — corner mask → screen (all styles)
+        if let screenPass = view.currentRenderPassDescriptor,
+           let enc = commandBuffer.makeRenderCommandEncoder(descriptor: screenPass) {
+            encode(enc, pipeline: cornerMaskPipelineState, texture: premaskedTexture)
+        }
 
         commandBuffer.present(drawable)
         commandBuffer.commit()

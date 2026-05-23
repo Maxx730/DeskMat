@@ -9,7 +9,6 @@ struct ContentView: View {
     @AppStorage("showImageWidget") private var showImageWidget = false
     @AppStorage("showLEDBoard") private var showLEDBoard = false
     @AppStorage("showSystemWidget") private var showSystemWidget = false
-    @AppStorage("showStockWidget")  private var showStockWidget = false
     @AppStorage("dockBackground") private var dockBackground: DockBackground = .system
     @AppStorage("reactiveStyle") private var reactiveStyle: ReactiveStyle = .lockOn
     @AppStorage("dockBackgroundColorHex") private var dockBackgroundColorHex: String = "#000000ff"
@@ -81,9 +80,6 @@ struct ContentView: View {
                     SystemWidget()
                 }
 
-                if entitlements.isPro && showStockWidget {
-                    StockTickerWidget()
-                }
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 10)
@@ -144,13 +140,17 @@ struct ContentView: View {
             case .transparent:
                 Color.clear
             case .reactive:
-                ReactiveBackgroundRepresentable(style: reactiveStyle, cornerRadius: dockCornerRadius)
+                if reactiveStyle != .none {
+                    ReactiveBackgroundRepresentable(style: reactiveStyle, cornerRadius: dockCornerRadius)
+                } else {
+                    Color.clear
+                }
             }
         }
     }
 
     private var anyWidgetVisible: Bool {
-        entitlements.isPro && (showWeatherWidget || showImageWidget || showLEDBoard || showClockWidget || showSystemWidget || showStockWidget)
+        entitlements.isPro && (showWeatherWidget || showImageWidget || showLEDBoard || showClockWidget || showSystemWidget)
     }
 
     private func removeShortcut(_ shortcut: AppShortcut) {

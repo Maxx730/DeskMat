@@ -17,10 +17,11 @@ enum Strings {
         static let launchAtLogin = "Launch at Login"
         static let finderDefaultDirectory = "Default Directory"
         static let finderDefaultDirectorySublabel = "Only applies to Finder"
+        static let background = "Background"
         static let appearance = "Appearance"
-        static let showLabels = "Show Labels"
-        static let showIconBackground = "Show Icon Background"
-        static let showWidgetDivider = "Show Widget Divider"
+        static let showLabels = "Labels"
+        static let showIconBackground = "Icon Background"
+        static let showWidgetDivider = "Widget Divider"
         static let dockBackground = "Dock Background"
         static let dockBackgroundColor = "Color"
         static let reactiveStyle = "Reactive Style"
@@ -57,15 +58,7 @@ enum Strings {
         static let hideAnimation    = "Hide Animation"
         static let showSystemWidget = "Show System Widget"
         static let sysWidgetMetric  = "Metric"
-        static let showStockWidget      = "Show Stock Ticker"
-        static let stockSymbolAdd       = "Add"
-        static let stockSymbolField     = "Symbol (e.g. AAPL)"
-        static let stockTickerNote      = "Data provided by Yahoo Finance. Prices may be delayed ~15 min."
         static let about = "About"
-        static let advancedWindowManagement = "Advanced Window Management"
-        static let advancedWindowManagementSublabel = "Restores minimized windows when clicking a shortcut. Requires Accessibility permission."
-        static let accessibilityGranted = "Accessibility permission granted."
-        static let accessibilityNotGranted = "Accessibility permission not granted. Enable it in System Settings > Privacy & Security > Accessibility."
     }
 
     // MARK: - Menu
@@ -158,7 +151,6 @@ enum Strings {
             static let clock        = "Clock"
             static let image        = "Image Viewer"
             static let ledBoard     = "LED Board"
-            static let stockTicker  = "Stock Ticker"
         }
 
         enum Shortcuts {
@@ -195,13 +187,6 @@ enum Strings {
         static let clock       = "Clock"
         static let ledBoard    = "LED Board"
         static let images      = "Images"
-        static let stockTicker = "Stocks"
-
-        enum StockTicker {
-            static let symbolPlaceholder = "---"
-            static let pricePlaceholder  = "$---.--"
-            static let changePlaceholder = "--.--%"
-        }
 
         enum SystemMonitor {
             static let cpuHeader = "CPU"
