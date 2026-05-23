@@ -12,6 +12,8 @@ struct SettingsView: View {
                 .tabItem { Label(Strings.Settings.appearance, systemImage: "paintbrush") }
             DockSettingsTab()
                 .tabItem { Label(Strings.Settings.dock, systemImage: "dock.rectangle") }
+            IconsSettingsTab()
+                .tabItem { Label("Icons", systemImage: "square.on.square") }
             WidgetsSettingsTab()
                 .tabItem { Label(Strings.Settings.widgets, systemImage: "square.grid.2x2") }
             ProUnlockTab()
@@ -27,7 +29,7 @@ struct SettingsView: View {
 
 @ViewBuilder
 private func proLabel(_ title: String, isPro: Bool) -> some View {
-    HStack(spacing: 6) {
+    HStack(alignment: .firstTextBaseline, spacing: 6) {
         Text(title)
         if !isPro { ProBadge() }
     }
@@ -167,7 +169,7 @@ private struct GeneralSettingsTab: View {
         ud.set("#000000ff",                     forKey: "dockBackgroundColorHex")
         ud.set(16.0,                            forKey: "dockCornerRadius")
         ud.set(VisualEffect.none.rawValue,      forKey: "visualEffect")
-        ud.set(ReactiveStyle.lockOn.rawValue,   forKey: "reactiveStyle")
+        ud.set(ReactiveStyle.none.rawValue,      forKey: "reactiveStyle")
         ud.set(0.5,                             forKey: "dockItemShaderIntensity")
         // Dock
         ud.set(DockPosition.bottom.rawValue,    forKey: "dockPosition")
@@ -218,19 +220,7 @@ private struct GeneralSettingsTab: View {
 private struct AppearanceSettingsTab: View {
     @Environment(LicenseManager.self) private var license
     @AppStorage("appearanceMode") private var appearanceMode: AppearanceMode = .system
-    @AppStorage("showLabels") private var showLabels = true
-    @AppStorage("showIconBackground") private var showIconBackground = true
     @AppStorage("showWidgetDivider") private var showWidgetDivider = true
-    @AppStorage("dockBackground") private var dockBackground: DockBackground = .system
-    @AppStorage("dockBackgroundColorHex") private var dockBackgroundColorHex: String = "#000000ff"
-    @AppStorage("reactiveStyle") private var reactiveStyle: ReactiveStyle = .lockOn
-    @AppStorage("dockCornerRadius") private var dockCornerRadius: Double = 16
-    @AppStorage("visualEffect") private var visualEffect: VisualEffect = .none
-    @AppStorage("dockItemShaderIntensity") private var dockItemShaderIntensity = 0.5
-
-    private var dockBackgroundColor: Color {
-        ColorUtils.fromHex(dockBackgroundColorHex)
-    }
 
     var body: some View {
         Form {
@@ -240,59 +230,7 @@ private struct AppearanceSettingsTab: View {
                         Text(mode.rawValue).tag(mode)
                     }
                 }
-                Toggle(Strings.Settings.showLabels, isOn: $showLabels)
-                Toggle(Strings.Settings.showIconBackground, isOn: $showIconBackground)
                 Toggle(Strings.Settings.showWidgetDivider, isOn: $showWidgetDivider)
-            }
-
-            Section("Background") {
-                Picker(Strings.Settings.dockBackground, selection: $dockBackground) {
-                    ForEach(DockBackground.allCases, id: \.self) { style in
-                        Text(style.rawValue).tag(style)
-                    }
-                }
-                if dockBackground == .reactive {
-                    Picker(Strings.Settings.reactiveStyle, selection: $reactiveStyle) {
-                        ForEach(ReactiveStyle.allCases, id: \.self) { style in
-                            Text(style.rawValue).tag(style)
-                        }
-                    }
-                }
-                if dockBackground == .color {
-                    ColorPicker(Strings.Settings.dockBackgroundColor, selection: Binding(
-                        get: { dockBackgroundColor },
-                        set: { newColor in dockBackgroundColorHex = ColorUtils.toHex(newColor) }
-                    ))
-                    HStack {
-                        Text(Strings.Settings.cornerRadius)
-                        Spacer()
-                        TextField("", value: $dockCornerRadius, format: .number)
-                            .textFieldStyle(.roundedBorder)
-                            .frame(width: 60)
-                            .multilineTextAlignment(.trailing)
-                            .onChange(of: dockCornerRadius) { _, val in
-                                dockCornerRadius = max(0, min(64, val))
-                            }
-                        Stepper("", value: $dockCornerRadius, in: 0...64, step: 1)
-                            .labelsHidden()
-                    }
-                }
-            }
-
-            Section("Effects") {
-                Picker(selection: $visualEffect) {
-                    ForEach(VisualEffect.allCases, id: \.self) { effect in
-                        Text(effect.rawValue).tag(effect)
-                    }
-                } label: {
-                    proLabel(Strings.Settings.visualEffect, isPro: license.isPro)
-                }
-                .disabled(!license.isPro)
-                if visualEffect != .none && license.isPro {
-                    Slider(value: $dockItemShaderIntensity, in: 0.0...1.0) {
-                        Text(Strings.Settings.effectIntensity)
-                    }
-                }
             }
         }
         .formStyle(.grouped)
@@ -302,12 +240,19 @@ private struct AppearanceSettingsTab: View {
 // MARK: - Dock
 
 private struct DockSettingsTab: View {
+    @Environment(LicenseManager.self) private var license
     @AppStorage("dockPosition") private var dockPosition: DockPosition = .bottom
     @AppStorage("dockOffset") private var dockOffset = 0
-    @AppStorage("hoverSize") private var hoverSize: HoverSize = .small
-    @AppStorage("hoverAnimation") private var hoverAnimation: HoverAnimation = .bounce
     @AppStorage("autoHideDock") private var autoHideDock = false
     @AppStorage("hideAnimation") private var hideAnimation: HideAnimation = .fade
+    @AppStorage("dockBackground") private var dockBackground: DockBackground = .system
+    @AppStorage("dockBackgroundColorHex") private var dockBackgroundColorHex: String = "#000000ff"
+    @AppStorage("reactiveStyle") private var reactiveStyle: ReactiveStyle = .none
+    @AppStorage("dockCornerRadius") private var dockCornerRadius: Double = 16
+
+    private var dockBackgroundColor: Color {
+        ColorUtils.fromHex(dockBackgroundColorHex)
+    }
 
     var body: some View {
         Form {
@@ -339,14 +284,69 @@ private struct DockSettingsTab: View {
                         .foregroundStyle(.secondary)
                 }
             }
+            
+            Section(Strings.Settings.background) {
+                Picker(Strings.Settings.dockBackground, selection: $dockBackground) {
+                    ForEach(DockBackground.allCases, id: \.self) { style in
+                        Text(style.rawValue).tag(style)
+                    }
+                }
+                if dockBackground == .reactive {
+                    Picker(selection: $reactiveStyle) {
+                        ForEach(ReactiveStyle.allCases, id: \.self) { style in
+                            Text(style.rawValue).tag(style)
+                        }
+                    } label: {
+                        proLabel(Strings.Settings.reactiveStyle, isPro: license.isPro)
+                    }
+                    .disabled(!license.isPro)
+                }
+                if dockBackground == .color {
+                    ColorPicker(Strings.Settings.dockBackgroundColor, selection: Binding(
+                        get: { dockBackgroundColor },
+                        set: { newColor in dockBackgroundColorHex = ColorUtils.toHex(newColor) }
+                    ))
+                    HStack {
+                        Text(Strings.Settings.cornerRadius)
+                        Spacer()
+                        TextField("", value: $dockCornerRadius, format: .number)
+                            .textFieldStyle(.roundedBorder)
+                            .frame(width: 60)
+                            .multilineTextAlignment(.trailing)
+                            .onChange(of: dockCornerRadius) { _, val in
+                                dockCornerRadius = max(0, min(64, val))
+                            }
+                        Stepper("", value: $dockCornerRadius, in: 0...64, step: 1)
+                            .labelsHidden()
+                    }
+                }
+            }
 
+        }
+        .formStyle(.grouped)
+    }
+}
+
+// MARK: - Icons
+
+private struct IconsSettingsTab: View {
+    @AppStorage("showLabels") private var showLabels = true
+    @AppStorage("showIconBackground") private var showIconBackground = true
+    @AppStorage("hoverSize") private var hoverSize: HoverSize = .small
+    @AppStorage("hoverAnimation") private var hoverAnimation: HoverAnimation = .bounce
+
+    var body: some View {
+        Form {
+            Section("General") {
+                Toggle(Strings.Settings.showLabels, isOn: $showLabels)
+                Toggle(Strings.Settings.showIconBackground, isOn: $showIconBackground)
+            }
             Section(Strings.Settings.hover) {
                 Picker(Strings.Settings.scale, selection: $hoverSize) {
                     ForEach(HoverSize.allCases, id: \.self) { size in
                         Text(size.rawValue).tag(size)
                     }
                 }
-
                 Picker(Strings.Settings.animation, selection: $hoverAnimation) {
                     ForEach(HoverAnimation.allCases, id: \.self) { style in
                         Text(style.rawValue).tag(style)

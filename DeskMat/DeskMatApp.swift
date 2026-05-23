@@ -42,6 +42,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
+        // Visual effect picker is hidden from UI — force stored value to none so
+        // any previously saved effect doesn't persist invisibly.
+        UserDefaults.standard.set(VisualEffect.none.rawValue, forKey: "visualEffect")
         cleanSandboxTmp()
         setupStatusItem()
         setupPanel()

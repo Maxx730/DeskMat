@@ -144,7 +144,11 @@ struct ContentView: View {
             case .transparent:
                 Color.clear
             case .reactive:
-                ReactiveBackgroundRepresentable(style: reactiveStyle, cornerRadius: dockCornerRadius)
+                if reactiveStyle != .none {
+                    ReactiveBackgroundRepresentable(style: reactiveStyle, cornerRadius: dockCornerRadius)
+                } else {
+                    Color.clear
+                }
             }
         }
     }
