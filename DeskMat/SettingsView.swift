@@ -130,12 +130,14 @@ private struct GeneralSettingsTab: View {
         // Appearance
         ud.set(AppearanceMode.system.rawValue,  forKey: "appearanceMode")
         ud.set(true,                            forKey: "showLabels")
+        ud.set(true,                            forKey: "showHoverLabel")
         ud.set(true,                            forKey: "showWidgetDivider")
         ud.set(DockBackground.system.rawValue,  forKey: "dockBackground")
         ud.set("#000000ff",                     forKey: "dockBackgroundColorHex")
         ud.set(16.0,                            forKey: "dockCornerRadius")
         ud.set(VisualEffect.none.rawValue,      forKey: "visualEffect")
         ud.set(ReactiveStyle.none.rawValue,      forKey: "reactiveStyle")
+        ud.set(true,                             forKey: "limitReactiveFPS")
         ud.set(0.5,                             forKey: "dockItemShaderIntensity")
         // Dock
         ud.set(DockPosition.bottom.rawValue,    forKey: "dockPosition")
@@ -211,6 +213,7 @@ private struct DockSettingsTab: View {
     @AppStorage("dockBackground") private var dockBackground: DockBackground = .system
     @AppStorage("dockBackgroundColorHex") private var dockBackgroundColorHex: String = "#000000ff"
     @AppStorage("reactiveStyle") private var reactiveStyle: ReactiveStyle = .none
+    @AppStorage("limitReactiveFPS") private var limitReactiveFPS: Bool = true
     @AppStorage("dockCornerRadius") private var dockCornerRadius: Double = 16
 
     private var dockBackgroundColor: Color {
@@ -263,6 +266,14 @@ private struct DockSettingsTab: View {
                         proLabel(Strings.Settings.reactiveStyle, isPro: license.isPro)
                     }
                     .disabled(!license.isPro)
+                    Toggle(isOn: $limitReactiveFPS) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Limit FPS")
+                            Text("Higher frame rates increase power usage.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
                 }
                 if dockBackground == .color {
                     ColorPicker(Strings.Settings.dockBackgroundColor, selection: Binding(
@@ -294,6 +305,7 @@ private struct DockSettingsTab: View {
 
 private struct IconsSettingsTab: View {
     @AppStorage("showLabels") private var showLabels = true
+    @AppStorage("showHoverLabel") private var hoverLabelEnabled = true
     @AppStorage("showIconBackground") private var showIconBackground = true
     @AppStorage("hoverSize") private var hoverSize: HoverSize = .small
     @AppStorage("hoverAnimation") private var hoverAnimation: HoverAnimation = .bounce
@@ -302,6 +314,7 @@ private struct IconsSettingsTab: View {
         Form {
             Section("General") {
                 Toggle(Strings.Settings.showLabels, isOn: $showLabels)
+                Toggle("Show hover label", isOn: $hoverLabelEnabled)
                 Toggle(Strings.Settings.showIconBackground, isOn: $showIconBackground)
             }
             Section(Strings.Settings.hover) {
@@ -594,7 +607,7 @@ private struct ProUnlockTab: View {
 
         // Buy CTA
         Button {
-            NSWorkspace.shared.open(URL(string: "https://cepholotech.lemonsqueezy.com/checkout/buy/e76ff2c0-32cd-41b7-b770-7b6b9873ab23")!)
+            NSWorkspace.shared.open(URL(string: "https://cepholotech.com/deskmat/checkout/")!)
         } label: {
             Text("Buy DeskMat Pro")
                 .frame(maxWidth: .infinity)

@@ -2,28 +2,6 @@ import SwiftUI
 import AppKit
 import ApplicationServices
 
-enum HoverSize: String, CaseIterable {
-    case small = "Small"
-    case medium = "Medium"
-    case large = "Large"
-
-    var scale: Double {
-        switch self {
-        case .small: 1.2
-        case .medium: 1.5
-        case .large: 1.8
-        }
-    }
-}
-
-enum HoverAnimation: String, CaseIterable {
-    case bounce = "Bounce"
-    case pulse = "Pulse"
-    case jiggle = "Jiggle"
-    case pop = "Pop"
-    case shine = "Shine"
-    case none = "None"
-}
 
 struct AppShortcutButton: View {
     let shortcut: AppShortcut
@@ -32,6 +10,7 @@ struct AppShortcutButton: View {
     let onDragStart: (Image?) -> Void
 
     @AppStorage("showLabels") private var showLabels = true
+    @AppStorage("showHoverLabel") private var hoverLabelEnabled = true
     @AppStorage("showIconBackground") private var showIconBackground = true
     @AppStorage("hoverSize") private var hoverSize: HoverSize = .small
     @AppStorage("hoverAnimation") private var hoverAnimation: HoverAnimation = .bounce
@@ -40,6 +19,7 @@ struct AppShortcutButton: View {
     @Environment(WindowStateService.self) private var windowState
 
     @State private var isHovering = false
+    @State private var showHoverLabel = false
     @State private var bobScale: Double = 1.0
     @State private var avgColor: Color = .gray
     @State private var cachedIcon: Image?
@@ -98,6 +78,15 @@ struct AppShortcutButton: View {
                 }
             }
             .frame(width: 64, height: 64)
+            .popover(isPresented: $showHoverLabel, attachmentAnchor: .rect(.rect(CGRect(x: 0, y: -12, width: 64, height: 64))), arrowEdge: .bottom) {
+                Text(shortcut.label)
+                    .font(.body)
+                    .lineLimit(1)
+                    .fixedSize()
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
+                    .presentationCompactAdaptation(.none)
+            }
 
             if showLabels {
                 Text(shortcut.label)
@@ -133,12 +122,14 @@ struct AppShortcutButton: View {
             if hovering && !isReordering {
                 if hoverAnimation == .shine { hoverStartDate = Date.now }
                 startHoverAnimation()
+                withAnimation(.easeInOut(duration: 0.12)) { showHoverLabel = hoverLabelEnabled }
             } else if !hovering && !isReordering {
                 hoverStartDate = nil
                 withAnimation(.easeOut(duration: 0.2)) {
                     bobScale = 1.0
                     jiggleAngle = 0
                 }
+                withAnimation(.easeInOut(duration: 0.12)) { showHoverLabel = false }
             }
         }
         .contextMenu {
@@ -170,7 +161,7 @@ struct AppShortcutButton: View {
 
     private func loadIcon() async {
         let url = AppShortcutStore.iconURL(for: shortcut.iconFileName)
-        guard let result = await Task.detached(priority: .userInitiated) { () -> (Image, Image, Color)? in
+        guard let result = await Task.detached(priority: .userInitiated, operation: { () -> (Image, Image, Color)? in
             guard let nsImage = NSImage(contentsOf: url) else { return nil }
 
             func render(into size: NSSize) -> NSImage {
@@ -188,7 +179,7 @@ struct AppShortcutButton: View {
             let iconFull = Image(nsImage: render(into: NSSize(width: 64, height: 64)))
             let color    = ColorUtils.averageColor(of: nsImage) ?? .gray
             return (icon, iconFull, color)
-        }.value else { return }
+        }).value else { return }
 
         cachedIcon     = result.0
         cachedIconFull = result.1
@@ -312,7 +303,7 @@ struct AppShortcutButton: View {
                 config.activates = true
                 NSWorkspace.shared.openApplication(at: shortcut.appURL, configuration: config)
             } else {
-                app.activate(options: [.activateAllWindows, .activateIgnoringOtherApps])
+                app.activate(options: .activateAllWindows)
             }
         } else {
             isLaunching = true
