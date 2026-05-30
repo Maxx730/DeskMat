@@ -52,8 +52,8 @@ struct LEDBoardWidget: View {
 
                 let cols = columns
                 let rows = Self.rows
-                frames = await Task.detached(priority: .background) { () -> [[[Color?]]] in
-                    ImageUtils.extractFrames(from: image, frameWidthPx: Self.sourceFrameWidth)
+                frames = await Task.detached(priority: .background) {
+                    await ImageUtils.extractFrames(from: image, frameWidthPx: Self.sourceFrameWidth)
                         .map { Self.buildPixelGrid(from: $0, columns: cols, rows: rows) }
                 }.value
                 framesVersion += 1
@@ -91,7 +91,7 @@ struct LEDBoardWidget: View {
         }
     }
 
-    private static func buildPixelGrid(from frameRep: NSBitmapImageRep, columns: Int, rows: Int) -> [[Color?]] {
+    nonisolated private static func buildPixelGrid(from frameRep: NSBitmapImageRep, columns: Int, rows: Int) -> [[Color?]] {
         let aspect = CGFloat(frameRep.pixelsWide) / CGFloat(frameRep.pixelsHigh)
         let gridAspect = CGFloat(columns) / CGFloat(rows)
 

@@ -16,10 +16,13 @@ struct ReactiveUniforms {
 
 class ReactiveBackgroundView: NSView, MTKViewDelegate {
 
-    var reactiveStyle: ReactiveStyle = .lockOn {
+    var reactiveStyle: ReactiveStyle = .none {
         didSet { if oldValue != reactiveStyle { rebuildPipeline() } }
     }
     var cornerRadius: CGFloat = 0
+    var limitFPS: Bool = true {
+        didSet { applyFrameRateLimit() }
+    }
 
     private(set) var mousePosition: CGPoint?
     private var trackingArea:      NSTrackingArea?
@@ -29,10 +32,9 @@ class ReactiveBackgroundView: NSView, MTKViewDelegate {
     private var metalView:        MTKView!
     private var device:           MTLDevice!
     private var commandQueue:     MTLCommandQueue!
-    private var pipelineState:           MTLRenderPipelineState?
-    private var crtPipelineState:        MTLRenderPipelineState?
-    private var crtWarpPipelineState:    MTLRenderPipelineState?
-    private var cornerMaskPipelineState: MTLRenderPipelineState?
+    private var pipelineState:              MTLRenderPipelineState?
+    private var edgeHighlightPipelineState: MTLRenderPipelineState?
+    private var cornerMaskPipelineState:    MTLRenderPipelineState?
     private var offscreenTexture:     MTLTexture?
     private var offscreenTexture2:    MTLTexture?
 
@@ -42,6 +44,9 @@ class ReactiveBackgroundView: NSView, MTKViewDelegate {
     private var hoverStartTime: CFTimeInterval = 0
     private var hoverEndTime:   CFTimeInterval = 0
     private var indicatorOpacity: Float = 0
+
+    // Resolution captured on the main thread; read from the render thread in makeUniforms
+    private var cachedResolution: SIMD2<Float> = .zero
 
     override var isFlipped: Bool { true }
 
@@ -56,15 +61,13 @@ class ReactiveBackgroundView: NSView, MTKViewDelegate {
     var vertexShaderName: String { "reactiveVertex" }
     var fragmentShaderName: String {
         switch reactiveStyle {
-        case .none:       return ""
-        case .lockOn:     return "lockOnFragment"
-        case .liquidFill: return "liquidFillFragment"
-        case .rainbow:    return "rainbowFragment"
-        case .dvd:        return "dvdFragment"
-        case .eighties:   return "eightiesFragment"
-        case .voronoi:    return "voronoiFragment"
-        case .subpixel:   return "subpixelFragment"
-        case .joker:      return "jokerFragment"
+        case .none:      return ""
+        case .electro:   return "electroFragment"
+        case .starfield: return "starfieldFragment"
+        case .colors:     return "colorsFragment"
+        case .topograph:  return "topographFragment"
+        case .snow:       return "snowFragment"
+        case .cellular:   return "cellularFragment"
         }
     }
 
@@ -81,7 +84,7 @@ class ReactiveBackgroundView: NSView, MTKViewDelegate {
         let pos = mousePosition ?? .zero
         return ReactiveUniforms(
             mousePosition:    SIMD2<Float>(Float(pos.x), Float(pos.y)),
-            resolution:       SIMD2<Float>(Float(bounds.width), Float(bounds.height)),
+            resolution:       cachedResolution,
             time:             time,
             indicatorOpacity: opacity,
             cornerRadius:     Float(cornerRadius)
@@ -115,9 +118,10 @@ class ReactiveBackgroundView: NSView, MTKViewDelegate {
         metalView.clearColor          = MTLClearColorMake(0, 0, 0, 0)
         metalView.layer?.isOpaque     = false
         metalView.colorPixelFormat    = .bgra8Unorm
-        metalView.isPaused            = false
+        metalView.isPaused              = false
         metalView.enableSetNeedsDisplay = false
         addSubview(metalView)
+        applyFrameRateLimit()
 
         rebuildPipeline()
 
@@ -139,6 +143,7 @@ class ReactiveBackgroundView: NSView, MTKViewDelegate {
     // MARK: - Pipeline
 
     func rebuildPipeline() {
+        guard reactiveStyle != .none else { pipelineState = nil; return }
         guard let device,
               let library = device.makeDefaultLibrary() else { return }
 
@@ -156,10 +161,9 @@ class ReactiveBackgroundView: NSView, MTKViewDelegate {
             return try? device.makeRenderPipelineState(descriptor: desc)
         }
 
-        pipelineState           = makePipeline(vertex: vertexShaderName, fragment: fragmentShaderName)
-        crtPipelineState        = makePipeline(vertex: "reactiveVertex", fragment: "crtFragment")
-        crtWarpPipelineState    = makePipeline(vertex: "reactiveVertex", fragment: "crtWarpFragment")
-        cornerMaskPipelineState = makePipeline(vertex: "reactiveVertex", fragment: "cornerMaskFragment")
+        pipelineState              = makePipeline(vertex: vertexShaderName, fragment: fragmentShaderName)
+        edgeHighlightPipelineState = makePipeline(vertex: "reactiveVertex", fragment: "edgeHighlightFragment")
+        cornerMaskPipelineState    = makePipeline(vertex: "reactiveVertex", fragment: "cornerMaskFragment")
     }
 
     private func makeOffscreenTexture(size: CGSize) {
@@ -180,6 +184,7 @@ class ReactiveBackgroundView: NSView, MTKViewDelegate {
     override func layout() {
         super.layout()
         metalView?.frame = bounds
+        cachedResolution = SIMD2<Float>(Float(bounds.width), Float(bounds.height))
         updateTrackingAreas()
     }
 
@@ -203,6 +208,7 @@ class ReactiveBackgroundView: NSView, MTKViewDelegate {
         mousePosition  = point
         isHovering     = true
         hoverStartTime = CACurrentMediaTime()
+        applyFrameRateLimit()
         mouseDidEnter(at: point)
     }
 
@@ -210,7 +216,17 @@ class ReactiveBackgroundView: NSView, MTKViewDelegate {
         mousePosition = nil
         isHovering    = false
         hoverEndTime  = CACurrentMediaTime()
+        applyFrameRateLimit()
         mouseDidExit()
+    }
+
+    private func applyFrameRateLimit() {
+        guard let metalView else { return }
+        if limitFPS {
+            metalView.preferredFramesPerSecond = isHovering ? 30 : 15
+        } else {
+            metalView.preferredFramesPerSecond = 120
+        }
     }
 
     // MARK: - MTKViewDelegate
@@ -221,8 +237,6 @@ class ReactiveBackgroundView: NSView, MTKViewDelegate {
 
     func draw(in view: MTKView) {
         guard let pipelineState,
-              let crtPipelineState,
-              let crtWarpPipelineState,
               let cornerMaskPipelineState,
               let commandBuffer = commandQueue.makeCommandBuffer(),
               let drawable      = view.currentDrawable else { return }
@@ -232,9 +246,9 @@ class ReactiveBackgroundView: NSView, MTKViewDelegate {
 
         let now = CACurrentMediaTime()
         if isHovering {
-            indicatorOpacity = Float(min((now - hoverStartTime) / 0.1, 1.0))
+            indicatorOpacity = Float(min((now - hoverStartTime) / 0.5, 1.0))
         } else {
-            indicatorOpacity = Float(max(1.0 - (now - hoverEndTime) / 0.2, 0.0))
+            indicatorOpacity = Float(max(1.0 - (now - hoverEndTime) / 0.7, 0.0))
         }
 
         let elapsed = Float(now - startTime)
@@ -259,30 +273,24 @@ class ReactiveBackgroundView: NSView, MTKViewDelegate {
             enc.endEncoding()
         }
 
-        let useCRT = reactiveStyle == .eighties || reactiveStyle == .dvd
+        let noEdgeHighlight: Set<ReactiveStyle> = [.none]
+        let useEdgeHighlight = !noEdgeHighlight.contains(reactiveStyle)
+
+        // Pass 1 — reactive shader → offscreenTexture (always)
+        if let enc = commandBuffer.makeRenderCommandEncoder(descriptor: offscreenPass(to: offscreenTexture)) {
+            encode(enc, pipeline: pipelineState, configure: true)
+        }
 
         // The final texture whose contents get corner-masked to screen
         let premaskedTexture: MTLTexture
 
-        if useCRT {
-            // Pass 1 — reactive → offscreenTexture
-            if let enc = commandBuffer.makeRenderCommandEncoder(descriptor: offscreenPass(to: offscreenTexture)) {
-                encode(enc, pipeline: pipelineState, configure: true)
-            }
-            // Pass 2 — CRT scanlines/aberration → offscreenTexture2
+        if useEdgeHighlight, let edgeHighlightPipelineState {
+            // Pass 2 — edge highlight rim → offscreenTexture2
             if let enc = commandBuffer.makeRenderCommandEncoder(descriptor: offscreenPass(to: offscreenTexture2)) {
-                encode(enc, pipeline: crtPipelineState, texture: offscreenTexture)
+                encode(enc, pipeline: edgeHighlightPipelineState, texture: offscreenTexture)
             }
-            // Pass 3 — CRT warp → offscreenTexture (safe to reuse: pass 2 has finished reading it)
-            if let enc = commandBuffer.makeRenderCommandEncoder(descriptor: offscreenPass(to: offscreenTexture)) {
-                encode(enc, pipeline: crtWarpPipelineState, texture: offscreenTexture2)
-            }
-            premaskedTexture = offscreenTexture
+            premaskedTexture = offscreenTexture2
         } else {
-            // Pass 1 — reactive → offscreenTexture
-            if let enc = commandBuffer.makeRenderCommandEncoder(descriptor: offscreenPass(to: offscreenTexture)) {
-                encode(enc, pipeline: pipelineState, configure: true)
-            }
             premaskedTexture = offscreenTexture
         }
 
@@ -302,6 +310,7 @@ class ReactiveBackgroundView: NSView, MTKViewDelegate {
 struct ReactiveBackgroundRepresentable: NSViewRepresentable {
     let style:        ReactiveStyle
     let cornerRadius: CGFloat
+    let limitFPS:     Bool
 
     func makeNSView(context: Context) -> ReactiveBackgroundView {
         ReactiveBackgroundView()
@@ -310,5 +319,6 @@ struct ReactiveBackgroundRepresentable: NSViewRepresentable {
     func updateNSView(_ nsView: ReactiveBackgroundView, context: Context) {
         nsView.reactiveStyle = style
         nsView.cornerRadius  = cornerRadius
+        nsView.limitFPS      = limitFPS
     }
 }

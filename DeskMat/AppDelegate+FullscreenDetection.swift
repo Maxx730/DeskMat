@@ -1,23 +1,31 @@
 import AppKit
+import Darwin
 
 // MARK: - Private CGS bridge
 // These are undocumented Core Graphics Services symbols used by the system itself
 // (Dock, Mission Control) and widely used by window-manager apps. Stable across
 // macOS versions. Not App Store safe — gate behind a build flag if that changes.
+//
+// Loaded via dlsym so that a missing symbol at runtime produces a graceful
+// fallback (fullscreen detection disabled) rather than a crash at launch.
 
 private typealias CGSConnectionID = UInt32
 private typealias CGSSpaceID = UInt64
-
-@_silgen_name("CGSMainConnectionID")
-private func CGSMainConnectionID() -> CGSConnectionID
-
-@_silgen_name("CGSGetActiveSpace")
-private func CGSGetActiveSpace(_ cid: CGSConnectionID) -> CGSSpaceID
-
-@_silgen_name("CGSSpaceGetType")
-private func CGSSpaceGetType(_ cid: CGSConnectionID, _ space: CGSSpaceID) -> Int32
-
 private let kCGSSpaceTypeFullscreen: Int32 = 4
+
+private typealias CGSMainConnectionIDFn = @convention(c) () -> CGSConnectionID
+private typealias CGSGetActiveSpaceFn   = @convention(c) (CGSConnectionID) -> CGSSpaceID
+private typealias CGSSpaceGetTypeFn     = @convention(c) (CGSConnectionID, CGSSpaceID) -> Int32
+
+// RTLD_DEFAULT = ((void*)(intptr_t)-2) on macOS — not importable as a Swift symbol
+private let rtldDefault: UnsafeMutableRawPointer? = .init(bitPattern: -2)
+
+private let _cgsMainConnectionID: CGSMainConnectionIDFn? = dlsym(rtldDefault, "CGSMainConnectionID")
+    .map { unsafeBitCast($0, to: CGSMainConnectionIDFn.self) }
+private let _cgsGetActiveSpace: CGSGetActiveSpaceFn? = dlsym(rtldDefault, "CGSGetActiveSpace")
+    .map { unsafeBitCast($0, to: CGSGetActiveSpaceFn.self) }
+private let _cgsSpaceGetType: CGSSpaceGetTypeFn? = dlsym(rtldDefault, "CGSSpaceGetType")
+    .map { unsafeBitCast($0, to: CGSSpaceGetTypeFn.self) }
 
 // MARK: - Detection
 
@@ -75,9 +83,11 @@ extension AppDelegate {
     }
 
     private func isOnFullscreenSpace() -> Bool {
-        let cid = CGSMainConnectionID()
-        let activeSpace = CGSGetActiveSpace(cid)
-        return CGSSpaceGetType(cid, activeSpace) == kCGSSpaceTypeFullscreen
+        guard let getConn  = _cgsMainConnectionID,
+              let getSpace = _cgsGetActiveSpace,
+              let getType  = _cgsSpaceGetType else { return false }
+        let cid = getConn()
+        return getType(cid, getSpace(cid)) == kCGSSpaceTypeFullscreen
     }
 
     func applicationWillTerminate(_ notification: Notification) {

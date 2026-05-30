@@ -28,32 +28,45 @@ enum AppShortcutStore {
         }
     }
 
-    static func load() -> [AppShortcut] {
-        // First launch: seed defaults before reading
+    // MARK: - Load / Save
+
+    static func load() -> [DockItem] {
         if !FileManager.default.fileExists(atPath: shortcutsFileURL.path(percentEncoded: false)) {
             initializeWithDefaults()
         }
-
         guard FileManager.default.fileExists(atPath: shortcutsFileURL.path(percentEncoded: false)) else {
             return []
         }
         do {
             let data = try Data(contentsOf: shortcutsFileURL)
-            return try JSONDecoder().decode([AppShortcut].self, from: data)
+            // Try current [DockItem] format first
+            if let items = try? JSONDecoder().decode([DockItem].self, from: data) {
+                return items
+            }
+            // Fall back to legacy [AppShortcut] format, upgrade and resave
+            let legacy = try JSONDecoder().decode([AppShortcut].self, from: data)
+            let items = legacy.map { DockItem.shortcut($0) }
+            save(items)
+            return items
         } catch {
+            logger.error("Failed to load shortcuts: \(error.localizedDescription)")
+            let backupURL = shortcutsFileURL.deletingPathExtension().appendingPathExtension("bak.json")
+            try? FileManager.default.copyItem(at: shortcutsFileURL, to: backupURL)
             return []
         }
     }
 
-    static func save(_ shortcuts: [AppShortcut]) {
+    static func save(_ items: [DockItem]) {
         do {
             try ensureDirectories()
-            let data = try JSONEncoder().encode(shortcuts)
+            let data = try JSONEncoder().encode(items)
             try data.write(to: shortcutsFileURL, options: .atomic)
         } catch {
             logger.error("Failed to save shortcuts: \(error.localizedDescription)")
         }
     }
+
+    // MARK: - Icon Management
 
     static func copyIcon(from sourceURL: URL, for shortcutID: UUID) throws -> String {
         try ensureDirectories()
@@ -80,6 +93,17 @@ enum AppShortcutStore {
     static func deleteIcon(named fileName: String) {
         let url = iconsDirectory.appending(path: fileName)
         try? FileManager.default.removeItem(at: url)
+    }
+
+    /// Deletes all icon files associated with a dock item, including folder children and custom folder icons.
+    static func deleteIcons(for item: DockItem) {
+        switch item {
+        case .shortcut(let s):
+            deleteIcon(named: s.iconFileName)
+        case .folder(let f):
+            if let icon = f.iconFileName { deleteIcon(named: icon) }
+            for shortcut in f.shortcuts { deleteIcon(named: shortcut.iconFileName) }
+        }
     }
 
     static func iconURL(for fileName: String) -> URL {
@@ -135,27 +159,35 @@ enum AppShortcutStore {
             shortcuts.append(shortcut)
         }
 
-        save(shortcuts)
+        save(shortcuts.map { .shortcut($0) })
     }
 
     // MARK: - Export / Import (.dskm)
 
-    /// Flat archive format: shortcuts + base64-encoded icon data in a single JSON file.
     private struct DskmArchive: Codable {
-        let shortcuts: [AppShortcut]
-        let icons: [String: String] // iconFileName → base64-encoded image data
+        let items: [DockItem]
+        let icons: [String: String]
     }
 
-    /// Exports the current dock to a single .dskm JSON file (no subprocess, sandbox-safe).
+    private struct LegacyDskmArchive: Codable {
+        let shortcuts: [AppShortcut]
+        let icons: [String: String]
+    }
+
     static func exportDock(to destinationURL: URL) throws {
         let fm = FileManager.default
 
-        let shortcuts: [AppShortcut]
+        let items: [DockItem]
         if fm.fileExists(atPath: shortcutsFileURL.path(percentEncoded: false)) {
             let data = try Data(contentsOf: shortcutsFileURL)
-            shortcuts = try JSONDecoder().decode([AppShortcut].self, from: data)
+            if let decoded = try? JSONDecoder().decode([DockItem].self, from: data) {
+                items = decoded
+            } else {
+                let legacy = try JSONDecoder().decode([AppShortcut].self, from: data)
+                items = legacy.map { .shortcut($0) }
+            }
         } else {
-            shortcuts = []
+            items = []
         }
 
         var icons: [String: String] = [:]
@@ -167,32 +199,52 @@ enum AppShortcutStore {
             }
         }
 
-        let archive = DskmArchive(shortcuts: shortcuts, icons: icons)
+        let archive = DskmArchive(items: items, icons: icons)
         let encoded = try JSONEncoder().encode(archive)
         try encoded.write(to: destinationURL, options: .atomic)
     }
 
-    /// Imports a dock from a .dskm JSON file, replacing the current shortcuts and icons.
-    static func importDock(from sourceURL: URL) throws -> [AppShortcut] {
+    static func importDock(from sourceURL: URL) throws -> [DockItem] {
         let data = try Data(contentsOf: sourceURL)
-        let archive = try JSONDecoder().decode(DskmArchive.self, from: data)
+
+        let items: [DockItem]
+        let iconMap: [String: String]
+
+        if let archive = try? JSONDecoder().decode(DskmArchive.self, from: data) {
+            items = archive.items
+            iconMap = archive.icons
+        } else {
+            let legacy = try JSONDecoder().decode(LegacyDskmArchive.self, from: data)
+            items = legacy.shortcuts.map { .shortcut($0) }
+            iconMap = legacy.icons
+        }
 
         try ensureDirectories()
 
-        let shortcutsData = try JSONEncoder().encode(archive.shortcuts)
-        try shortcutsData.write(to: shortcutsFileURL, options: .atomic)
+        let itemsData = try JSONEncoder().encode(items)
+        try itemsData.write(to: shortcutsFileURL, options: .atomic)
 
-        for (fileName, base64) in archive.icons {
-            // Reject names with path separators or hidden-file prefixes to prevent
-            // a malicious archive from writing outside the icons directory.
+        let maxIcons    = 50
+        let maxIconSize = 512 * 1024
+        var iconsWritten = 0
+        for (fileName, base64) in iconMap {
+            guard iconsWritten < maxIcons else {
+                logger.warning("Import icon limit (\(maxIcons)) reached — remaining icons skipped")
+                break
+            }
             let sanitized = URL(fileURLWithPath: fileName).lastPathComponent
             guard !sanitized.isEmpty, !sanitized.hasPrefix(".") else { continue }
             guard let imageData = Data(base64Encoded: base64) else { continue }
+            guard imageData.count <= maxIconSize else {
+                logger.warning("Import skipped '\(sanitized)' — exceeds \(maxIconSize / 1024) KB size limit")
+                continue
+            }
             let dest = iconsDirectory.appending(path: sanitized)
             try imageData.write(to: dest, options: .atomic)
+            iconsWritten += 1
         }
 
-        return archive.shortcuts
+        return items
     }
 
 }

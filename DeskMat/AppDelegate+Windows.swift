@@ -12,10 +12,10 @@ extension AppDelegate {
 
     // MARK: - Window factory
 
-    private func makeStandardWindow<V: View>(title: String, rootView: V) -> NSWindow {
+    private func makeStandardWindow<V: View>(title: String, rootView: V, width: CGFloat = 480) -> NSWindow {
         let hostingView = NSHostingView(rootView: rootView)
-        hostingView.setFrameSize(NSSize(width: 480, height: 0))
-        hostingView.setFrameSize(NSSize(width: 480, height: hostingView.fittingSize.height))
+        hostingView.setFrameSize(NSSize(width: width, height: 0))
+        hostingView.setFrameSize(NSSize(width: width, height: hostingView.fittingSize.height))
         let window = NSWindow(
             contentRect: NSRect(origin: .zero, size: hostingView.frame.size),
             styleMask: [.titled, .closable],
@@ -111,13 +111,63 @@ extension AppDelegate {
         openPanel.begin { [weak self] response in
             guard response == .OK, let url = openPanel.url else { return }
             do {
-                let shortcuts = try AppShortcutStore.importDock(from: url)
-                NotificationCenter.default.post(name: .dockImported, object: shortcuts)
-                self?.sendNotification(title: Strings.Notifications.dockImported, body: Strings.Notifications.dockImportedBody(count: shortcuts.count, fileName: url.lastPathComponent))
+                let items = try AppShortcutStore.importDock(from: url)
+                NotificationCenter.default.post(name: .dockImported, object: items)
+                self?.sendNotification(title: Strings.Notifications.dockImported, body: Strings.Notifications.dockImportedBody(count: items.count, fileName: url.lastPathComponent))
             } catch {
                 self?.sendNotification(title: Strings.Notifications.importFailed, body: error.localizedDescription)
             }
         }
+    }
+
+    // MARK: - Folders
+
+    @objc func addFolder() {
+        if let window = addFolderWindow {
+            window.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+            return
+        }
+
+        let addView = FolderSheet(folder: nil, onSave: { [weak self] newFolder in
+            NotificationCenter.default.post(name: .folderAdded, object: newFolder)
+            self?.addFolderWindow?.close()
+            self?.addFolderWindow = nil
+        }, onDismiss: { [weak self] in
+            self?.addFolderWindow?.close()
+            self?.addFolderWindow = nil
+        })
+
+        let window = makeStandardWindow(title: Strings.Windows.addFolder, rootView: addView, width: 360)
+        window.delegate = self
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+        addFolderWindow = window
+    }
+
+    @objc func editFolder(_ notification: Notification) {
+        guard let folder = notification.object as? AppFolder else { return }
+
+        if let window = editFolderWindow {
+            window.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+            return
+        }
+
+        let editView = FolderSheet(folder: folder, onSave: { [weak self] updated in
+            NotificationCenter.default.post(name: .folderEdited, object: updated)
+            self?.editFolderWindow?.close()
+            self?.editFolderWindow = nil
+        }, onDismiss: { [weak self] in
+            self?.editFolderWindow?.close()
+            self?.editFolderWindow = nil
+        })
+
+        let window = makeStandardWindow(title: Strings.Windows.editFolder, rootView: editView, width: 360)
+        window.delegate = self
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+        editFolderWindow = window
     }
 
     // MARK: - Onboarding / Settings
@@ -171,6 +221,10 @@ extension AppDelegate: NSWindowDelegate {
             addShortcutWindow = nil
         } else if window === editShortcutWindow {
             editShortcutWindow = nil
+        } else if window === addFolderWindow {
+            addFolderWindow = nil
+        } else if window === editFolderWindow {
+            editFolderWindow = nil
         }
     }
 }

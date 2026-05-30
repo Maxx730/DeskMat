@@ -67,7 +67,7 @@ enum ImageUtils {
     /// Resamples an NSImage to the given pixel dimensions and returns every pixel as a Color,
     /// in row-major order (left-to-right, top-to-bottom).
     /// Returns nil if the image cannot be rasterised.
-    static func pixels(from image: NSImage, width: Int, height: Int) -> [Color]? {
+    nonisolated static func pixels(from image: NSImage, width: Int, height: Int) -> [Color]? {
         guard let bitmap = rasterise(image, width: width, height: height) else { return nil }
         return pixels(fromRep: bitmap)
     }
@@ -75,7 +75,7 @@ enum ImageUtils {
     /// Resamples an NSImage to the given pixel dimensions and returns a 2D grid of Colors
     /// indexed as `[row][column]`.
     /// Returns nil if the image cannot be rasterised.
-    static func pixelGrid(from image: NSImage, columns: Int, rows: Int) -> [[Color]]? {
+    nonisolated static func pixelGrid(from image: NSImage, columns: Int, rows: Int) -> [[Color]]? {
         guard let flat = pixels(from: image, width: columns, height: rows) else { return nil }
         return (0..<rows).map { row in
             Array(flat[(row * columns)..<(row * columns + columns)])
@@ -86,7 +86,7 @@ enum ImageUtils {
     /// Reads the rep directly when it is already at the target size; otherwise wraps it in an
     /// NSImage and rasterises to the requested dimensions.
     /// Returns nil if the pixels cannot be read.
-    static func pixelGrid(from rep: NSBitmapImageRep, columns: Int, rows: Int) -> [[Color]]? {
+    nonisolated static func pixelGrid(from rep: NSBitmapImageRep, columns: Int, rows: Int) -> [[Color]]? {
         if rep.pixelsWide == columns && rep.pixelsHigh == rows {
             guard let flat = pixels(fromRep: rep) else { return nil }
             return (0..<rows).map { row in
@@ -121,7 +121,7 @@ enum ImageUtils {
     /// Splits an image into frames of `frameWidthPx` source pixels wide, reading left to right.
     /// Remaining pixels that don't fill a complete frame are ignored.
     /// Returns one `NSBitmapImageRep` per frame using a fast memory copy.
-    static func extractFrames(from image: NSImage, frameWidthPx: Int) -> [NSBitmapImageRep] {
+    nonisolated static func extractFrames(from image: NSImage, frameWidthPx: Int) -> [NSBitmapImageRep] {
         let srcW = Int(image.size.width.rounded())
         let srcH = Int(image.size.height.rounded())
         guard frameWidthPx > 0, srcW > 0, srcH > 0 else { return [] }
@@ -161,7 +161,7 @@ enum ImageUtils {
 
     /// Draws `image` into a bitmap of the requested size.
     /// Uses no interpolation to preserve hard pixel edges (suitable for pixel art).
-    private static func rasterise(_ image: NSImage, width: Int, height: Int) -> NSBitmapImageRep? {
+    nonisolated private static func rasterise(_ image: NSImage, width: Int, height: Int) -> NSBitmapImageRep? {
         guard let rep = NSBitmapImageRep(
             bitmapDataPlanes: nil,
             pixelsWide: width,
@@ -184,7 +184,7 @@ enum ImageUtils {
     }
 
     /// Reads every pixel from an existing bitmap rep in row-major order.
-    private static func pixels(fromRep rep: NSBitmapImageRep) -> [Color]? {
+    nonisolated private static func pixels(fromRep rep: NSBitmapImageRep) -> [Color]? {
         let width = rep.pixelsWide
         let height = rep.pixelsHigh
         guard width > 0, height > 0 else { return nil }

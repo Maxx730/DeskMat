@@ -130,7 +130,6 @@ private struct GeneralSettingsTab: View {
         // Appearance
         ud.set(AppearanceMode.system.rawValue,  forKey: "appearanceMode")
         ud.set(true,                            forKey: "showLabels")
-        ud.set(true,                            forKey: "showHoverLabel")
         ud.set(true,                            forKey: "showWidgetDivider")
         ud.set(DockBackground.system.rawValue,  forKey: "dockBackground")
         ud.set("#000000ff",                     forKey: "dockBackgroundColorHex")
@@ -172,7 +171,7 @@ private struct GeneralSettingsTab: View {
         if let files = try? fm.contentsOfDirectory(at: AppShortcutStore.iconsDirectory, includingPropertiesForKeys: nil) {
             files.forEach { try? fm.removeItem(at: $0) }
         }
-        AppShortcutStore.save([])
+        AppShortcutStore.save([] as [DockItem])
         AppShortcutStore.initializeWithDefaults()
         let reseeded = AppShortcutStore.load()
         NotificationCenter.default.post(name: .dockImported, object: reseeded)
@@ -305,7 +304,6 @@ private struct DockSettingsTab: View {
 
 private struct IconsSettingsTab: View {
     @AppStorage("showLabels") private var showLabels = true
-    @AppStorage("showHoverLabel") private var hoverLabelEnabled = true
     @AppStorage("showIconBackground") private var showIconBackground = true
     @AppStorage("hoverSize") private var hoverSize: HoverSize = .small
     @AppStorage("hoverAnimation") private var hoverAnimation: HoverAnimation = .bounce
@@ -314,7 +312,6 @@ private struct IconsSettingsTab: View {
         Form {
             Section("General") {
                 Toggle(Strings.Settings.showLabels, isOn: $showLabels)
-                Toggle("Show hover label", isOn: $hoverLabelEnabled)
                 Toggle(Strings.Settings.showIconBackground, isOn: $showIconBackground)
             }
             Section(Strings.Settings.hover) {

@@ -25,13 +25,13 @@ enum Strings {
         static let dockBackground = "Dock Background"
         static let dockBackgroundColor = "Color"
         static let reactiveStyle = "Reactive Style"
-        static let showWeatherWidget = "Show Weather Widget"
+        static let showWeatherWidget = "Weather Widget"
         static let weatherLocationField = "Search city..."
         static let weatherLocationSearch = "Search"
         static let weatherLocationNotFound = "City not found. Try a different name."
         static func weatherCurrentLocation(_ name: String) -> String { "Current location: \(name)" }
-        static let showClockWidget = "Show Clock Widget"
-        static let showImageWidget = "Show Image Widget"
+        static let showClockWidget = "Clock Widget"
+        static let showImageWidget = "Image Widget"
         static let imageWidgetDirectory = "Images Directory"
         static let theme = "Theme"
         static let visualEffect = "Visual Effect"
@@ -46,7 +46,7 @@ enum Strings {
         static let cornerRadius = "Corner Radius"
         static let pixelUnit = "px"
         static let icons = "Icons"
-        static let showLEDBoard = "Show LED Board"
+        static let showLEDBoard = "LED Board"
         static let ledBoardPerformanceNote = "Animating an LED image increases CPU usage while active."
         static let ledBoardImage = "Choose Image..."
         static let ledBoardImageNone = "No image selected"
@@ -56,7 +56,7 @@ enum Strings {
         static let ledBoardCompact = "Compact"
         static let autoHideDock = "Auto-Hide Dock"
         static let hideAnimation    = "Hide Animation"
-        static let showSystemWidget = "Show System Widget"
+        static let showSystemWidget = "System Widget"
         static let sysWidgetMetric  = "Metric"
         static let about = "About"
     }
@@ -65,6 +65,7 @@ enum Strings {
 
     enum Menu {
         static let addShortcut = "Add Shortcut..."
+        static let newFolder = "New Folder..."
         static let exportDock = "Export Dock..."
         static let importDock = "Import Dock..."
         static let settings = "Settings..."
@@ -102,6 +103,8 @@ enum Strings {
     enum Windows {
         static let addShortcut = "Add Shortcut"
         static let editShortcut = "Edit Shortcut"
+        static let addFolder = "New Folder"
+        static let editFolder = "Edit Folder"
         static let exportDock = "Export Dock"
         static let importDock = "Import Dock"
         static let settings = "DeskMat Settings"

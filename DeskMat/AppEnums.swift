@@ -30,20 +30,41 @@ enum DockBackground: String, CaseIterable {
 }
 
 enum ReactiveStyle: String, CaseIterable {
-    case none       = "None"
-    case lockOn     = "Lock-On"
-    case liquidFill = "Liquid Fill"
-    case rainbow    = "Rainbow"
-    case dvd        = "DVD"
-    case eighties   = "80s"
-    case voronoi    = "Voronoi"
-    case subpixel   = "Subpixel"
-    case joker      = "Joker"
+    case none      = "None"
+    case electro   = "Electro"
+    case starfield = "Starfield"
+    case colors     = "Colors"
+    case topograph  = "Topograph"
+    case snow       = "Snow"
+    case cellular   = "Cellular"
 }
 
 enum HideAnimation: String, CaseIterable {
     case fade  = "Fade"
     case slide = "Slide"
+}
+
+enum HoverSize: String, CaseIterable {
+    case small  = "Small"
+    case medium = "Medium"
+    case large  = "Large"
+
+    var scale: Double {
+        switch self {
+        case .small:  1.2
+        case .medium: 1.5
+        case .large:  1.8
+        }
+    }
+}
+
+enum HoverAnimation: String, CaseIterable {
+    case bounce = "Bounce"
+    case pulse  = "Pulse"
+    case jiggle = "Jiggle"
+    case pop    = "Pop"
+    case shine  = "Shine"
+    case none   = "None"
 }
 
 enum SystemMetric: String, CaseIterable {

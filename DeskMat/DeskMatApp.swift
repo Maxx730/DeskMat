@@ -23,6 +23,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var settingsWindow: NSWindow?
     var addShortcutWindow: NSWindow?
     var editShortcutWindow: NSWindow?
+    var addFolderWindow: NSWindow?
+    var editFolderWindow: NSWindow?
     var onboardingWindow: NSWindow?
     var positionObserver: Any?
     var offsetObserver: Any?
@@ -55,6 +57,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         NotificationCenter.default.addObserver(self, selector: #selector(importDock), name: .importDock, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(addShortcut), name: .addShortcut, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(editShortcut(_:)), name: .editShortcut, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(addFolder), name: .addFolder, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(editFolder(_:)), name: .editFolder, object: nil)
         #if DEBUG
         NotificationCenter.default.addObserver(self, selector: #selector(showOnboardingDebug), name: .showOnboarding, object: nil)
         #endif
@@ -104,6 +108,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         let menu = NSMenu()
         menu.addItem(NSMenuItem(title: Strings.Menu.addShortcut, action: #selector(addShortcut), keyEquivalent: "a"))
+        menu.addItem(NSMenuItem(title: Strings.Menu.newFolder, action: #selector(addFolder), keyEquivalent: ""))
         menu.addItem(NSMenuItem.separator())
         menu.addItem(NSMenuItem(title: Strings.Menu.exportDock, action: #selector(exportDock), keyEquivalent: "e"))
         menu.addItem(NSMenuItem(title: Strings.Menu.importDock, action: #selector(importDock), keyEquivalent: "i"))
