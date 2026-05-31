@@ -33,9 +33,7 @@ struct FolderExpansionPanelTests {
         folder: AppFolder? = nil,
         dockBackground: DockBackground = .system,
         colorHex: String = "#000000ff",
-        cornerRadius: Double = 16,
-        reactiveStyle: ReactiveStyle = .none,
-        limitFPS: Bool = false
+        cornerRadius: Double = 16
     ) {
         panel.show(
             folder: folder ?? makeFolder(),
@@ -45,9 +43,7 @@ struct FolderExpansionPanelTests {
             entitlements: LicenseManager(),
             dockBackground: dockBackground,
             dockBackgroundColorHex: colorHex,
-            dockCornerRadius: cornerRadius,
-            reactiveStyle: reactiveStyle,
-            limitReactiveFPS: limitFPS
+            dockCornerRadius: cornerRadius
         )
     }
 
@@ -119,53 +115,17 @@ struct FolderExpansionPanelTests {
         #expect(rootView?.dockCornerRadius == 40)
     }
 
-    // MARK: - reactiveStyle passthrough
-
-    @Test func showPassesElectroStyleToView() {
-        showPanel(reactiveStyle: .electro)
-        #expect(rootView?.reactiveStyle == .electro)
-    }
-
-    @Test func showPassesStarfieldStyleToView() {
-        showPanel(reactiveStyle: .starfield)
-        #expect(rootView?.reactiveStyle == .starfield)
-    }
-
-    @Test func showPassesNoneStyleToView() {
-        showPanel(reactiveStyle: .none)
-        // ReactiveStyle.none must be fully qualified to avoid Swift inferring
-        // this as Optional<ReactiveStyle>.none (nil), which would give a false
-        // positive when rootView is nil and a false negative when it is not.
-        #expect(rootView?.reactiveStyle == ReactiveStyle.none)
-    }
-
-    // MARK: - limitReactiveFPS passthrough
-
-    @Test func showPassesLimitFPSTrueToView() {
-        showPanel(limitFPS: true)
-        #expect(rootView?.limitReactiveFPS == true)
-    }
-
-    @Test func showPassesLimitFPSFalseToView() {
-        showPanel(limitFPS: false)
-        #expect(rootView?.limitReactiveFPS == false)
-    }
-
     // MARK: - All parameters in one call
 
     @Test func showPassesAllParametersSimultaneously() {
         showPanel(
             dockBackground: .color,
             colorHex: "#AABBCCDD",
-            cornerRadius: 20,
-            reactiveStyle: .colors,
-            limitFPS: true
+            cornerRadius: 20
         )
         #expect(rootView?.dockBackground        == .color)
         #expect(rootView?.dockBackgroundColorHex == "#AABBCCDD")
         #expect(rootView?.dockCornerRadius       == 20)
-        #expect(rootView?.reactiveStyle          == .colors)
-        #expect(rootView?.limitReactiveFPS       == true)
     }
 
     // MARK: - openFolderID passthrough

@@ -134,6 +134,9 @@ private struct GeneralSettingsTab: View {
         ud.set(DockBackground.system.rawValue,  forKey: "dockBackground")
         ud.set("#000000ff",                     forKey: "dockBackgroundColorHex")
         ud.set(16.0,                            forKey: "dockCornerRadius")
+        ud.set(false,                           forKey: "dockStrokeEnabled")
+        ud.set("#FFFFFF80",                     forKey: "dockStrokeColorHex")
+        ud.set(1.5,                             forKey: "dockStrokeWidth")
         ud.set(VisualEffect.none.rawValue,      forKey: "visualEffect")
         ud.set(ReactiveStyle.none.rawValue,      forKey: "reactiveStyle")
         ud.set(true,                             forKey: "limitReactiveFPS")
@@ -141,6 +144,7 @@ private struct GeneralSettingsTab: View {
         // Dock
         ud.set(DockPosition.bottom.rawValue,    forKey: "dockPosition")
         ud.set(0,                               forKey: "dockOffset")
+        ud.set(0,                               forKey: "dockOffsetX")
         ud.set(HoverSize.small.rawValue,        forKey: "hoverSize")
         ud.set(HoverAnimation.bounce.rawValue,  forKey: "hoverAnimation")
         ud.set(false,                           forKey: "autoHideDock")
@@ -207,6 +211,7 @@ private struct DockSettingsTab: View {
     @Environment(LicenseManager.self) private var license
     @AppStorage("dockPosition") private var dockPosition: DockPosition = .bottom
     @AppStorage("dockOffset") private var dockOffset = 0
+    @AppStorage("dockOffsetX") private var dockOffsetX = 0
     @AppStorage("autoHideDock") private var autoHideDock = false
     @AppStorage("hideAnimation") private var hideAnimation: HideAnimation = .fade
     @AppStorage("dockBackground") private var dockBackground: DockBackground = .system
@@ -214,9 +219,16 @@ private struct DockSettingsTab: View {
     @AppStorage("reactiveStyle") private var reactiveStyle: ReactiveStyle = .none
     @AppStorage("limitReactiveFPS") private var limitReactiveFPS: Bool = true
     @AppStorage("dockCornerRadius") private var dockCornerRadius: Double = 16
+    @AppStorage("dockStrokeEnabled") private var dockStrokeEnabled: Bool = false
+    @AppStorage("dockStrokeColorHex") private var dockStrokeColorHex: String = "#FFFFFF80"
+    @AppStorage("dockStrokeWidth") private var dockStrokeWidth: Double = 1.5
 
     private var dockBackgroundColor: Color {
         ColorUtils.fromHex(dockBackgroundColorHex)
+    }
+
+    private var dockStrokeColor: Color {
+        ColorUtils.fromHex(dockStrokeColorHex)
     }
 
     var body: some View {
@@ -237,16 +249,27 @@ private struct DockSettingsTab: View {
                         Text(position.rawValue).tag(position)
                     }
                 }
+            }
 
-                HStack {
-                    Text(Strings.Settings.offset)
+            Section {
+                HStack(spacing: 8) {
+                    Text(Strings.Settings.offsets)
                     Spacer()
+                    Text(Strings.Settings.offsetX)
+                    TextField("", value: $dockOffsetX, format: .number)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(width: 60)
+                        .multilineTextAlignment(.trailing)
+                    Stepper("", value: $dockOffsetX, step: 1)
+                        .labelsHidden()
+                    Text(Strings.Settings.offsetY)
+                        .padding(.leading, 8)
                     TextField("", value: $dockOffset, format: .number)
                         .textFieldStyle(.roundedBorder)
                         .frame(width: 60)
                         .multilineTextAlignment(.trailing)
-                    Text(Strings.Settings.pixelUnit)
-                        .foregroundStyle(.secondary)
+                    Stepper("", value: $dockOffset, step: 1)
+                        .labelsHidden()
                 }
             }
             
@@ -291,6 +314,31 @@ private struct DockSettingsTab: View {
                             }
                         Stepper("", value: $dockCornerRadius, in: 0...64, step: 1)
                             .labelsHidden()
+                    }
+                }
+            }
+
+            if dockBackground == .color {
+                Section(Strings.Settings.stroke) {
+                    Toggle(Strings.Settings.stroke, isOn: $dockStrokeEnabled)
+                    if dockStrokeEnabled {
+                        ColorPicker(Strings.Settings.strokeColor, selection: Binding(
+                            get: { dockStrokeColor },
+                            set: { newColor in dockStrokeColorHex = ColorUtils.toHex(newColor) }
+                        ))
+                        HStack {
+                            Text(Strings.Settings.strokeWidth)
+                            Spacer()
+                            TextField("", value: $dockStrokeWidth, format: .number)
+                                .textFieldStyle(.roundedBorder)
+                                .frame(width: 60)
+                                .multilineTextAlignment(.trailing)
+                                .onChange(of: dockStrokeWidth) { _, val in
+                                    dockStrokeWidth = max(0.5, min(12, val))
+                                }
+                            Stepper("", value: $dockStrokeWidth, in: 0.5...12, step: 0.5)
+                                .labelsHidden()
+                        }
                     }
                 }
             }

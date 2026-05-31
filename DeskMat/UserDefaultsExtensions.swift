@@ -7,6 +7,9 @@ extension UserDefaults {
     @objc dynamic var dockOffset: Int {
         return integer(forKey: "dockOffset")
     }
+    @objc dynamic var dockOffsetX: Int {
+        return integer(forKey: "dockOffsetX")
+    }
     @objc dynamic var appearanceMode: String {
         return string(forKey: "appearanceMode") ?? AppearanceMode.system.rawValue
     }

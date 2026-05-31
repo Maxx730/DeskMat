@@ -10,8 +10,6 @@ struct FolderExpansionView: View {
     let dockBackground: DockBackground
     let dockBackgroundColorHex: String
     let dockCornerRadius: Double
-    let reactiveStyle: ReactiveStyle
-    let limitReactiveFPS: Bool
 
     var body: some View {
         VStack(spacing: 8) {
@@ -35,8 +33,6 @@ struct FolderExpansionView: View {
                     .fill(ColorUtils.fromHex(dockBackgroundColorHex))
             } else if dockBackground == .transparent {
                 Color.clear
-            } else if dockBackground == .reactive, reactiveStyle != .none {
-                ReactiveBackgroundRepresentable(style: reactiveStyle, cornerRadius: dockCornerRadius, limitFPS: limitReactiveFPS)
             } else {
                 RoundedRectangle(cornerRadius: dockCornerRadius)
                     .fill(.ultraThinMaterial)
@@ -53,9 +49,7 @@ struct FolderExpansionView: View {
         entitlements: LicenseManager(),
         dockBackground: .system,
         dockBackgroundColorHex: "#000000ff",
-        dockCornerRadius: 16,
-        reactiveStyle: .none,
-        limitReactiveFPS: true
+        dockCornerRadius: 16
     )
     .padding()
     .background(.black)

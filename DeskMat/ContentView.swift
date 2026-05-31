@@ -15,6 +15,9 @@ struct ContentView: View {
     @AppStorage("limitReactiveFPS") private var limitReactiveFPS: Bool = true
     @AppStorage("dockBackgroundColorHex") private var dockBackgroundColorHex: String = "#000000ff"
     @AppStorage("dockCornerRadius") private var dockCornerRadius: Double = 16
+    @AppStorage("dockStrokeEnabled") private var dockStrokeEnabled: Bool = false
+    @AppStorage("dockStrokeColorHex") private var dockStrokeColorHex: String = "#FFFFFF80"
+    @AppStorage("dockStrokeWidth") private var dockStrokeWidth: Double = 1.5
     @AppStorage("showWidgetDivider") private var showWidgetDivider = true
 
     @State private var openFolderID: UUID?
@@ -160,6 +163,15 @@ struct ContentView: View {
                 }
             }
         }
+        .overlay {
+            if dockBackground == .color && dockStrokeEnabled {
+                RoundedRectangle(cornerRadius: dockCornerRadius)
+                    .strokeBorder(
+                        ColorUtils.fromHex(dockStrokeColorHex),
+                        lineWidth: dockStrokeWidth
+                    )
+            }
+        }
     }
 
     // MARK: - Item View Builder
@@ -213,8 +225,7 @@ struct ContentView: View {
             folder: folder, centeredAt: screenCenterX, dockTopY: dockTopY,
             windowState: windowState, entitlements: entitlements,
             dockBackground: dockBackground, dockBackgroundColorHex: dockBackgroundColorHex,
-            dockCornerRadius: dockCornerRadius, reactiveStyle: reactiveStyle,
-            limitReactiveFPS: limitReactiveFPS
+            dockCornerRadius: dockCornerRadius
         )
     }
 

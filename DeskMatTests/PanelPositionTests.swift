@@ -19,9 +19,10 @@ struct PanelPositionTests {
         visibleFrame: NSRect,
         panelSize: CGSize,
         position: DockPosition,
-        offset: CGFloat
+        offset: CGFloat,
+        offsetX: CGFloat = 0
     ) -> NSPoint {
-        let x = visibleFrame.midX - panelSize.width / 2
+        let x = visibleFrame.midX - panelSize.width / 2 + offsetX
         let y: CGFloat
         switch position {
         case .bottom: y = visibleFrame.minY + offset
@@ -89,6 +90,29 @@ struct PanelPositionTests {
         let expectedY: CGFloat = 1440 - 84
         #expect(origin.x == expectedX)
         #expect(origin.y == expectedY)
+    }
+
+    // MARK: - X offset
+
+    @Test func xOffsetShiftsDockRight() {
+        let vf = NSRect(x: 0, y: 23, width: 1920, height: 1057)
+        let base   = computeDockedOrigin(visibleFrame: vf, panelSize: CGSize(width: 400, height: 84), position: .bottom, offset: 0, offsetX: 0)
+        let shifted = computeDockedOrigin(visibleFrame: vf, panelSize: CGSize(width: 400, height: 84), position: .bottom, offset: 0, offsetX: 50)
+        #expect(shifted.x == base.x + 50)
+    }
+
+    @Test func xOffsetShiftsDockLeft() {
+        let vf = NSRect(x: 0, y: 23, width: 1920, height: 1057)
+        let base   = computeDockedOrigin(visibleFrame: vf, panelSize: CGSize(width: 400, height: 84), position: .bottom, offset: 0, offsetX: 0)
+        let shifted = computeDockedOrigin(visibleFrame: vf, panelSize: CGSize(width: 400, height: 84), position: .bottom, offset: 0, offsetX: -50)
+        #expect(shifted.x == base.x - 50)
+    }
+
+    @Test func xOffsetDoesNotAffectY() {
+        let vf = NSRect(x: 0, y: 23, width: 1920, height: 1057)
+        let base   = computeDockedOrigin(visibleFrame: vf, panelSize: CGSize(width: 400, height: 84), position: .bottom, offset: 10, offsetX: 0)
+        let shifted = computeDockedOrigin(visibleFrame: vf, panelSize: CGSize(width: 400, height: 84), position: .bottom, offset: 10, offsetX: 100)
+        #expect(shifted.y == base.y)
     }
 
     // MARK: - Shadow rule (mirrors updatePanelShadow logic)

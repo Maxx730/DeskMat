@@ -31,6 +31,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var appearanceObserver: Any?
     var cachedDockPosition: DockPosition = DockPosition(rawValue: UserDefaults.standard.string(forKey: "dockPosition") ?? "Bottom") ?? .bottom
     var cachedDockOffset: CGFloat = CGFloat(UserDefaults.standard.integer(forKey: "dockOffset"))
+    var cachedDockOffsetX: CGFloat = CGFloat(UserDefaults.standard.integer(forKey: "dockOffsetX"))
+    var offsetXObserver: Any?
     var globalHotkeyMonitor: Any?
     var localHotkeyMonitor: Any?
     var mouseGlobalMonitorToken: Any?

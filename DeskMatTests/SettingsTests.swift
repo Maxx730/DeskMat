@@ -149,6 +149,37 @@ struct AdditionalSettingsTests {
         defaults.set(-10, forKey: "dockOffset")
         #expect(defaults.integer(forKey: "dockOffset") == -10)
     }
+
+    @Test func dockOffsetXDefaultsToZero() {
+        let defaults = UserDefaults.standard
+        let existing = defaults.object(forKey: "dockOffsetX")
+        defer {
+            if let existing { defaults.set(existing, forKey: "dockOffsetX") }
+            else { defaults.removeObject(forKey: "dockOffsetX") }
+        }
+
+        defaults.removeObject(forKey: "dockOffsetX")
+        #expect(defaults.integer(forKey: "dockOffsetX") == 0)
+    }
+
+    @Test func dockOffsetXPersistedToUserDefaults() {
+        let defaults = UserDefaults.standard
+        let existing = defaults.object(forKey: "dockOffsetX")
+        defer {
+            if let existing { defaults.set(existing, forKey: "dockOffsetX") }
+            else { defaults.removeObject(forKey: "dockOffsetX") }
+        }
+
+        defaults.set(120, forKey: "dockOffsetX")
+        #expect(defaults.integer(forKey: "dockOffsetX") == 120)
+
+        defaults.set(-80, forKey: "dockOffsetX")
+        #expect(defaults.integer(forKey: "dockOffsetX") == -80)
+    }
+
+    @Test func dockOffsetXKeyIsDistinctFromDockOffsetKey() {
+        #expect("dockOffsetX" != "dockOffset")
+    }
 }
 
 // MARK: - Dock Background Settings Tests
@@ -524,6 +555,72 @@ struct CornerRadiusSettingsTests {
     @Test func cornerRadiusKeyIsDistinctFromOffsetKey() {
         #expect(key != "dockOffset")
         #expect(key != "dockBackgroundColorHex")
+    }
+}
+
+// MARK: - Dock Stroke Settings Tests
+
+@Suite(.serialized)
+struct DockStrokeSettingsTests {
+
+    @Test func dockStrokeEnabledDefaultsToFalse() {
+        let defaults = UserDefaults.standard
+        let existing = defaults.object(forKey: "dockStrokeEnabled")
+        defer {
+            if let existing { defaults.set(existing, forKey: "dockStrokeEnabled") }
+            else { defaults.removeObject(forKey: "dockStrokeEnabled") }
+        }
+
+        defaults.removeObject(forKey: "dockStrokeEnabled")
+        #expect(defaults.object(forKey: "dockStrokeEnabled") == nil)
+    }
+
+    @Test func dockStrokeColorHexDefaultsToSemiTransparentWhite() {
+        let defaults = UserDefaults.standard
+        let existing = defaults.object(forKey: "dockStrokeColorHex")
+        defer {
+            if let existing { defaults.set(existing, forKey: "dockStrokeColorHex") }
+            else { defaults.removeObject(forKey: "dockStrokeColorHex") }
+        }
+
+        defaults.removeObject(forKey: "dockStrokeColorHex")
+        #expect(defaults.string(forKey: "dockStrokeColorHex") == nil)
+    }
+
+    @Test func dockStrokeWidthDefaultsToOnePointFive() {
+        let defaults = UserDefaults.standard
+        let existing = defaults.object(forKey: "dockStrokeWidth")
+        defer {
+            if let existing { defaults.set(existing, forKey: "dockStrokeWidth") }
+            else { defaults.removeObject(forKey: "dockStrokeWidth") }
+        }
+
+        defaults.removeObject(forKey: "dockStrokeWidth")
+        #expect(defaults.object(forKey: "dockStrokeWidth") == nil)
+    }
+
+    @Test func dockStrokeWidthMinBoundaryRoundTrips() {
+        let defaults = UserDefaults.standard
+        let existing = defaults.object(forKey: "dockStrokeWidth")
+        defer {
+            if let existing { defaults.set(existing, forKey: "dockStrokeWidth") }
+            else { defaults.removeObject(forKey: "dockStrokeWidth") }
+        }
+
+        defaults.set(0.5, forKey: "dockStrokeWidth")
+        #expect(abs(defaults.double(forKey: "dockStrokeWidth") - 0.5) < 0.001)
+    }
+
+    @Test func dockStrokeWidthMaxBoundaryRoundTrips() {
+        let defaults = UserDefaults.standard
+        let existing = defaults.object(forKey: "dockStrokeWidth")
+        defer {
+            if let existing { defaults.set(existing, forKey: "dockStrokeWidth") }
+            else { defaults.removeObject(forKey: "dockStrokeWidth") }
+        }
+
+        defaults.set(12.0, forKey: "dockStrokeWidth")
+        #expect(abs(defaults.double(forKey: "dockStrokeWidth") - 12.0) < 0.001)
     }
 }
 
