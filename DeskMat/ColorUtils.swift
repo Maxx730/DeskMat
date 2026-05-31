@@ -47,7 +47,7 @@ enum ColorUtils {
     }
 
     /// Returns the average color of an NSImage.
-    static func averageColor(of image: NSImage) -> Color? {
+    nonisolated static func averageColor(of image: NSImage) -> Color? {
         guard image.tiffRepresentation != nil else {
             return nil
         }

@@ -14,16 +14,16 @@ struct ReactiveBackgroundViewTests {
 
     // MARK: - fragmentShaderName routing
 
-    @Test func lockOnStyleRoutesToLockOnFragment() {
+    @Test func electroStyleRoutesToElectroFragment() {
         let view = ReactiveBackgroundView()
-        view.reactiveStyle = .lockOn
-        #expect(view.fragmentShaderName == "lockOnFragment")
+        view.reactiveStyle = .electro
+        #expect(view.fragmentShaderName == "electroFragment")
     }
 
-    @Test func liquidFillStyleRoutesToLiquidFillFragment() {
+    @Test func starfieldStyleRoutesToStarfieldFragment() {
         let view = ReactiveBackgroundView()
-        view.reactiveStyle = .liquidFill
-        #expect(view.fragmentShaderName == "liquidFillFragment")
+        view.reactiveStyle = .starfield
+        #expect(view.fragmentShaderName == "starfieldFragment")
     }
 
     @Test func eachStyleProducesUniqueShaderName() {
@@ -35,9 +35,9 @@ struct ReactiveBackgroundViewTests {
         #expect(Set(names).count == ReactiveStyle.allCases.count)
     }
 
-    @Test func defaultStyleIsLockOn() {
+    @Test func defaultStyleIsNone() {
         let view = ReactiveBackgroundView()
-        #expect(view.reactiveStyle == .lockOn)
+        #expect(view.reactiveStyle == .none)
     }
 
     // MARK: - makeUniforms
@@ -78,19 +78,19 @@ struct ReactiveBackgroundViewTests {
     // MARK: - Opacity fade math
     //
     // Mirrors the interpolation in draw(in:).
-    // Fade-in: opacity = min((elapsed since hover) / 0.1, 1.0)
-    // Fade-out: opacity = max(1 - (elapsed since exit) / 0.2, 0.0)
+    // Fade-in:  opacity = min((elapsed since hover) / 0.5, 1.0)
+    // Fade-out: opacity = max(1 - (elapsed since exit) / 0.7, 0.0)
 
     private func fadeInOpacity(elapsed: Double) -> Float {
-        Float(min(elapsed / 0.1, 1.0))
+        Float(min(elapsed / 0.5, 1.0))
     }
 
     private func fadeOutOpacity(elapsed: Double) -> Float {
-        Float(max(1.0 - elapsed / 0.2, 0.0))
+        Float(max(1.0 - elapsed / 0.7, 0.0))
     }
 
-    @Test func fadeInReachesFullOpacityAt100ms() {
-        #expect(fadeInOpacity(elapsed: 0.1) == 1.0)
+    @Test func fadeInReachesFullOpacityAt500ms() {
+        #expect(fadeInOpacity(elapsed: 0.5) == 1.0)
     }
 
     @Test func fadeInIsZeroAtStart() {
@@ -98,19 +98,19 @@ struct ReactiveBackgroundViewTests {
     }
 
     @Test func fadeInClampsAboveOne() {
-        #expect(fadeInOpacity(elapsed: 0.5) == 1.0)
+        #expect(fadeInOpacity(elapsed: 1.0) == 1.0)
     }
 
     @Test func fadeInIsProportionalMidway() {
-        #expect(fadeInOpacity(elapsed: 0.05) == 0.5)
+        #expect(fadeInOpacity(elapsed: 0.25) == 0.5)
     }
 
     @Test func fadeOutIsFullAtStart() {
         #expect(fadeOutOpacity(elapsed: 0.0) == 1.0)
     }
 
-    @Test func fadeOutReachesZeroAt200ms() {
-        #expect(fadeOutOpacity(elapsed: 0.2) == 0.0)
+    @Test func fadeOutReachesZeroAt700ms() {
+        #expect(fadeOutOpacity(elapsed: 0.7) == 0.0)
     }
 
     @Test func fadeOutClampsAtZero() {
@@ -118,16 +118,16 @@ struct ReactiveBackgroundViewTests {
     }
 
     @Test func fadeOutIsProportionalMidway() {
-        #expect(fadeOutOpacity(elapsed: 0.1) == 0.5)
+        #expect(abs(fadeOutOpacity(elapsed: 0.35) - 0.5) < 0.001)
     }
 
     // MARK: - Style change triggers pipeline rebuild
 
     @Test func styleChangeUpdatesFragmentShaderName() {
         let view = ReactiveBackgroundView()
-        view.reactiveStyle = .lockOn
+        view.reactiveStyle = .electro
         let nameBefore = view.fragmentShaderName
-        view.reactiveStyle = .liquidFill
+        view.reactiveStyle = .starfield
         let nameAfter = view.fragmentShaderName
         #expect(nameBefore != nameAfter)
     }

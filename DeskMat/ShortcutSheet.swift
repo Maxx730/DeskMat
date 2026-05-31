@@ -17,6 +17,9 @@ struct ShortcutSheet: View {
     @State private var customLabel: String = ""
 
     private var isEditing: Bool { shortcut != nil }
+    private var hasCustomIcon: Bool {
+        selectedIconURL != nil || (isEditing && selectedIconImage != nil)
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -24,37 +27,14 @@ struct ShortcutSheet: View {
 
             // MARK: Header — icon + window title
             VStack(spacing: 10) {
-                Button(action: pickIcon) {
-                    ZStack(alignment: .bottomTrailing) {
-                        Group {
-                            if let image = selectedIconImage {
-                                Image(nsImage: image)
-                                    .resizable()
-                                    .scaledToFill()
-                                    .frame(width: 64, height: 64)
-                                    .clipShape(RoundedRectangle(cornerRadius: 14))
-                            } else {
-                                RoundedRectangle(cornerRadius: 14)
-                                    .fill(.quaternary)
-                                    .frame(width: 64, height: 64)
-                                    .overlay {
-                                        Image(systemName: "photo")
-                                            .font(.system(size: 22))
-                                            .foregroundStyle(.tertiary)
-                                    }
-                            }
-                        }
-                        Image(systemName: "pencil.circle.fill")
-                            .font(.system(size: 20))
-                            .foregroundStyle(.white, .blue)
-                            .offset(x: 5, y: 5)
-                    }
-                }
-                .buttonStyle(.plain)
+                IconPickerButton(
+                    image: selectedIconImage,
+                    placeholderSystemImage: "photo",
+                    hasCustomIcon: hasCustomIcon,
+                    onPick: pickIcon,
+                    onReset: resetToAppIcon
+                )
                 .help(Strings.Shortcuts.chooseIcon)
-
-                Text(isEditing ? Strings.Shortcuts.editAppShortcut : Strings.Shortcuts.addAppShortcut)
-                    .font(.headline)
             }
             .frame(maxWidth: .infinity)
             .padding(.top, 24)
@@ -73,7 +53,14 @@ struct ShortcutSheet: View {
                 formRow(label: Strings.Shortcuts.customLabel) {
                     TextField(selectedAppName.isEmpty ? "Label" : selectedAppName, text: $customLabel)
                         .textFieldStyle(.plain)
-                        .foregroundStyle(customLabel.isEmpty ? .secondary : .primary)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 6)
+                        .background {
+                            RoundedRectangle(cornerRadius: 7)
+                                .fill(Color(NSColor.textBackgroundColor))
+                            RoundedRectangle(cornerRadius: 7)
+                                .stroke(.secondary.opacity(0.2), lineWidth: 1)
+                        }
                 }
             }
 
@@ -160,6 +147,13 @@ struct ShortcutSheet: View {
             selectedIconURL   = nil
             if isEditing { iconChanged = true }
         }
+    }
+
+    private func resetToAppIcon() {
+        guard let appURL = selectedAppURL ?? shortcut?.appURL else { return }
+        selectedIconImage = NSWorkspace.shared.icon(forFile: appURL.path(percentEncoded: false))
+        selectedIconURL = nil
+        iconChanged = true
     }
 
     private func pickIcon() {

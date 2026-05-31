@@ -9,6 +9,13 @@ import AppKit
 // They are nested inside a single serialized parent suite so they never race
 // against each other when the test runner executes suites in parallel.
 
+private extension DockItem {
+    var asShortcut: AppShortcut? {
+        if case .shortcut(let s) = self { return s }
+        return nil
+    }
+}
+
 @Suite(.serialized)
 struct AppShortcutDataStoreTests {
 
@@ -38,7 +45,7 @@ struct AppShortcutStoreTests {
 
     @Test func loadReturnsEmptyArrayWhenNoFileExists() {
         let result = AppShortcutStore.load()
-        #expect(result is [AppShortcut])
+        #expect(result is [DockItem])
     }
 
     @Test func saveAndLoadRoundTrips() {
@@ -50,12 +57,12 @@ struct AppShortcutStoreTests {
             AppShortcut(displayName: "TestApp", bundleIdentifier: "com.test.app", appURL: url, iconFileName: "test.png")
         ]
 
-        AppShortcutStore.save(shortcuts)
+        AppShortcutStore.save(shortcuts.map { .shortcut($0) })
         let loaded = AppShortcutStore.load()
 
         #expect(loaded.count == 1)
-        #expect(loaded[0].displayName == "TestApp")
-        #expect(loaded[0].bundleIdentifier == "com.test.app")
+        #expect(loaded[0].asShortcut?.displayName == "TestApp")
+        #expect(loaded[0].asShortcut?.bundleIdentifier == "com.test.app")
     }
 
     @Test func saveAndLoadPreservesMultipleShortcuts() {
@@ -69,13 +76,13 @@ struct AppShortcutStoreTests {
             AppShortcut(displayName: "App3", bundleIdentifier: "com.test.3", appURL: url, iconFileName: "3.png"),
         ]
 
-        AppShortcutStore.save(shortcuts)
+        AppShortcutStore.save(shortcuts.map { .shortcut($0) })
         let loaded = AppShortcutStore.load()
 
         #expect(loaded.count == 3)
-        #expect(loaded[0].displayName == "App1")
-        #expect(loaded[1].displayName == "App2")
-        #expect(loaded[2].displayName == "App3")
+        #expect(loaded[0].asShortcut?.displayName == "App1")
+        #expect(loaded[1].asShortcut?.displayName == "App2")
+        #expect(loaded[2].asShortcut?.displayName == "App3")
     }
 
     @Test func copyIconCreatesFileAndReturnsFileName() throws {
@@ -145,7 +152,7 @@ struct ImportExportTests {
         let shortcuts = [
             AppShortcut(displayName: "Test", bundleIdentifier: "com.test", appURL: url, iconFileName: "test.png")
         ]
-        AppShortcutStore.save(shortcuts)
+        AppShortcutStore.save(shortcuts.map { .shortcut($0) })
 
         let exportURL = FileManager.default.temporaryDirectory.appending(path: "test-export.dskm")
         defer { try? FileManager.default.removeItem(at: exportURL) }
@@ -164,7 +171,7 @@ struct ImportExportTests {
             AppShortcut(displayName: "Safari", bundleIdentifier: "com.apple.Safari", appURL: url, iconFileName: "safari-icon.png"),
             AppShortcut(displayName: "Finder", bundleIdentifier: "com.apple.finder", appURL: url, iconFileName: "finder-icon.png"),
         ]
-        AppShortcutStore.save(shortcuts)
+        AppShortcutStore.save(shortcuts.map { .shortcut($0) })
 
         let iconPNG = try createTestPNG(color: .blue, name: "export-icon.png")
         defer { try? FileManager.default.removeItem(at: iconPNG) }
@@ -192,8 +199,8 @@ struct ImportExportTests {
         let imported = try AppShortcutStore.importDock(from: exportURL)
 
         #expect(imported.count == 2)
-        #expect(imported[0].displayName == "Safari")
-        #expect(imported[1].displayName == "Finder")
+        #expect(imported[0].asShortcut?.displayName == "Safari")
+        #expect(imported[1].asShortcut?.displayName == "Finder")
         #expect(FileManager.default.fileExists(atPath: icon1Dest.path(percentEncoded: false)))
         #expect(FileManager.default.fileExists(atPath: icon2Dest.path(percentEncoded: false)))
     }
@@ -239,7 +246,7 @@ struct ImportExportTests {
 
         let url = URL(fileURLWithPath: "/Applications/Safari.app")
         AppShortcutStore.save([
-            AppShortcut(displayName: "First", bundleIdentifier: "com.first", appURL: url, iconFileName: "f.png")
+            .shortcut(AppShortcut(displayName: "First", bundleIdentifier: "com.first", appURL: url, iconFileName: "f.png"))
         ])
 
         let exportURL = FileManager.default.temporaryDirectory.appending(path: "overwrite-test.dskm")
@@ -248,13 +255,13 @@ struct ImportExportTests {
         try AppShortcutStore.exportDock(to: exportURL)
 
         AppShortcutStore.save([
-            AppShortcut(displayName: "Second", bundleIdentifier: "com.second", appURL: url, iconFileName: "s.png")
+            .shortcut(AppShortcut(displayName: "Second", bundleIdentifier: "com.second", appURL: url, iconFileName: "s.png"))
         ])
         try AppShortcutStore.exportDock(to: exportURL)
 
         let imported = try AppShortcutStore.importDock(from: exportURL)
         #expect(imported.count == 1)
-        #expect(imported[0].displayName == "Second")
+        #expect(imported[0].asShortcut?.displayName == "Second")
     }
 
     @Test func notificationNamesExist() {
@@ -268,10 +275,6 @@ struct ImportExportTests {
         defer { AppShortcutStore.save(original) }
 
         // Build an archive whose icon map contains a traversal filename.
-        let url = URL(fileURLWithPath: "/Applications/Safari.app")
-        let shortcuts = [AppShortcut(displayName: "T", bundleIdentifier: "com.t", appURL: url, iconFileName: "legit.png")]
-
-        // Construct the JSON manually to inject an evil filename.
         let payload = """
         {
             "shortcuts": [],
@@ -330,7 +333,7 @@ struct DefaultSeedingTests {
         AppShortcutStore.initializeWithDefaults()
 
         let seeded = AppShortcutStore.load()
-        let hasFinder = seeded.contains { $0.bundleIdentifier == "com.apple.finder" }
+        let hasFinder = seeded.contains { $0.asShortcut?.bundleIdentifier == "com.apple.finder" }
         #expect(hasFinder)
     }
 
@@ -338,16 +341,14 @@ struct DefaultSeedingTests {
         let original = AppShortcutStore.load()
         defer { AppShortcutStore.save(original) }
 
-        var createdFileNames: [String] = []
-
         AppShortcutStore.save([])
         AppShortcutStore.initializeWithDefaults()
 
         let seeded = AppShortcutStore.load()
-        createdFileNames = seeded.map { $0.iconFileName }
-        defer { createdFileNames.forEach { AppShortcutStore.deleteIcon(named: $0) } }
+        let shortcuts = seeded.compactMap { $0.asShortcut }
+        defer { shortcuts.forEach { AppShortcutStore.deleteIcon(named: $0.iconFileName) } }
 
-        for shortcut in seeded {
+        for shortcut in shortcuts {
             let url = AppShortcutStore.iconURL(for: shortcut.iconFileName)
             #expect(FileManager.default.fileExists(atPath: url.path(percentEncoded: false)))
         }
@@ -361,9 +362,10 @@ struct DefaultSeedingTests {
         AppShortcutStore.initializeWithDefaults()
 
         let seeded = AppShortcutStore.load()
-        defer { seeded.forEach { AppShortcutStore.deleteIcon(named: $0.iconFileName) } }
+        let shortcuts = seeded.compactMap { $0.asShortcut }
+        defer { shortcuts.forEach { AppShortcutStore.deleteIcon(named: $0.iconFileName) } }
 
-        for shortcut in seeded {
+        for shortcut in shortcuts {
             #expect(shortcut.iconFileName.hasSuffix(".png"))
         }
     }
@@ -375,7 +377,8 @@ struct DefaultSeedingTests {
         AppShortcutStore.save([])
         AppShortcutStore.initializeWithDefaults()
         let seeded = AppShortcutStore.load()
-        defer { seeded.forEach { AppShortcutStore.deleteIcon(named: $0.iconFileName) } }
+        let shortcuts = seeded.compactMap { $0.asShortcut }
+        defer { shortcuts.forEach { AppShortcutStore.deleteIcon(named: $0.iconFileName) } }
         #expect(seeded.count >= 0)
     }
 }

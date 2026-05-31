@@ -54,6 +54,14 @@ extension AppDelegate {
                 self?.repositionPanel()
             }
         }
+        offsetXObserver = UserDefaults.standard.observe(\.dockOffsetX, options: [.new]) { [weak self] _, change in
+            DispatchQueue.main.async {
+                if let val = change.newValue {
+                    self?.cachedDockOffsetX = CGFloat(val)
+                }
+                self?.repositionPanel()
+            }
+        }
     }
 
     func updatePanelShadow() {
@@ -71,7 +79,7 @@ extension AppDelegate {
     func dockedOrigin(for screen: NSScreen) -> NSPoint {
         let screenFrame = screen.visibleFrame
         let panelSize = panel.frame.size
-        let x = screenFrame.midX - panelSize.width / 2
+        let x = screenFrame.midX - panelSize.width / 2 + cachedDockOffsetX
         let position = cachedDockPosition
         let offset = cachedDockOffset
         let y: CGFloat

@@ -16,8 +16,9 @@ enum DeactivationResult {
 
 @Observable
 final class LicenseManager {
-    internal static let keychainService = "com.kinghorn.deskmat"
-    internal static let keychainAccount = "license_v2"
+    internal static let keychainService    = "com.kinghorn.deskmat"
+    internal static let keychainAccount    = "license_v2"
+    private  static let hardwareIdAccount  = "hardware_id_v1"
     #if DEBUG
     internal static let baseURL: String = ProcessInfo.processInfo.environment["DESKMAT_API_URL"] ?? "https://auth.cepholotech.com"
     #else
@@ -178,8 +179,47 @@ final class LicenseManager {
     // MARK: - Hardware ID
 
     private func generateOrRetrieveHardwareId() -> String {
+        // Dedicated entry — stable across all activation attempts, even failed ones
+        if let id = readHardwareIdFromKeychain() { return id }
+        // Legacy fallback — hardware ID bundled with a previously saved license key
         if let (_, existingId) = readFromKeychain() { return existingId }
-        return UUID().uuidString
+        // First run — generate, persist, and return
+        let newId = UUID().uuidString
+        saveHardwareIdToKeychain(newId)
+        return newId
+    }
+
+    private func readHardwareIdFromKeychain() -> String? {
+        let query: [CFString: Any] = [
+            kSecClass:       kSecClassGenericPassword,
+            kSecAttrService: Self.keychainService,
+            kSecAttrAccount: Self.hardwareIdAccount,
+            kSecReturnData:  true,
+            kSecMatchLimit:  kSecMatchLimitOne
+        ]
+        var result: AnyObject?
+        guard SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess,
+              let data = result as? Data else { return nil }
+        return String(data: data, encoding: .utf8)
+    }
+
+    @discardableResult
+    private func saveHardwareIdToKeychain(_ id: String) -> Bool {
+        guard let data = id.data(using: .utf8) else { return false }
+        let query: [CFString: Any] = [
+            kSecClass:       kSecClassGenericPassword,
+            kSecAttrService: Self.keychainService,
+            kSecAttrAccount: Self.hardwareIdAccount
+        ]
+        SecItemDelete(query as CFDictionary)
+        var addQuery = query
+        addQuery[kSecValueData] = data
+        let status = SecItemAdd(addQuery as CFDictionary, nil)
+        if status != errSecSuccess {
+            log.error("Hardware ID Keychain save failed with status: \(status)")
+            return false
+        }
+        return true
     }
 
     // MARK: - Networking

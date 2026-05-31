@@ -77,7 +77,9 @@ class WeatherService {
         async let minimumDelay: Void = Task.sleep(for: .milliseconds(500))
 
         do {
-            let (data, _) = try await URLSession.shared.data(from: url)
+            var request = URLRequest(url: url, timeoutInterval: 15)
+            request.httpMethod = "GET"
+            let (data, _) = try await URLSession.shared.data(for: request)
             let response = try JSONDecoder().decode(WeatherResponse.self, from: data)
             let temp = Int(response.current.temperature2m.rounded())
 

@@ -134,12 +134,17 @@ private struct GeneralSettingsTab: View {
         ud.set(DockBackground.system.rawValue,  forKey: "dockBackground")
         ud.set("#000000ff",                     forKey: "dockBackgroundColorHex")
         ud.set(16.0,                            forKey: "dockCornerRadius")
+        ud.set(false,                           forKey: "dockStrokeEnabled")
+        ud.set("#FFFFFF80",                     forKey: "dockStrokeColorHex")
+        ud.set(1.5,                             forKey: "dockStrokeWidth")
         ud.set(VisualEffect.none.rawValue,      forKey: "visualEffect")
         ud.set(ReactiveStyle.none.rawValue,      forKey: "reactiveStyle")
+        ud.set(true,                             forKey: "limitReactiveFPS")
         ud.set(0.5,                             forKey: "dockItemShaderIntensity")
         // Dock
         ud.set(DockPosition.bottom.rawValue,    forKey: "dockPosition")
         ud.set(0,                               forKey: "dockOffset")
+        ud.set(0,                               forKey: "dockOffsetX")
         ud.set(HoverSize.small.rawValue,        forKey: "hoverSize")
         ud.set(HoverAnimation.bounce.rawValue,  forKey: "hoverAnimation")
         ud.set(false,                           forKey: "autoHideDock")
@@ -170,7 +175,7 @@ private struct GeneralSettingsTab: View {
         if let files = try? fm.contentsOfDirectory(at: AppShortcutStore.iconsDirectory, includingPropertiesForKeys: nil) {
             files.forEach { try? fm.removeItem(at: $0) }
         }
-        AppShortcutStore.save([])
+        AppShortcutStore.save([] as [DockItem])
         AppShortcutStore.initializeWithDefaults()
         let reseeded = AppShortcutStore.load()
         NotificationCenter.default.post(name: .dockImported, object: reseeded)
@@ -206,15 +211,24 @@ private struct DockSettingsTab: View {
     @Environment(LicenseManager.self) private var license
     @AppStorage("dockPosition") private var dockPosition: DockPosition = .bottom
     @AppStorage("dockOffset") private var dockOffset = 0
+    @AppStorage("dockOffsetX") private var dockOffsetX = 0
     @AppStorage("autoHideDock") private var autoHideDock = false
     @AppStorage("hideAnimation") private var hideAnimation: HideAnimation = .fade
     @AppStorage("dockBackground") private var dockBackground: DockBackground = .system
     @AppStorage("dockBackgroundColorHex") private var dockBackgroundColorHex: String = "#000000ff"
     @AppStorage("reactiveStyle") private var reactiveStyle: ReactiveStyle = .none
+    @AppStorage("limitReactiveFPS") private var limitReactiveFPS: Bool = true
     @AppStorage("dockCornerRadius") private var dockCornerRadius: Double = 16
+    @AppStorage("dockStrokeEnabled") private var dockStrokeEnabled: Bool = false
+    @AppStorage("dockStrokeColorHex") private var dockStrokeColorHex: String = "#FFFFFF80"
+    @AppStorage("dockStrokeWidth") private var dockStrokeWidth: Double = 1.5
 
     private var dockBackgroundColor: Color {
         ColorUtils.fromHex(dockBackgroundColorHex)
+    }
+
+    private var dockStrokeColor: Color {
+        ColorUtils.fromHex(dockStrokeColorHex)
     }
 
     var body: some View {
@@ -235,16 +249,27 @@ private struct DockSettingsTab: View {
                         Text(position.rawValue).tag(position)
                     }
                 }
+            }
 
-                HStack {
-                    Text(Strings.Settings.offset)
+            Section {
+                HStack(spacing: 8) {
+                    Text(Strings.Settings.offsets)
                     Spacer()
+                    Text(Strings.Settings.offsetX)
+                    TextField("", value: $dockOffsetX, format: .number)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(width: 60)
+                        .multilineTextAlignment(.trailing)
+                    Stepper("", value: $dockOffsetX, step: 1)
+                        .labelsHidden()
+                    Text(Strings.Settings.offsetY)
+                        .padding(.leading, 8)
                     TextField("", value: $dockOffset, format: .number)
                         .textFieldStyle(.roundedBorder)
                         .frame(width: 60)
                         .multilineTextAlignment(.trailing)
-                    Text(Strings.Settings.pixelUnit)
-                        .foregroundStyle(.secondary)
+                    Stepper("", value: $dockOffset, step: 1)
+                        .labelsHidden()
                 }
             }
             
@@ -263,6 +288,14 @@ private struct DockSettingsTab: View {
                         proLabel(Strings.Settings.reactiveStyle, isPro: license.isPro)
                     }
                     .disabled(!license.isPro)
+                    Toggle(isOn: $limitReactiveFPS) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Limit FPS")
+                            Text("Higher frame rates increase power usage.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
                 }
                 if dockBackground == .color {
                     ColorPicker(Strings.Settings.dockBackgroundColor, selection: Binding(
@@ -281,6 +314,31 @@ private struct DockSettingsTab: View {
                             }
                         Stepper("", value: $dockCornerRadius, in: 0...64, step: 1)
                             .labelsHidden()
+                    }
+                }
+            }
+
+            if dockBackground == .color {
+                Section(Strings.Settings.stroke) {
+                    Toggle(Strings.Settings.stroke, isOn: $dockStrokeEnabled)
+                    if dockStrokeEnabled {
+                        ColorPicker(Strings.Settings.strokeColor, selection: Binding(
+                            get: { dockStrokeColor },
+                            set: { newColor in dockStrokeColorHex = ColorUtils.toHex(newColor) }
+                        ))
+                        HStack {
+                            Text(Strings.Settings.strokeWidth)
+                            Spacer()
+                            TextField("", value: $dockStrokeWidth, format: .number)
+                                .textFieldStyle(.roundedBorder)
+                                .frame(width: 60)
+                                .multilineTextAlignment(.trailing)
+                                .onChange(of: dockStrokeWidth) { _, val in
+                                    dockStrokeWidth = max(0.5, min(12, val))
+                                }
+                            Stepper("", value: $dockStrokeWidth, in: 0.5...12, step: 0.5)
+                                .labelsHidden()
+                        }
                     }
                 }
             }
@@ -594,7 +652,7 @@ private struct ProUnlockTab: View {
 
         // Buy CTA
         Button {
-            NSWorkspace.shared.open(URL(string: "https://cepholotech.lemonsqueezy.com/checkout/buy/e76ff2c0-32cd-41b7-b770-7b6b9873ab23")!)
+            NSWorkspace.shared.open(URL(string: "https://cepholotech.com/deskmat/checkout/")!)
         } label: {
             Text("Buy DeskMat Pro")
                 .frame(maxWidth: .infinity)
