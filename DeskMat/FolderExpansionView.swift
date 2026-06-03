@@ -10,6 +10,7 @@ struct FolderExpansionView: View {
     let dockBackground: DockBackground
     let dockBackgroundColorHex: String
     let dockCornerRadius: Double
+    var onItemDragStart: (AppShortcut, AppFolder, Image?) -> Void = { _, _, _ in }
 
     var body: some View {
         VStack(spacing: 8) {
@@ -18,7 +19,7 @@ struct FolderExpansionView: View {
                     shortcut: shortcut,
                     onRemove: {},
                     isReordering: false,
-                    onDragStart: { _ in },
+                    onDragStart: { icon in onItemDragStart(shortcut, folder, icon) },
                     showWindowIndicator: false,
                     onAfterTap: onLaunch
                 )

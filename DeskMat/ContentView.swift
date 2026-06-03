@@ -4,6 +4,7 @@ import AppKit
 struct ContentView: View {
     @Environment(LicenseManager.self) private var entitlements
     @Environment(WindowStateService.self) private var windowState
+    @Environment(DragCoordinator.self) private var dragCoordinator
     @State private var items: [DockItem] = AppShortcutStore.load()
     @AppStorage("showWeatherWidget") private var showWeatherWidget = false
     @AppStorage("showClockWidget") private var showClockWidget = false
@@ -21,18 +22,16 @@ struct ContentView: View {
     @AppStorage("showWidgetDivider") private var showWidgetDivider = true
 
     @State private var openFolderID: UUID?
+    @State private var folderPendingDelete: DockItem? = nil
 
     // Drag-to-reorder state
     @State private var draggingID: UUID? = nil
     @State private var draggingItem: DockItem? = nil
-    @State private var draggingIcon: Image? = nil
-    @State private var dragPosition: CGPoint = .zero
     @State private var displayItems: [DockItem?] = []
     @State private var targetIndex: Int = 0
     @State private var dropTargetID: UUID? = nil
     @State private var mergeConfirmed: Bool = false
     @State private var windowContentHeight: CGFloat = 0
-    @State private var isShaking: Bool = false
     private static var dragMonitorToken: Any?
     private static var dwellWorkItem: DispatchWorkItem?
 
@@ -44,7 +43,17 @@ struct ContentView: View {
                         if let item = displayItems[i] {
                             dockItemView(for: item, isReordering: true)
                         } else {
-                            Color.clear.frame(width: 64, height: 64)
+                            DropGapSlot()
+                        }
+                    }
+                } else if dragCoordinator.isDraggingFromFolder && dragCoordinator.isOverDock,
+                          let dropIdx = dragCoordinator.dropIndex {
+                    let crossItems = crossDisplayItems(dropAt: dropIdx)
+                    ForEach(crossItems.indices, id: \.self) { i in
+                        if let item = crossItems[i] {
+                            dockItemView(for: item, isReordering: false)
+                        } else {
+                            DropGapSlot()
                         }
                     }
                 } else {
@@ -83,6 +92,7 @@ struct ContentView: View {
             .padding(.horizontal, 10)
             .padding(.vertical, 10)
             .animation(.spring(duration: 0.2), value: displayItems.map { $0?.id })
+            .animation(.spring(duration: 0.2), value: dragCoordinator.dropIndex)
             .contextMenu {
                 Button(Strings.Menu.addShortcut) {
                     NotificationCenter.default.post(name: .addShortcut, object: nil)
@@ -135,11 +145,6 @@ struct ContentView: View {
                 openFolderID = nil
             }
 
-            if draggingItem != nil {
-                DragGhostIcon(icon: draggingIcon, isShaking: isShaking, showFolderBadge: mergeConfirmed)
-                    .allowsHitTesting(false)
-                    .position(x: dragPosition.x, y: dragPosition.y)
-            }
         }
         .background(GeometryReader { geo in
             Color.clear
@@ -172,6 +177,32 @@ struct ContentView: View {
                     )
             }
         }
+        .onChange(of: dragCoordinator.dropCommitted) { _, committed in
+            guard committed else { return }
+            if let shortcut = dragCoordinator.sourceShortcut,
+               let folder   = dragCoordinator.sourceFolder,
+               let index    = dragCoordinator.dropIndex {
+                commitFolderDrop(shortcut: shortcut, folder: folder, at: index)
+            }
+            dragCoordinator.resetAfterDrop()
+        }
+        .onChange(of: folderPendingDelete) { _, item in
+            guard let item else { return }
+            // Defer runModal() so it fires after SwiftUI's update cycle completes,
+            // avoiding a nested NSRunLoop inside an onChange modifier.
+            DispatchQueue.main.async {
+                let alert = NSAlert()
+                alert.messageText = Strings.FolderDelete.alertTitle(self.folderDeleteName)  // never empty — returns "Folder" as fallback
+                alert.informativeText = self.folderDeleteMessage
+                alert.addButton(withTitle: Strings.FolderDelete.confirm)
+                alert.addButton(withTitle: Strings.Common.cancel)
+                alert.buttons[0].hasDestructiveAction = true
+                if alert.runModal() == .alertFirstButtonReturn {
+                    self.removeItem(item)
+                }
+                self.folderPendingDelete = nil
+            }
+        }
     }
 
     // MARK: - Item View Builder
@@ -194,7 +225,7 @@ struct ContentView: View {
                     folder: folder,
                     isReordering: isReordering,
                     isOpen: openFolderID == folder.id,
-                    onRemove: { removeItem(item) },
+                    onRemove: { folderPendingDelete = item },
                     onEdit: { NotificationCenter.default.post(name: .editFolder, object: folder) },
                     onDragStart: { icon in dragStart(item: item, icon: icon) },
                     onOpen: { f, frame in openFolder(f, buttonFrame: frame) }
@@ -207,7 +238,21 @@ struct ContentView: View {
                     .frame(width: 64, height: 64)
             }
         }
-        .animation(.easeInOut(duration: 0.2), value: isTarget)
+        .animation(.easeInOut(duration: 0.1), value: isTarget)
+    }
+
+    // MARK: - Folder Delete Confirmation
+
+    private var folderDeleteName: String {
+        if case .folder(let f) = folderPendingDelete { return f.name }
+        return "Folder"
+    }
+
+    private var folderDeleteMessage: String {
+        guard case .folder(let f) = folderPendingDelete else { return "" }
+        let count = f.shortcuts.count
+        if count == 0 { return Strings.FolderDelete.emptyMessage }
+        return Strings.FolderDelete.message(count: count)
     }
 
     // MARK: - Folder Expansion
@@ -225,14 +270,49 @@ struct ContentView: View {
             folder: folder, centeredAt: screenCenterX, dockTopY: dockTopY,
             windowState: windowState, entitlements: entitlements,
             dockBackground: dockBackground, dockBackgroundColorHex: dockBackgroundColorHex,
-            dockCornerRadius: dockCornerRadius
+            dockCornerRadius: dockCornerRadius,
+            onItemDragStart: { [dragCoordinator, itemCount = items.count] shortcut, sourceFolder, icon in
+                FolderExpansionPanel.shared.dismiss()
+                dragCoordinator.beginDrag(
+                    shortcut: shortcut, folder: sourceFolder, icon: icon,
+                    at: NSEvent.mouseLocation, itemCount: itemCount
+                )
+            }
         )
     }
 
     // MARK: - Helpers
 
+    private func crossDisplayItems(dropAt index: Int) -> [DockItem?] {
+        var display = items.map { Optional($0) }
+        let clamped = max(0, min(display.count, index))
+        display.insert(nil, at: clamped)
+        return display
+    }
+
     private var anyWidgetVisible: Bool {
         entitlements.isPro && (showWeatherWidget || showImageWidget || showLEDBoard || showClockWidget || showSystemWidget)
+    }
+
+    private func commitFolderDrop(shortcut: AppShortcut, folder: AppFolder, at dropIndex: Int) {
+        guard let folderItemIndex = items.firstIndex(where: {
+            if case .folder(let f) = $0 { return f.id == folder.id }
+            return false
+        }) else { return }
+
+        guard case .folder(var sourceFolder) = items[folderItemIndex] else { return }
+        sourceFolder.shortcuts.removeAll { $0.id == shortcut.id }
+
+        if sourceFolder.shortcuts.isEmpty {
+            items.remove(at: folderItemIndex)
+            let adjustedIndex = folderItemIndex < dropIndex ? dropIndex - 1 : dropIndex
+            items.insert(.shortcut(shortcut), at: min(adjustedIndex, items.count))
+        } else {
+            items[folderItemIndex] = .folder(sourceFolder)
+            items.insert(.shortcut(shortcut), at: min(dropIndex, items.count))
+        }
+
+        AppShortcutStore.save(items)
     }
 
     private func removeItem(_ item: DockItem) {
@@ -280,21 +360,21 @@ struct ContentView: View {
         displayItems = display
 
         let screenPt = NSEvent.mouseLocation
-        if let window = NSApp.windows.first(where: { $0.isVisible && $0.frame.contains(screenPt) }) {
-            let windowPt = window.convertPoint(fromScreen: screenPt)
-            dragPosition = CGPoint(x: windowPt.x, y: windowContentHeight - windowPt.y)
-        }
-
-        draggingIcon = icon
-        isShaking = true
+        DragGhostPanel.shared.show(icon: icon, at: screenPt)
+        DragGhostPanel.shared.startShaking()
 
         ContentView.dragMonitorToken = NSEvent.addLocalMonitorForEvents(
             matching: [.leftMouseDragged, .leftMouseUp]
-        ) { event in
+        ) { [weak dockPanel = NSApp.windows.first(where: { $0 is DeskMatPanel })] event in
             if event.type == .leftMouseDragged {
-                let nsLoc = event.locationInWindow
-                let pt = CGPoint(x: nsLoc.x, y: self.windowContentHeight - nsLoc.y)
-                self.dragChanged(to: pt)
+                // Use screen → dock conversion so the ghost panel's window level
+                // doesn't corrupt event.locationInWindow coordinates.
+                let screenPt = NSEvent.mouseLocation
+                if let dock = dockPanel {
+                    let windowPt = dock.convertPoint(fromScreen: screenPt)
+                    let pt = CGPoint(x: windowPt.x, y: self.windowContentHeight - windowPt.y)
+                    self.dragChanged(to: pt)
+                }
             } else if event.type == .leftMouseUp {
                 self.dragEnd()
             }
@@ -313,11 +393,13 @@ struct ContentView: View {
         let step = cellSize + hstackItemSpacing
         let mergeThreshold = cellSize * 0.6
 
-        // Compute reorder index first so we know where the gap sits
         let rawIndex = Int((localX - cellSize / 2 + step / 2) / step)
         let reorderIndex = max(0, min(items.count - 1, rawIndex))
 
-        // Check merge using gap-adjusted visual centers
+        // Compute each item's visual center given the current gap position, then
+        // check for merge. displayItems is intentionally NOT updated in the merge
+        // branch of dragChanged, so the gap stays fixed while the user dwells —
+        // this prevents the visual jump that was the observable part of the flicker.
         let remaining = items.filter { $0.id != dragging.id }
         for (j, item) in remaining.enumerated() {
             let displayIndex = j < reorderIndex ? j : j + 1
@@ -332,7 +414,10 @@ struct ContentView: View {
 
     private func scheduleDwell(for targetID: UUID) {
         ContentView.dwellWorkItem?.cancel()
-        let work = DispatchWorkItem { self.mergeConfirmed = true }
+        let work = DispatchWorkItem {
+            self.mergeConfirmed = true
+            DragGhostPanel.shared.setFolderBadge(true)
+        }
         ContentView.dwellWorkItem = work
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.35, execute: work)
     }
@@ -341,10 +426,11 @@ struct ContentView: View {
         ContentView.dwellWorkItem?.cancel()
         ContentView.dwellWorkItem = nil
         mergeConfirmed = false
+        DragGhostPanel.shared.setFolderBadge(false)
     }
 
     private func dragChanged(to position: CGPoint) {
-        dragPosition = position
+        DragGhostPanel.shared.move(to: NSEvent.mouseLocation)
         let localX = position.x - 10 // subtract horizontal padding
         guard let dragging = draggingItem else { return }
 
@@ -355,8 +441,10 @@ struct ContentView: View {
                 scheduleDwell(for: targetID)
             }
             dropTargetID = targetID
-            targetIndex = -1
-            displayItems = items.filter { $0.id != dragging.id }.map { Optional($0) }
+            // targetIndex intentionally not reset — its current value is what
+            // computeDragMode uses for stable item center calculation.
+            // displayItems intentionally not updated — keeps items at their
+            // reorder positions so the gap doesn't jump mid-hover.
 
         case .reorder(let newIndex):
             cancelDwell()
@@ -428,12 +516,10 @@ struct ContentView: View {
         }
 
         cancelDwell()
+        DragGhostPanel.shared.hide()
         (NSApp.delegate as? AppDelegate)?.isDragging = false
-        isShaking = false
         draggingID = nil
         draggingItem = nil
-        draggingIcon = nil
-        dragPosition = .zero
         displayItems = []
         targetIndex = 0
         dropTargetID = nil
@@ -442,7 +528,7 @@ struct ContentView: View {
 
 private let hstackItemSpacing: CGFloat = 8
 
-private struct DragGhostIcon: View {
+struct DragGhostIcon: View {
     let icon: Image?
     let isShaking: Bool
     let showFolderBadge: Bool
@@ -490,12 +576,21 @@ private struct DragGhostIcon: View {
     }
 }
 
+private struct DropGapSlot: View {
+    var body: some View {
+        RoundedRectangle(cornerRadius: 10)
+            .strokeBorder(style: StrokeStyle(lineWidth: 2, dash: [6, 4]))
+            .foregroundStyle(.white.opacity(0.4))
+            .frame(width: 64, height: 64)
+    }
+}
+
 private struct DropTargetRing: View {
     @State private var scale: CGFloat = 1.0
     @State private var opacity: Double = 0.8
 
     var body: some View {
-        RoundedRectangle(cornerRadius: 10)
+        RoundedRectangle(cornerRadius: 12)
             .stroke(Color.white.opacity(opacity), lineWidth: 2.5)
             .scaleEffect(scale)
             .onAppear {

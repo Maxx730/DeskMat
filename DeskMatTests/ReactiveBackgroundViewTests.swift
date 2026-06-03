@@ -44,6 +44,7 @@ struct ReactiveBackgroundViewTests {
 
     @Test func makeUniformsPopulatesResolution() {
         let view = ReactiveBackgroundView(frame: NSRect(x: 0, y: 0, width: 400, height: 84))
+        view.layout()   // cachedResolution is set in layout(), not at init time
         let u = view.makeUniforms(time: 0, opacity: 0)
         #expect(u.resolution.x == 400)
         #expect(u.resolution.y == 84)

@@ -1,6 +1,6 @@
 import Foundation
 
-struct AppFolder: Identifiable, Codable {
+struct AppFolder: Identifiable, Codable, Equatable {
     let id: UUID
     var name: String
     var shortcuts: [AppShortcut]
@@ -14,7 +14,7 @@ struct AppFolder: Identifiable, Codable {
     }
 }
 
-enum DockItem: Identifiable, Codable {
+enum DockItem: Identifiable, Codable, Equatable {
     case shortcut(AppShortcut)
     case folder(AppFolder)
 

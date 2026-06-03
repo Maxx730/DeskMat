@@ -2,13 +2,14 @@ import SwiftUI
 
 struct ClockWidget: View {
     static let cellCount = 1
-    @AppStorage("showLabels") private var showLabels = true
+    @AppStorage("showLabels")  private var showLabels  = true
+    @AppStorage("clockStyle")  private var clockStyle: ClockStyle = .system
 
     var body: some View {
         VStack(spacing: 10) {
             TimelineView(.periodic(from: .now, by: 1)) { context in
-                DockWidget {
-                    AnalogClockFace(date: context.date)
+                DockWidget(backgroundColor: clockStyle == .flat ? .white : nil) {
+                    AnalogClockFace(date: context.date, style: clockStyle)
                 }
             }
             .onTapGesture {
@@ -36,6 +37,7 @@ struct ClockWidget: View {
 
 private struct AnalogClockFace: View {
     let date: Date
+    let style: ClockStyle
 
     var body: some View {
         Canvas(renderer: render)
@@ -51,6 +53,23 @@ private struct AnalogClockFace: View {
         let min  = Double(calendar.component(.minute, from: date)) + sec / 60
         let hour = Double(calendar.component(.hour,   from: date)).truncatingRemainder(dividingBy: 12) + min / 60
 
+        switch style {
+        case .flat:
+            renderFlat(&context, center: center, dim: dim, sec: sec, min: min, hour: hour)
+        case .system:
+            renderSystem(&context, center: center, dim: dim, sec: sec, min: min, hour: hour)
+        }
+    }
+
+    private func renderFlat(_ context: inout GraphicsContext, center: CGPoint,
+                             dim: CGFloat, sec: Double, min: Double, hour: Double) {
+        // Background
+        let bgR = dim * 0.5
+        context.fill(
+            Path(ellipseIn: CGRect(x: center.x - bgR, y: center.y - bgR, width: bgR * 2, height: bgR * 2)),
+            with: .color(.white)
+        )
+
         // Hour markers
         for i in 0..<12 {
             let angle = Double(i) / 12.0 * .pi * 2 - .pi / 2
@@ -58,24 +77,45 @@ private struct AnalogClockFace: View {
             let mx = center.x + CGFloat(cos(angle)) * dim * 0.44
             let my = center.y + CGFloat(sin(angle)) * dim * 0.44
             context.fill(
-                Path(ellipseIn: CGRect(x: mx - mr, y: my - mr, width: mr * 1, height: mr * 1)),
+                Path(ellipseIn: CGRect(x: mx - mr, y: my - mr, width: mr, height: mr)),
+                with: .color(.black.opacity(0.25))
+            )
+        }
+
+        let hw = dim * 0.02
+        drawHand(&context, center: center, fraction: hour, outOf: 12, length: dim * 0.27, width: hw,       color: .black)
+        drawHand(&context, center: center, fraction: min,  outOf: 60, length: dim * 0.36, width: hw,       color: .black)
+        drawHand(&context, center: center, fraction: sec,  outOf: 60, length: dim * 0.38, width: hw * 0.6, color: .red)
+
+        let outerR = dim * 0.05
+        let innerR = dim * 0.025
+        context.fill(Path(ellipseIn: CGRect(x: center.x - outerR, y: center.y - outerR, width: outerR * 2, height: outerR * 2)), with: .color(.black))
+        context.fill(Path(ellipseIn: CGRect(x: center.x - innerR, y: center.y - innerR, width: innerR * 2, height: innerR * 2)), with: .color(.red))
+    }
+
+    private func renderSystem(_ context: inout GraphicsContext, center: CGPoint,
+                               dim: CGFloat, sec: Double, min: Double, hour: Double) {
+        // Hour markers
+        for i in 0..<12 {
+            let angle = Double(i) / 12.0 * .pi * 2 - .pi / 2
+            let mr = dim * 0.04
+            let mx = center.x + CGFloat(cos(angle)) * dim * 0.44
+            let my = center.y + CGFloat(sin(angle)) * dim * 0.44
+            context.fill(
+                Path(ellipseIn: CGRect(x: mx - mr, y: my - mr, width: mr, height: mr)),
                 with: .color(.white.opacity(0.3))
             )
         }
 
-        // Hands
-        let handWidth = dim * 0.01
-        drawHand(&context, center: center, fraction: hour, outOf: 12, length: dim * 0.27, width: handWidth, color: .white.opacity(0.6))
-        drawHand(&context, center: center, fraction: min,  outOf: 60, length: dim * 0.36, width: handWidth, color: .white.opacity(0.6))
-        drawHand(&context, center: center, fraction: sec,  outOf: 60, length: dim * 0.38, width: handWidth, color: .red)
+        let hw = dim * 0.01
+        drawHand(&context, center: center, fraction: hour, outOf: 12, length: dim * 0.27, width: hw, color: .white.opacity(0.6))
+        drawHand(&context, center: center, fraction: min,  outOf: 60, length: dim * 0.36, width: hw, color: .white.opacity(0.6))
+        drawHand(&context, center: center, fraction: sec,  outOf: 60, length: dim * 0.38, width: hw, color: .red)
 
-        // Center dot
         let outerR = dim * 0.05
         let innerR = dim * 0.025
-        context.fill(Path(ellipseIn: CGRect(x: center.x - outerR, y: center.y - outerR,
-                                            width: outerR * 2,    height: outerR * 2)), with: .color(.white))
-        context.fill(Path(ellipseIn: CGRect(x: center.x - innerR, y: center.y - innerR,
-                                            width: innerR * 2,    height: innerR * 2)), with: .color(.black))
+        context.fill(Path(ellipseIn: CGRect(x: center.x - outerR, y: center.y - outerR, width: outerR * 2, height: outerR * 2)), with: .color(.white))
+        context.fill(Path(ellipseIn: CGRect(x: center.x - innerR, y: center.y - innerR, width: innerR * 2, height: innerR * 2)), with: .color(.black))
     }
 
     private func drawHand(_ context: inout GraphicsContext, center: CGPoint,

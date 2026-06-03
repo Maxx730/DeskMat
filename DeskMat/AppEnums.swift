@@ -79,3 +79,8 @@ enum SystemMetric: String, CaseIterable {
         }
     }
 }
+
+enum ClockStyle: String, CaseIterable {
+    case system = "System"
+    case flat   = "Flat"
+}

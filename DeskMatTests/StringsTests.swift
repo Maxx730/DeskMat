@@ -169,3 +169,39 @@ struct HideAnimationAndSystemWidgetStringsTests {
         #expect(Set(strings).count == strings.count)
     }
 }
+
+// MARK: - Branch-added Strings Tests
+
+struct BranchStringsTests {
+
+    // FolderDelete namespace
+    @Test func folderDeleteConfirmIsNonEmpty() {
+        #expect(!Strings.FolderDelete.confirm.isEmpty)
+    }
+
+    @Test func folderDeleteEmptyMessageIsNonEmpty() {
+        #expect(!Strings.FolderDelete.emptyMessage.isEmpty)
+    }
+
+    @Test func folderDeleteAlertTitleContainsFolderName() {
+        let title = Strings.FolderDelete.alertTitle("Work")
+        #expect(title.contains("Work"))
+    }
+
+    @Test func folderDeleteMessageSingular() {
+        let msg = Strings.FolderDelete.message(count: 1)
+        #expect(msg.contains("1"))
+        #expect(!msg.contains("apps"))
+    }
+
+    @Test func folderDeleteMessagePlural() {
+        let msg = Strings.FolderDelete.message(count: 5)
+        #expect(msg.contains("5"))
+        #expect(msg.contains("apps"))
+    }
+
+    // Clock style label
+    @Test func clockStyleSettingStringIsNonEmpty() {
+        #expect(!Strings.Settings.clockStyle.isEmpty)
+    }
+}

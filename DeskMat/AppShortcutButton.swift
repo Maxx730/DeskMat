@@ -21,6 +21,7 @@ struct AppShortcutButton: View {
     @State private var avgColor: Color = .gray
     @State private var cachedIcon: Image?
     @State private var cachedIconFull: Image?
+    @State private var isLoadingIcon: Bool = true
     @State private var isFrontmost = false
 
     private var windowCount: Int { windowState.info(for: shortcut.bundleIdentifier).count }
@@ -39,7 +40,13 @@ struct AppShortcutButton: View {
                     if showIconBackground {
                         RoundedRectangle(cornerRadius: 10)
                             .fill(avgColor)
-                        (cachedIcon ?? Image(systemName: "questionmark.app"))
+                        if let icon = cachedIcon {
+                            icon
+                        } else if isLoadingIcon {
+                            ProgressView()
+                                .progressViewStyle(.circular)
+                                .controlSize(.small)
+                        }
                         if isFrontmost {
                             RoundedRectangle(cornerRadius: 8)
                                 .stroke(ColorUtils.brightenedHSV(avgColor), lineWidth: 2)
@@ -48,10 +55,10 @@ struct AppShortcutButton: View {
                     } else {
                         if let icon = cachedIconFull {
                             icon
-                        } else {
-                            Image(systemName: "questionmark.app")
-                                .resizable()
-                                .scaledToFit()
+                        } else if isLoadingIcon {
+                            ProgressView()
+                                .progressViewStyle(.circular)
+                                .controlSize(.small)
                         }
                     }
                 }
@@ -133,6 +140,8 @@ struct AppShortcutButton: View {
     }
 
     private func loadIcon() async {
+        isLoadingIcon = true
+        defer { isLoadingIcon = false }
         let url = AppShortcutStore.iconURL(for: shortcut.iconFileName)
         guard let result = await Task.detached(priority: .userInitiated, operation: { () -> (Image, Image, Color)? in
             guard let nsImage = NSImage(contentsOf: url) else { return nil }

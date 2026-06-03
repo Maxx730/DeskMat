@@ -18,6 +18,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     let entitlements = LicenseManager()
     let systemMonitor = SystemMonitorService()
     let windowState = WindowStateService()
+    let dragCoordinator = DragCoordinator()
     var panel: DeskMatPanel!
     var statusItem: NSStatusItem!
     var settingsWindow: NSWindow?

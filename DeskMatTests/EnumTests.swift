@@ -252,3 +252,30 @@ struct DeactivationResultTests {
         }
     }
 }
+
+// MARK: - ClockStyle Enum Tests
+
+struct ClockStyleTests {
+
+    @Test func allCasesContainsTwoCases() {
+        #expect(ClockStyle.allCases.count == 2)
+    }
+
+    @Test func rawValuesMatchDisplayNames() {
+        #expect(ClockStyle.system.rawValue == "System")
+        #expect(ClockStyle.flat.rawValue   == "Flat")
+    }
+
+    @Test func initFromRawValue() {
+        #expect(ClockStyle(rawValue: "System") == .system)
+        #expect(ClockStyle(rawValue: "Flat")   == .flat)
+        #expect(ClockStyle(rawValue: "Invalid") == nil)
+    }
+
+    @Test func defaultIsSystem() {
+        // The @AppStorage default in ClockWidget is .system.
+        // Verify the raw value round-trips so the stored string is stable.
+        let stored = ClockStyle.system.rawValue
+        #expect(ClockStyle(rawValue: stored) == .system)
+    }
+}
