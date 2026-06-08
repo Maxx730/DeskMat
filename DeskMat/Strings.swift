@@ -64,6 +64,7 @@ enum Strings {
         static let hideAnimation    = "Hide Animation"
         static let showSystemWidget = "System Widget"
         static let sysWidgetMetric  = "Metric"
+        static let clockStyle       = "Style"
         static let about = "About"
     }
 
@@ -216,11 +217,14 @@ enum Strings {
         static let tabLabel            = "Pro"
         static let featuresHeader      = "What's included"
         static let featureEffects      = "Visual Effects"
+        static let featureReactive     = "Reactive Backgrounds"
+        static let featureWidgets      = "Live Widgets"
         static let featureWeather      = "Weather Widget"
         static let featureClock        = "Clock Widget"
         static let featureLED          = "LED Board"
-        static let featureImage        = "Image Viewer Widget"
-        static let featureSystem       = "System Monitor Widget"
+        static let featureImage        = "Image Viewer"
+        static let featureSystem       = "System Monitor"
+        static let featureExportImport = "Export & Import Dock"
         static let lockedHeadline      = "Unlock the full DeskMat experience"
         static let lockedSubheadline   = "Purchase a license to enable all pro features."
         static let buyLabel            = "Buy DeskMat Pro"
@@ -236,6 +240,17 @@ enum Strings {
         static let deactivateCaption   = "Deactivating frees up your activation slot so you can use your key on a different machine."
         static func lastVerified(_ date: String) -> String { "Last verified: \(date)" }
         static let offlineBadge        = "Not verified (offline)"
+    }
+
+    // MARK: - Folder Delete
+
+    enum FolderDelete {
+        static let confirm       = "Remove"
+        static let emptyMessage  = "This folder is empty."
+        static func alertTitle(_ name: String) -> String { "Remove \"\(name)\"?" }
+        static func message(count: Int) -> String {
+            "This will remove the folder and its \(count) app\(count == 1 ? "" : "s") from the dock."
+        }
     }
 
     // MARK: - Reset

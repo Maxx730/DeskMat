@@ -14,6 +14,67 @@ struct SystemMonitorServiceTests {
         #expect(monitor.netOutKBs == 0)
     }
 
+    @Test func historyArraysAreEmptyInitially() {
+        let monitor = SystemMonitorService()
+        #expect(monitor.cpuHistory.isEmpty)
+        #expect(monitor.netInHistory.isEmpty)
+        #expect(monitor.netOutHistory.isEmpty)
+    }
+
+    @Test func cpuHistoryGrowsAfterPolling() async throws {
+        let monitor = SystemMonitorService()
+        monitor.start()
+        try await Task.sleep(for: .seconds(1.0))
+        monitor.stop()
+        #expect(!monitor.cpuHistory.isEmpty)
+    }
+
+    @Test func cpuHistoryValuesAreNormalised() async throws {
+        let monitor = SystemMonitorService()
+        monitor.start()
+        try await Task.sleep(for: .seconds(1.0))
+        monitor.stop()
+        for v in monitor.cpuHistory {
+            #expect(v >= 0.0)
+            #expect(v <= 1.0)
+        }
+    }
+
+    @Test func cpuHistoryDoesNotExceedCapacity() async throws {
+        let monitor = SystemMonitorService()
+        monitor.start()
+        try await Task.sleep(for: .seconds(10.0))
+        monitor.stop()
+        #expect(monitor.cpuHistory.count <= 30)
+    }
+
+    @Test func netHistoryGrowsAfterPolling() async throws {
+        let monitor = SystemMonitorService()
+        monitor.start()
+        try await Task.sleep(for: .seconds(1.0))
+        monitor.stop()
+        #expect(!monitor.netInHistory.isEmpty)
+        #expect(!monitor.netOutHistory.isEmpty)
+    }
+
+    @Test func netHistoryValuesAreNonNegative() async throws {
+        let monitor = SystemMonitorService()
+        monitor.start()
+        try await Task.sleep(for: .seconds(1.0))
+        monitor.stop()
+        for v in monitor.netInHistory  { #expect(v >= 0) }
+        for v in monitor.netOutHistory { #expect(v >= 0) }
+    }
+
+    @Test func netHistoryDoesNotExceedCapacity() async throws {
+        let monitor = SystemMonitorService()
+        monitor.start()
+        try await Task.sleep(for: .seconds(20.0))
+        monitor.stop()
+        #expect(monitor.netInHistory.count  <= 60)
+        #expect(monitor.netOutHistory.count <= 60)
+    }
+
     @Test func ramTotalGBIsPositive() {
         let monitor = SystemMonitorService()
         #expect(monitor.ramTotalGB > 0)
@@ -69,45 +130,38 @@ struct SystemMonitorServiceTests {
 
 struct NetworkFormatterTests {
 
-    // Mirrors the private `formatted` computed property in NetRow.
-    private func formatted(value: Double) -> (value: String, unit: String) {
+    // Mirrors NetPanelView.formattedRate: whole-number KB/s, one-decimal MB/s, unit embedded.
+    private func formatted(value: Double) -> String {
         value >= 1024
-            ? (String(format: "%.1f", value / 1024), "MB/s")
-            : (String(format: "%.1f", value),         "KB/s")
+            ? String(format: "%.1f MB/s", value / 1024)
+            : "\(Int(value)) KB/s"
     }
 
     @Test func belowThresholdShowsKBs() {
-        let result = formatted(value: 500)
-        #expect(result.unit == "KB/s")
-        #expect(result.value == "500.0")
+        #expect(formatted(value: 500) == "500 KB/s")
     }
 
     @Test func atThresholdShowsMBs() {
-        let result = formatted(value: 1024)
-        #expect(result.unit == "MB/s")
-        #expect(result.value == "1.0")
+        #expect(formatted(value: 1024) == "1.0 MB/s")
     }
 
     @Test func aboveThresholdShowsMBs() {
-        let result = formatted(value: 2048)
-        #expect(result.unit == "MB/s")
-        #expect(result.value == "2.0")
+        #expect(formatted(value: 2048) == "2.0 MB/s")
     }
 
     @Test func zeroShowsKBs() {
-        let result = formatted(value: 0)
-        #expect(result.unit == "KB/s")
-        #expect(result.value == "0.0")
+        #expect(formatted(value: 0) == "0 KB/s")
     }
 
     @Test func justBelowThresholdShowsKBs() {
-        let result = formatted(value: 1023.9)
-        #expect(result.unit == "KB/s")
+        #expect(formatted(value: 1023.9) == "1023 KB/s")
     }
 
     @Test func largeValueFormatsCorrectly() {
-        let result = formatted(value: 10240)
-        #expect(result.unit == "MB/s")
-        #expect(result.value == "10.0")
+        #expect(formatted(value: 10240) == "10.0 MB/s")
+    }
+
+    @Test func fractionalKBsTruncatesToInt() {
+        #expect(formatted(value: 99.9) == "99 KB/s")
     }
 }

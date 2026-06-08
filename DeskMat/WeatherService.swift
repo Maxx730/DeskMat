@@ -63,6 +63,7 @@ class WeatherService {
     var temperature: String = Strings.Weather.temperaturePlaceholder
     var locationName: String = Strings.Weather.defaultLocationName
     var iconName: String = "cloud.sun.fill"
+    var weatherCode: Int = 0
     var isLoading: Bool = false
 
     func fetch(latitude: Double, longitude: Double, locationName: String) async {
@@ -88,6 +89,7 @@ class WeatherService {
             await MainActor.run {
                 temperature = "\(temp)°"
                 iconName = weatherIcon(for: response.current.weatherCode)
+                weatherCode = response.current.weatherCode
                 isLoading = false
             }
         } catch {

@@ -1,6 +1,6 @@
 import Foundation
 
-struct AppShortcut: Identifiable, Codable {
+struct AppShortcut: Identifiable, Codable, Equatable {
     let id: UUID
     var displayName: String
     var bundleIdentifier: String

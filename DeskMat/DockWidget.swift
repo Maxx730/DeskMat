@@ -11,6 +11,7 @@ struct DockWidget<Content: View>: View {
     let height: CGFloat
     let isLoading: Bool
     let hoverEffect: Bool
+    let backgroundColor: Color?
     let onRefresh: (() async -> Void)?
     let content: Content
     @State private var isHovering = false
@@ -20,6 +21,7 @@ struct DockWidget<Content: View>: View {
         height: CGFloat = 64,
         isLoading: Bool = false,
         hoverEffect: Bool = true,
+        backgroundColor: Color? = nil,
         onRefresh: (() async -> Void)? = nil,
         @ViewBuilder content: () -> Content
     ) {
@@ -27,19 +29,25 @@ struct DockWidget<Content: View>: View {
         self.height = height
         self.isLoading = isLoading
         self.hoverEffect = hoverEffect
+        self.backgroundColor = backgroundColor
         self.onRefresh = onRefresh
         self.content = content()
     }
 
     var body: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: 10)
-                .fill(Color(red: 0.0, green: 0.0, blue: 0.0, opacity: hoverEffect && isHovering ? 0.15 : 0.3))
-                .stroke(Color(red: 0.0, green: 0.0, blue: 0.0, opacity: 0.5), lineWidth: 1)
-            RoundedRectangle(cornerRadius: 10)
-                .inset(by: 1)
-                .fill(Color(red: 1.0, green: 1.0, blue: 1.0, opacity: 0.1))
-                .stroke(Color(red: 1.0, green: 1.0, blue: 1.0, opacity: 0.1), lineWidth: 1.5 )
+            if let bg = backgroundColor {
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(bg)
+            } else {
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(Color(red: 0.0, green: 0.0, blue: 0.0, opacity: hoverEffect && isHovering ? 0.15 : 0.3))
+                    .stroke(Color(red: 0.0, green: 0.0, blue: 0.0, opacity: 0.5), lineWidth: 1)
+                RoundedRectangle(cornerRadius: 10)
+                    .inset(by: 1)
+                    .fill(Color(red: 1.0, green: 1.0, blue: 1.0, opacity: 0.1))
+                    .stroke(Color(red: 1.0, green: 1.0, blue: 1.0, opacity: 0.1), lineWidth: 1.5)
+            }
 
             if isLoading {
                 ProgressView()

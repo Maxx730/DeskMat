@@ -18,8 +18,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     let entitlements = LicenseManager()
     let systemMonitor = SystemMonitorService()
     let windowState = WindowStateService()
+    let dragCoordinator = DragCoordinator()
     var panel: DeskMatPanel!
     var statusItem: NSStatusItem!
+    var exportDockMenuItem: NSMenuItem?
+    var importDockMenuItem: NSMenuItem?
     var settingsWindow: NSWindow?
     var addShortcutWindow: NSWindow?
     var editShortcutWindow: NSWindow?
@@ -112,8 +115,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(NSMenuItem(title: Strings.Menu.addShortcut, action: #selector(addShortcut), keyEquivalent: "a"))
         menu.addItem(NSMenuItem(title: Strings.Menu.newFolder, action: #selector(addFolder), keyEquivalent: ""))
         menu.addItem(NSMenuItem.separator())
-        menu.addItem(NSMenuItem(title: Strings.Menu.exportDock, action: #selector(exportDock), keyEquivalent: "e"))
-        menu.addItem(NSMenuItem(title: Strings.Menu.importDock, action: #selector(importDock), keyEquivalent: "i"))
+        let exportItem = NSMenuItem(title: Strings.Menu.exportDock, action: #selector(exportDock), keyEquivalent: "e")
+        let importItem = NSMenuItem(title: Strings.Menu.importDock, action: #selector(importDock), keyEquivalent: "i")
+        exportItem.isEnabled = entitlements.isPro
+        importItem.isEnabled = entitlements.isPro
+        exportDockMenuItem = exportItem
+        importDockMenuItem = importItem
+        menu.addItem(exportItem)
+        menu.addItem(importItem)
         menu.addItem(NSMenuItem.separator())
         menu.item(withTitle: Strings.Menu.toggleDock)?.keyEquivalentModifierMask = [.command, .shift]
         menu.addItem(NSMenuItem(title: Strings.Menu.settings, action: #selector(openSettings), keyEquivalent: ","))

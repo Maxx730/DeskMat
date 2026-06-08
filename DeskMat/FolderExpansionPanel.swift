@@ -36,7 +36,8 @@ final class FolderExpansionPanel: NSPanel {
     func show(folder: AppFolder, centeredAt screenX: CGFloat, dockTopY: CGFloat,
               windowState: WindowStateService, entitlements: LicenseManager,
               dockBackground: DockBackground, dockBackgroundColorHex: String,
-              dockCornerRadius: Double) {
+              dockCornerRadius: Double,
+              onItemDragStart: @escaping (AppShortcut, AppFolder, Image?) -> Void = { _, _, _ in }) {
         isDismissing = false
         openFolderID = folder.id
 
@@ -47,7 +48,8 @@ final class FolderExpansionPanel: NSPanel {
             entitlements: entitlements,
             dockBackground: dockBackground,
             dockBackgroundColorHex: dockBackgroundColorHex,
-            dockCornerRadius: dockCornerRadius
+            dockCornerRadius: dockCornerRadius,
+            onItemDragStart: onItemDragStart
         )
 
         if let hv = hostingView {

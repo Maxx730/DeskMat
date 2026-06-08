@@ -3,10 +3,16 @@ import Darwin
 
 @Observable class SystemMonitorService {
     var cpuPercent: Double = 0
+    var cpuHistory: [Double] = []
     var ramUsedGB: Double = 0
     let ramTotalGB: Double = Double(ProcessInfo.processInfo.physicalMemory) / 1_073_741_824
     var netInKBs: Double = 0
     var netOutKBs: Double = 0
+    var netInHistory:  [Double] = []
+    var netOutHistory: [Double] = []
+
+    private let historyCapacity    = 30
+    private let netHistoryCapacity = 60
 
     private var timer: Timer?
     private var lastCPUTicks: CPUTicks?
@@ -15,7 +21,7 @@ import Darwin
     func start() {
         guard timer == nil else { return }
         poll()
-        timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+        timer = Timer.scheduledTimer(withTimeInterval: 0.25, repeats: true) { [weak self] _ in
             self?.poll()
         }
     }
@@ -68,6 +74,8 @@ import Darwin
             let deltaTotal  = deltaUser + deltaSystem + deltaIdle + deltaNice
             if deltaTotal > 0 {
                 cpuPercent = Double(deltaUser + deltaSystem) / Double(deltaTotal)
+                cpuHistory.insert(cpuPercent, at: 0)
+                if cpuHistory.count > historyCapacity { cpuHistory.removeLast() }
             }
         }
         lastCPUTicks = current
@@ -134,6 +142,10 @@ import Darwin
             let deltaOut = totalOut >= last.bytesOut ? totalOut - last.bytesOut : 0
             netInKBs  = Double(deltaIn)  / elapsed / 1024
             netOutKBs = Double(deltaOut) / elapsed / 1024
+            netInHistory.insert(netInKBs, at: 0)
+            if netInHistory.count  > netHistoryCapacity { netInHistory.removeLast() }
+            netOutHistory.insert(netOutKBs, at: 0)
+            if netOutHistory.count > netHistoryCapacity { netOutHistory.removeLast() }
         }
         lastNetSample = NetworkSample(bytesIn: totalIn, bytesOut: totalOut, timestamp: now)
     }

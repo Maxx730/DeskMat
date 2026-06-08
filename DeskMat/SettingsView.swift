@@ -8,8 +8,6 @@ struct SettingsView: View {
         TabView {
             GeneralSettingsTab()
                 .tabItem { Label(Strings.Settings.general, systemImage: "gearshape") }
-            AppearanceSettingsTab()
-                .tabItem { Label(Strings.Settings.appearance, systemImage: "paintbrush") }
             DockSettingsTab()
                 .tabItem { Label(Strings.Settings.dock, systemImage: "dock.rectangle") }
             IconsSettingsTab()
@@ -18,12 +16,10 @@ struct SettingsView: View {
                 .tabItem { Label(Strings.Settings.widgets, systemImage: "square.grid.2x2") }
             ProUnlockTab()
                 .tabItem { Label(Strings.Pro.tabLabel, systemImage: "star.circle") }
-            AboutSettingsTab()
-                .tabItem { Label(Strings.Settings.about, systemImage: "info.circle") }
         }
         .padding(20)
         .frame(width: 480)
-        .frame(minHeight: 560)
+        .frame(minHeight: 660)
     }
 }
 
@@ -40,6 +36,8 @@ private func proLabel(_ title: String, isPro: Bool) -> some View {
 private struct GeneralSettingsTab: View {
     @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
     @AppStorage("finderDefaultDirectory") private var finderDefaultDirectory = "~/"
+    @AppStorage("appearanceMode") private var appearanceMode: AppearanceMode = .system
+    @AppStorage("showWidgetDivider") private var showWidgetDivider = true
     @State private var showingResetConfirmation = false
     #if DEBUG
     @Environment(LicenseManager.self) private var license
@@ -69,6 +67,15 @@ private struct GeneralSettingsTab: View {
                     .foregroundStyle(.secondary)
             }
 
+
+            Section(Strings.Settings.appearance) {
+                Picker(Strings.Settings.theme, selection: $appearanceMode) {
+                    ForEach(AppearanceMode.allCases, id: \.self) { mode in
+                        Text(mode.rawValue).tag(mode)
+                    }
+                }
+                Toggle(Strings.Settings.showWidgetDivider, isOn: $showWidgetDivider)
+            }
 
             Section {
                 Button(Strings.Reset.buttonLabel) {
@@ -155,6 +162,7 @@ private struct GeneralSettingsTab: View {
         ud.set(false,                           forKey: "showImageWidget")
         ud.set(false,                           forKey: "showLEDBoard")
         ud.set(false,                           forKey: "showSystemWidget")
+        ud.set(ClockStyle.system.rawValue,      forKey: "clockStyle")
         ud.set(SystemMetric.cpu.rawValue,       forKey: "sysWidgetMetric")
         ud.set("~/Pictures",                    forKey: "imageWidgetDirectory")
         ud.set(37.2707,                         forKey: "weatherLatitude")
@@ -181,28 +189,6 @@ private struct GeneralSettingsTab: View {
         NotificationCenter.default.post(name: .dockImported, object: reseeded)
     }
     #endif
-}
-
-// MARK: - Appearance
-
-private struct AppearanceSettingsTab: View {
-    @Environment(LicenseManager.self) private var license
-    @AppStorage("appearanceMode") private var appearanceMode: AppearanceMode = .system
-    @AppStorage("showWidgetDivider") private var showWidgetDivider = true
-
-    var body: some View {
-        Form {
-            Section("General") {
-                Picker(Strings.Settings.theme, selection: $appearanceMode) {
-                    ForEach(AppearanceMode.allCases, id: \.self) { mode in
-                        Text(mode.rawValue).tag(mode)
-                    }
-                }
-                Toggle(Strings.Settings.showWidgetDivider, isOn: $showWidgetDivider)
-            }
-        }
-        .formStyle(.grouped)
-    }
 }
 
 // MARK: - Dock
@@ -388,6 +374,7 @@ private struct WidgetsSettingsTab: View {
     @AppStorage("showImageWidget")      private var showImageWidget = false
     @AppStorage("showLEDBoard")         private var showLEDBoard = false
     @AppStorage("showSystemWidget")     private var showSystemWidget = false
+    @AppStorage("clockStyle")           private var clockStyle: ClockStyle = .system
     @AppStorage("sysWidgetMetric")      private var sysWidgetMetric: SystemMetric = .cpu
     @AppStorage(LEDBoardWidget.imagePathKey)  private var ledBoardImagePath = ""
     @AppStorage(LEDBoardWidget.scrollSpeedKey) private var ledBoardScrollSpeed = 80
@@ -436,6 +423,13 @@ private struct WidgetsSettingsTab: View {
                 proLabel(Strings.Settings.showClockWidget, isPro: license.isPro)
             }
             .disabled(!license.isPro)
+            if showClockWidget && license.isPro {
+                Picker(Strings.Settings.clockStyle, selection: $clockStyle) {
+                    ForEach(ClockStyle.allCases, id: \.self) { style in
+                        Text(style.rawValue).tag(style)
+                    }
+                }
+            }
             Section {
                 Toggle(isOn: $showLEDBoard) {
                     proLabel(Strings.Settings.showLEDBoard, isPro: license.isPro)
@@ -554,34 +548,43 @@ private struct WidgetsSettingsTab: View {
 private struct ProUnlockTab: View {
     @Environment(LicenseManager.self) private var license
     @State private var licenseKeyInput = ""
+
+    private var version: String {
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "—"
+    }
     @State private var isActivating = false
     @State private var isDeactivating = false
     @State private var activationResult: ActivationResult? = nil
     @State private var deactivationError: String? = nil
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 20) {
-                Image(nsImage: NSApp.applicationIconImage)
-                    .resizable()
-                    .frame(width: 64, height: 64)
-                    .padding(.top, 20)
+        VStack(spacing: 20) {
+            Image(nsImage: NSApp.applicationIconImage)
+                .resizable()
+                .frame(width: 64, height: 64)
+                .padding(.top, 20)
 
-                Text("DeskMat Pro")
-                    .font(.title2)
-                    .fontWeight(.semibold)
+            Text("DeskMat Pro")
+                .font(.title2)
+                .fontWeight(.semibold)
+            Text("Version \(version)")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
 
-                if license.isPro {
-                    activatedContent
-                } else {
-                    lockedContent
-                }
-
-                Spacer(minLength: 20)
+            if license.isPro {
+                activatedContent
+            } else {
+                lockedContent
             }
-            .frame(maxWidth: .infinity)
-            .padding(.horizontal, 24)
+
+            Text("by Cepholotech LLC")
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+
+            Spacer(minLength: 20)
         }
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, 24)
     }
 
     // MARK: - Activated State
@@ -596,15 +599,18 @@ private struct ProUnlockTab: View {
                 Text(hint)
                     .font(.system(.caption, design: .monospaced))
                     .foregroundStyle(.secondary)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(Color.primary.opacity(0.06), in: Capsule())
             }
             if let validated = license.lastValidated {
                 Text(Strings.Pro.lastVerified(validated.formatted(date: .abbreviated, time: .shortened)))
                     .font(.caption2)
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(.secondary)
             } else {
                 Text(Strings.Pro.offlineBadge)
                     .font(.caption2)
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(.secondary)
             }
         }
 
@@ -724,11 +730,9 @@ private struct ProUnlockTab: View {
 
             ForEach([
                 Strings.Pro.featureEffects,
-                Strings.Pro.featureWeather,
-                Strings.Pro.featureClock,
-                Strings.Pro.featureLED,
-                Strings.Pro.featureImage,
-                Strings.Pro.featureSystem
+                Strings.Pro.featureReactive,
+                Strings.Pro.featureWidgets,
+                Strings.Pro.featureExportImport
             ], id: \.self) { label in
                 Label(label, systemImage: "checkmark.circle.fill")
                     .foregroundStyle(.green)
@@ -736,7 +740,8 @@ private struct ProUnlockTab: View {
             }
         }
         .padding(14)
-        .background(.quaternary, in: RoundedRectangle(cornerRadius: 10))
+        .background(Color.primary.opacity(0.06), in: RoundedRectangle(cornerRadius: 10))
+        .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(Color.primary.opacity(0.10), lineWidth: 0.5))
     }
 
     // MARK: - Actions
@@ -754,39 +759,10 @@ private struct ProUnlockTab: View {
     private func performDeactivate() async {
         isDeactivating = true
         deactivationError = nil
+        activationResult = nil
         let result = await license.deactivate()
         if case .error(let msg) = result { deactivationError = msg }
         isDeactivating = false
     }
 }
 
-// MARK: - About
-
-private struct AboutSettingsTab: View {
-    private var version: String {
-        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "—"
-    }
-    private var build: String {
-        Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "—"
-    }
-
-    var body: some View {
-        VStack(spacing: 12) {
-            Spacer()
-            Image(nsImage: NSApp.applicationIconImage)
-                .resizable()
-                .frame(width: 80, height: 80)
-            Text("DeskMat")
-                .font(.title2)
-                .fontWeight(.semibold)
-            Text("Version \(version) (\(build))")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-            Text("by Cepholotech LLC")
-                .font(.caption)
-                .foregroundStyle(.tertiary)
-            Spacer()
-        }
-        .frame(maxWidth: .infinity)
-    }
-}
