@@ -19,7 +19,7 @@ struct SettingsView: View {
         }
         .padding(20)
         .frame(width: 480)
-        .frame(minHeight: 560)
+        .frame(minHeight: 660)
     }
 }
 
@@ -599,15 +599,18 @@ private struct ProUnlockTab: View {
                 Text(hint)
                     .font(.system(.caption, design: .monospaced))
                     .foregroundStyle(.secondary)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(Color.primary.opacity(0.06), in: Capsule())
             }
             if let validated = license.lastValidated {
                 Text(Strings.Pro.lastVerified(validated.formatted(date: .abbreviated, time: .shortened)))
                     .font(.caption2)
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(.secondary)
             } else {
                 Text(Strings.Pro.offlineBadge)
                     .font(.caption2)
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(.secondary)
             }
         }
 
@@ -737,7 +740,8 @@ private struct ProUnlockTab: View {
             }
         }
         .padding(14)
-        .background(.quaternary, in: RoundedRectangle(cornerRadius: 10))
+        .background(Color.primary.opacity(0.06), in: RoundedRectangle(cornerRadius: 10))
+        .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(Color.primary.opacity(0.10), lineWidth: 0.5))
     }
 
     // MARK: - Actions
@@ -755,6 +759,7 @@ private struct ProUnlockTab: View {
     private func performDeactivate() async {
         isDeactivating = true
         deactivationError = nil
+        activationResult = nil
         let result = await license.deactivate()
         if case .error(let msg) = result { deactivationError = msg }
         isDeactivating = false

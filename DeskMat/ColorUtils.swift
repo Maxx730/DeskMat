@@ -46,6 +46,8 @@ enum ColorUtils {
         return Color(red: r, green: g, blue: b, opacity: a)
     }
 
+    // MARK: - Hex convenience (see Color extension below)
+
     /// Returns the average color of an NSImage.
     nonisolated static func averageColor(of image: NSImage) -> Color? {
         guard image.tiffRepresentation != nil else {
@@ -91,5 +93,22 @@ enum ColorUtils {
             green: (totalG / count) * darkenFactor,
             blue: (totalB / count) * darkenFactor
         )
+    }
+}
+
+// MARK: - Color hex initializers
+
+extension Color {
+    /// Accepts "#rrggbb", "#rrggbbaa", "rrggbb", or "rrggbbaa".
+    init(hex: String) {
+        self = ColorUtils.fromHex(hex)
+    }
+
+    /// Accepts a 24-bit RGB integer, e.g. `Color(hex: 0xb3b3b3)`.
+    init(hex: UInt32, opacity: Double = 1) {
+        let r = Double((hex >> 16) & 0xff) / 255
+        let g = Double((hex >> 8)  & 0xff) / 255
+        let b = Double(hex         & 0xff) / 255
+        self.init(red: r, green: g, blue: b, opacity: opacity)
     }
 }

@@ -8,7 +8,7 @@ struct ClockWidget: View {
     var body: some View {
         VStack(spacing: 10) {
             TimelineView(.periodic(from: .now, by: 1)) { context in
-                DockWidget(backgroundColor: clockStyle == .flat ? .white : nil) {
+                DockWidget(backgroundColor: clockStyle == .flat ? Color(red: 0.702, green: 0.702, blue: 0.702) : nil) {
                     AnalogClockFace(date: context.date, style: clockStyle)
                 }
             }
@@ -41,7 +41,6 @@ private struct AnalogClockFace: View {
 
     var body: some View {
         Canvas(renderer: render)
-            .padding(6)
     }
 
     private func render(context: inout GraphicsContext, size: CGSize) {
@@ -63,22 +62,38 @@ private struct AnalogClockFace: View {
 
     private func renderFlat(_ context: inout GraphicsContext, center: CGPoint,
                              dim: CGFloat, sec: Double, min: Double, hour: Double) {
-        // Background
-        let bgR = dim * 0.5
+        // Background — gray shell color fills the entire canvas
+        let bgR = dim * 0.55
         context.fill(
             Path(ellipseIn: CGRect(x: center.x - bgR, y: center.y - bgR, width: bgR * 2, height: bgR * 2)),
+            with: .color(Color(red: 0.702, green: 0.702, blue: 0.702))
+        )
+
+        // Ring just outside the hour dot orbit
+        let flatRingR = dim * 0.45
+
+        // White inner clock face — sits just inside the ring's inner edge
+        let faceR = flatRingR - dim * 0.02
+        context.fill(
+            Path(ellipseIn: CGRect(x: center.x - faceR, y: center.y - faceR, width: faceR * 2, height: faceR * 2)),
             with: .color(.white)
+        )
+        context.stroke(
+            Path(ellipseIn: CGRect(x: center.x - flatRingR, y: center.y - flatRingR,
+                                   width: flatRingR * 2, height: flatRingR * 2)),
+            with: .color(.gray),
+            lineWidth: dim * 0.005
         )
 
         // Hour markers
         for i in 0..<12 {
             let angle = Double(i) / 12.0 * .pi * 2 - .pi / 2
-            let mr = dim * 0.04
-            let mx = center.x + CGFloat(cos(angle)) * dim * 0.44
-            let my = center.y + CGFloat(sin(angle)) * dim * 0.44
+            let mr = dim * 0.025
+            let mx = center.x + CGFloat(cos(angle)) * dim * 0.34
+            let my = center.y + CGFloat(sin(angle)) * dim * 0.34
             context.fill(
-                Path(ellipseIn: CGRect(x: mx - mr, y: my - mr, width: mr, height: mr)),
-                with: .color(.black.opacity(0.25))
+                Path(ellipseIn: CGRect(x: mx - mr, y: my - mr, width: mr * 2, height: mr * 2)),
+                with: .color(.black.opacity(0.15))
             )
         }
 
@@ -95,6 +110,15 @@ private struct AnalogClockFace: View {
 
     private func renderSystem(_ context: inout GraphicsContext, center: CGPoint,
                                dim: CGFloat, sec: Double, min: Double, hour: Double) {
+        // Ring just outside the hour dot orbit
+        let sysRingR = dim * 0.57
+        context.stroke(
+            Path(ellipseIn: CGRect(x: center.x - sysRingR, y: center.y - sysRingR,
+                                   width: sysRingR * 2, height: sysRingR * 2)),
+            with: .color(.gray.opacity(0.25)),
+            lineWidth: dim * 0.012
+        )
+
         // Hour markers
         for i in 0..<12 {
             let angle = Double(i) / 12.0 * .pi * 2 - .pi / 2
