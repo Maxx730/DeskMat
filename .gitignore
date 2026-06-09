@@ -1,3 +1,6 @@
 build/
 *.xcarchive
 *.dmg
+
+# Release script secrets
+scripts/.env

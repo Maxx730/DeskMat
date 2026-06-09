@@ -391,7 +391,7 @@ struct ContentView: View {
         guard let dragging = draggingItem else { return .reorder(0) }
         let cellSize = DockWidget<EmptyView>.cellSize
         let step = cellSize + hstackItemSpacing
-        let mergeThreshold = cellSize * 0.6
+        let mergeThreshold = cellSize * 0.9
 
         let rawIndex = Int((localX - cellSize / 2 + step / 2) / step)
         let reorderIndex = max(0, min(items.count - 1, rawIndex))

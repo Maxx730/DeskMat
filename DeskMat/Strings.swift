@@ -25,7 +25,8 @@ enum Strings {
         static let dockBackground = "Dock Background"
         static let dockBackgroundColor = "Color"
         static let reactiveStyle = "Reactive Style"
-        static let showWeatherWidget = "Weather Widget"
+        static let showWeatherWidget  = "Weather Widget"
+        static let temperatureUnit    = "Temperature"
         static let weatherLocationField = "Search city..."
         static let weatherLocationSearch = "Search"
         static let weatherLocationNotFound = "City not found. Try a different name."
@@ -71,15 +72,27 @@ enum Strings {
     // MARK: - Menu
 
     enum Menu {
-        static let addShortcut = "Add Shortcut..."
-        static let newFolder = "New Folder..."
-        static let exportDock = "Export Dock..."
-        static let importDock = "Import Dock..."
-        static let settings = "Settings..."
-        static let toggleDock = "Toggle Dock"
-        static let quitDeskMat = "Quit DeskMat"
-        static let edit = "Edit..."
-        static let remove = "Remove"
+        static let addShortcut     = "Add Shortcut..."
+        static let newFolder       = "New Folder..."
+        static let exportDock      = "Export Dock..."
+        static let importDock      = "Import Dock..."
+        static let checkForUpdates = "Check for Updates..."
+        static let updateNow       = "Update Now"
+        static let settings        = "Settings..."
+        static let toggleDock      = "Toggle Dock"
+        static let quitDeskMat     = "Quit DeskMat"
+        static let edit            = "Edit..."
+        static let remove          = "Remove"
+        static let closeAllWindows = "Close All Windows"
+    }
+
+    // MARK: - Updates
+
+    enum Updates {
+        static let notificationTitle = "Update Available"
+        static func notificationBody(_ version: String) -> String {
+            "DeskMat \(version) is available. Check for Updates in the menu bar."
+        }
     }
 
     // MARK: - Shortcuts

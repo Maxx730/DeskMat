@@ -31,6 +31,7 @@ struct AppShortcutButton: View {
     @State private var dragScale: Double = 1.0
     @State private var launchFlashOpacity: Double = 0
     @State private var isLaunching = false
+    @State private var isRunning = false
 
     var body: some View {
         VStack(spacing: 10) {
@@ -116,6 +117,12 @@ struct AppShortcutButton: View {
             Button(Strings.Menu.edit) {
                 NotificationCenter.default.post(name: .editShortcut, object: shortcut)
             }
+            if isRunning {
+                Divider()
+                Button(Strings.Menu.closeAllWindows) {
+                    closeAllWindows()
+                }
+            }
             Button(Strings.Menu.remove, role: .destructive) { onRemove() }
         }
         .task(id: shortcut.iconFileName) {
@@ -132,10 +139,18 @@ struct AppShortcutButton: View {
             if let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,
                app.bundleIdentifier == shortcut.bundleIdentifier {
                 isLaunching = false
+                isRunning = true
+            }
+        }
+        .onReceive(NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.didTerminateApplicationNotification)) { notification in
+            if let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,
+               app.bundleIdentifier == shortcut.bundleIdentifier {
+                isRunning = false
             }
         }
         .onAppear {
             isFrontmost = NSWorkspace.shared.frontmostApplication?.bundleIdentifier == shortcut.bundleIdentifier
+            isRunning = !NSRunningApplication.runningApplications(withBundleIdentifier: shortcut.bundleIdentifier).isEmpty
         }
     }
 
@@ -181,6 +196,30 @@ struct AppShortcutButton: View {
         }
     }
 
+
+    private func closeAllWindows() {
+        if !AXIsProcessTrusted() {
+            let opts = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true]
+            AXIsProcessTrustedWithOptions(opts as CFDictionary)
+            return
+        }
+
+        let runningApps = NSRunningApplication.runningApplications(withBundleIdentifier: shortcut.bundleIdentifier)
+        guard let app = runningApps.first else { return }
+
+        let axApp = AXUIElementCreateApplication(app.processIdentifier)
+        var windowsRef: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(axApp, kAXWindowsAttribute as CFString, &windowsRef) == .success,
+              let windows = windowsRef as? [AXUIElement] else { return }
+
+        for window in windows {
+            var closeRef: CFTypeRef?
+            if AXUIElementCopyAttributeValue(window, kAXCloseButtonAttribute as CFString, &closeRef) == .success,
+               let closeButton = closeRef {
+                AXUIElementPerformAction(closeButton as! AXUIElement, kAXPressAction as CFString)
+            }
+        }
+    }
 
     private func launchOrFocus() {
         windowState.refresh()
