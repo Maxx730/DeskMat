@@ -15,6 +15,9 @@ DMG="build/DeskMat-$VERSION.dmg"
 
 echo "==> Building DeskMat $VERSION"
 
+# Clean any existing DMGs from previous builds
+rm -f build/*.dmg
+
 # 1. Archive
 echo "==> Archiving..."
 xcodebuild archive \

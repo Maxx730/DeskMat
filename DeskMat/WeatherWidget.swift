@@ -34,38 +34,46 @@ struct WeatherWidget: View {
     static let cellCount = 2
     private let refreshInterval: TimeInterval = 15 * 60
     @State private var weatherService = WeatherService()
-    @AppStorage("showLabels")           private var showLabels = true
-    @AppStorage("weatherLatitude")      private var weatherLatitude     = 37.2707
-    @AppStorage("weatherLongitude")     private var weatherLongitude    = -76.7075
-    @AppStorage("weatherLocationName")  private var weatherLocationName = Strings.Weather.defaultLocationName
+    @AppStorage("showLabels")             private var showLabels = true
+    @AppStorage("weatherLatitude")        private var weatherLatitude     = 37.2707
+    @AppStorage("weatherLongitude")       private var weatherLongitude    = -76.7075
+    @AppStorage("weatherLocationName")    private var weatherLocationName = Strings.Weather.defaultLocationName
+    @AppStorage("weatherTemperatureUnit") private var temperatureUnit     = "fahrenheit"
 
     var body: some View {
         VStack(spacing: 10) {
             TimelineView(.everyMinute) { timeline in
+                let skyColor = SkyGradient.color(for: timeline.date, weatherCode: weatherService.weatherCode)
+                let locationColor = Color(.white)
                 DockWidget(
                     cells: 2,
                     isLoading: weatherService.isLoading,
-                    backgroundColor: SkyGradient.color(for: timeline.date, weatherCode: weatherService.weatherCode),
+                    backgroundColor: skyColor,
                     onRefresh: { await weatherService.fetch(latitude: weatherLatitude, longitude: weatherLongitude, locationName: weatherLocationName) }
                 ) {
                     ZStack {
                         StarsView(opacity: SkyGradient.nightFactor(
                             for: timeline.date, weatherCode: weatherService.weatherCode))
                         CelestialDialView(date: timeline.date)
-                        VStack(spacing: 6) {
-                            HStack {
-                                Text(weatherService.temperature)
-                                    .font(.system(size: 18, weight: .semibold, design: .rounded))
-                                    .foregroundStyle(.white).offset(y: 6)
-                            }
+                        VStack(spacing: 2) {
+                            Text(weatherService.temperature)
+                                .font(.system(size: 18, weight: .semibold, design: .rounded))
+                                .foregroundStyle(.white)
+                            Text(weatherService.locationName)
+                                .font(.system(size: 9, weight: .medium, design: .rounded))
+                                .foregroundStyle(locationColor)
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+                                .frame(maxWidth: 110)
                         }
+                        .offset(y: 10)
                     }
                 }
                 .clipShape(RoundedRectangle(cornerRadius: 10))
             }
-            .task(id: weatherLatitude) {
+            .task(id: "\(weatherLatitude)-\(temperatureUnit)") {
                 while !Task.isCancelled {
-                    await weatherService.fetch(latitude: weatherLatitude, longitude: weatherLongitude, locationName: weatherLocationName)
+                    await weatherService.fetch(latitude: weatherLatitude, longitude: weatherLongitude, locationName: weatherLocationName, unit: temperatureUnit)
                     try? await Task.sleep(for: .seconds(refreshInterval))
                 }
             }

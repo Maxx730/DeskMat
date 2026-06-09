@@ -4,6 +4,8 @@ import UniformTypeIdentifiers
 import ApplicationServices
 
 struct SettingsView: View {
+    @Environment(UpdateService.self) private var updateService
+
     var body: some View {
         TabView {
             GeneralSettingsTab()
@@ -16,6 +18,8 @@ struct SettingsView: View {
                 .tabItem { Label(Strings.Settings.widgets, systemImage: "square.grid.2x2") }
             ProUnlockTab()
                 .tabItem { Label(Strings.Pro.tabLabel, systemImage: "star.circle") }
+            UpdatesSettingsTab(updateService: updateService)
+                .tabItem { Label("Updates", systemImage: "arrow.down.circle") }
         }
         .padding(20)
         .frame(width: 480)
@@ -168,6 +172,7 @@ private struct GeneralSettingsTab: View {
         ud.set(37.2707,                         forKey: "weatherLatitude")
         ud.set(-76.7075,                        forKey: "weatherLongitude")
         ud.set(Strings.Weather.defaultLocationName, forKey: "weatherLocationName")
+        ud.set("fahrenheit",                        forKey: "weatherTemperatureUnit")
         // General
         ud.set("~/",  forKey: "finderDefaultDirectory")
         // LED Board
@@ -381,13 +386,15 @@ private struct WidgetsSettingsTab: View {
     @AppStorage(LEDBoardWidget.frameSpeedKey)  private var ledBoardFrameSpeed = 150
     @AppStorage(LEDBoardWidget.widthModeKey)   private var ledBoardIsWide = true
     @AppStorage("imageWidgetDirectory") private var imageWidgetDirectory = "~/Pictures"
-    @AppStorage("weatherLatitude")      private var weatherLatitude     = 37.2707
-    @AppStorage("weatherLongitude")     private var weatherLongitude    = -76.7075
-    @AppStorage("weatherLocationName")  private var weatherLocationName = Strings.Weather.defaultLocationName
+    @AppStorage("weatherLatitude")        private var weatherLatitude     = 37.2707
+    @AppStorage("weatherLongitude")       private var weatherLongitude    = -76.7075
+    @AppStorage("weatherLocationName")    private var weatherLocationName = Strings.Weather.defaultLocationName
+    @AppStorage("weatherTemperatureUnit") private var temperatureUnit     = "fahrenheit"
 
     @State private var citySearchText  = ""
-    @State private var isGeocoding     = false
-    @State private var geocodeError    = false
+    @State private var searchResults: [LocationResult] = []
+    @State private var isSearching     = false
+    @State private var searchTask: Task<Void, Never>? = nil
 
     var body: some View {
         Form {
@@ -399,24 +406,71 @@ private struct WidgetsSettingsTab: View {
                 if showWeatherWidget && license.isPro {
                     HStack {
                         TextField(Strings.Settings.weatherLocationField, text: $citySearchText)
-                            .onSubmit { Task { await performGeocode() } }
-                        if isGeocoding {
-                            ProgressView().controlSize(.small)
-                        } else {
-                            Button(Strings.Settings.weatherLocationSearch) {
-                                Task { await performGeocode() }
+                            .onChange(of: citySearchText) { _, newValue in
+                                searchTask?.cancel()
+                                let trimmed = newValue.trimmingCharacters(in: .whitespaces)
+                                guard !trimmed.isEmpty else {
+                                    searchResults = []
+                                    isSearching = false
+                                    return
+                                }
+                                searchTask = Task {
+                                    try? await Task.sleep(for: .milliseconds(350))
+                                    guard !Task.isCancelled else { return }
+                                    isSearching = true
+                                    searchResults = (try? await LocationService.search(trimmed)) ?? []
+                                    isSearching = false
+                                }
                             }
-                            .disabled(citySearchText.trimmingCharacters(in: .whitespaces).isEmpty)
+                        if isSearching {
+                            ProgressView().controlSize(.small)
                         }
                     }
-                    if geocodeError {
-                        Text(Strings.Settings.weatherLocationNotFound)
-                            .font(.caption)
-                            .foregroundStyle(.red)
+                    if !searchResults.isEmpty {
+                        VStack(spacing: 0) {
+                            ForEach(Array(searchResults.enumerated()), id: \.element.displayName) { index, result in
+                                Button {
+                                    applyLocation(result)
+                                } label: {
+                                    HStack {
+                                        Text(result.displayName)
+                                            .font(.subheadline)
+                                            .foregroundStyle(.primary)
+                                        Spacer()
+                                    }
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 7)
+                                    .contentShape(Rectangle())
+                                }
+                                .buttonStyle(.plain)
+                                if index < searchResults.count - 1 {
+                                    Divider()
+                                }
+                            }
+                        }
+                        .background(.background)
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                        .overlay {
+                            RoundedRectangle(cornerRadius: 6)
+                                .stroke(.separator, lineWidth: 0.5)
+                        }
                     }
-                    Text(Strings.Settings.weatherCurrentLocation(weatherLocationName))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    if searchResults.isEmpty {
+                        Text(Strings.Settings.weatherCurrentLocation(weatherLocationName))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    HStack {
+                        Text(Strings.Settings.temperatureUnit)
+                        Spacer()
+                        Picker("", selection: $temperatureUnit) {
+                            Text("°F").tag("fahrenheit")
+                            Text("°C").tag("celsius")
+                        }
+                        .pickerStyle(.segmented)
+                        .frame(width: 80)
+                        .labelsHidden()
+                    }
                 }
             }
             Toggle(isOn: $showClockWidget) {
@@ -525,21 +579,12 @@ private struct WidgetsSettingsTab: View {
     }
 
 
-    private func performGeocode() async {
-        let query = citySearchText.trimmingCharacters(in: .whitespaces)
-        guard !query.isEmpty else { return }
-        isGeocoding = true
-        geocodeError = false
-        do {
-            let result = try await LocationService.geocode(query)
-            weatherLatitude     = result.latitude
-            weatherLongitude    = result.longitude
-            weatherLocationName = result.displayName
-            citySearchText      = ""
-        } catch {
-            geocodeError = true
-        }
-        isGeocoding = false
+    private func applyLocation(_ result: LocationResult) {
+        weatherLatitude     = result.latitude
+        weatherLongitude    = result.longitude
+        weatherLocationName = result.cityName
+        citySearchText      = ""
+        searchResults       = []
     }
 }
 
@@ -763,6 +808,94 @@ private struct ProUnlockTab: View {
         let result = await license.deactivate()
         if case .error(let msg) = result { deactivationError = msg }
         isDeactivating = false
+    }
+}
+
+private struct UpdatesSettingsTab: View {
+    let updateService: UpdateService
+
+    @State private var lastChecked: Date? = UserDefaults.standard.object(forKey: "lastUpdateCheckDate") as? Date
+
+    private var currentVersion: String {
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "—"
+    }
+
+    var body: some View {
+        VStack(spacing: 20) {
+            VStack(spacing: 2) {
+                Text("DeskMat")
+                    .font(.headline)
+                Text("Version \(currentVersion)")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.top, 8)
+
+            statusCard
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(12)
+                .background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
+
+            Button {
+                Task {
+                    await updateService.check(force: true)
+                    lastChecked = Date()
+                }
+            } label: {
+                if updateService.isChecking {
+                    HStack(spacing: 6) {
+                        ProgressView().controlSize(.small)
+                        Text("Checking...")
+                    }
+                } else {
+                    Text("Check for Updates")
+                }
+            }
+            .disabled(updateService.isChecking)
+
+            if let lastChecked {
+                Text("Last checked: \(lastChecked.formatted(.relative(presentation: .named)))")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+        }
+        .padding(20)
+    }
+
+    @ViewBuilder
+    private var statusCard: some View {
+        if updateService.isUpdateAvailable {
+            VStack(alignment: .leading, spacing: 8) {
+                Label("DeskMat \(updateService.latestVersion) Available",
+                      systemImage: "arrow.down.circle.fill")
+                    .foregroundStyle(.accent)
+                    .font(.subheadline.bold())
+                if let notes = updateService.releaseNotes {
+                    Text(notes)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(4)
+                }
+                Button("Download") {
+                    if let url = updateService.downloadURL {
+                        NSWorkspace.shared.open(url)
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+            }
+        } else if !updateService.latestVersion.isEmpty {
+            Label("You're up to date. \(updateService.latestVersion) is the latest.",
+                  systemImage: "checkmark.circle.fill")
+                .foregroundStyle(.green)
+                .font(.subheadline)
+        } else {
+            Text("No update information yet.")
+                .foregroundStyle(.secondary)
+                .font(.subheadline)
+        }
     }
 }
 

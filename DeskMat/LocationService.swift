@@ -8,7 +8,8 @@ enum LocationError: LocalizedError {
 struct LocationResult {
     let latitude: Double
     let longitude: Double
-    let displayName: String
+    let cityName: String      // bare city name, no state/country
+    let displayName: String   // full "City, State, Country" for display in search list
 }
 
 enum LocationService {
@@ -24,6 +25,22 @@ enum LocationService {
         let results: [Place]?
     }
 
+    static func search(_ query: String, count: Int = 5) async throws -> [LocationResult] {
+        let encoded = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? query
+        let urlString = "https://geocoding-api.open-meteo.com/v1/search?name=\(encoded)&count=\(count)&language=en&format=json"
+        guard let url = URL(string: urlString) else { throw URLError(.badURL) }
+
+        let (data, _) = try await URLSession.shared.data(from: url)
+        let response = try JSONDecoder().decode(GeocodingResponse.self, from: data)
+
+        return (response.results ?? []).map { place in
+            var display = place.name
+            if let state = place.admin1 { display += ", \(state)" }
+            if let country = place.country { display += ", \(country)" }
+            return LocationResult(latitude: place.latitude, longitude: place.longitude, cityName: place.name, displayName: display)
+        }
+    }
+
     static func geocode(_ cityName: String) async throws -> LocationResult {
         let encoded = cityName.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? cityName
         let urlString = "https://geocoding-api.open-meteo.com/v1/search?name=\(encoded)&count=1&language=en&format=json"
@@ -37,6 +54,6 @@ enum LocationService {
         var display = place.name
         if let state = place.admin1 { display += ", \(state)" }
 
-        return LocationResult(latitude: place.latitude, longitude: place.longitude, displayName: display)
+        return LocationResult(latitude: place.latitude, longitude: place.longitude, cityName: place.name, displayName: display)
     }
 }

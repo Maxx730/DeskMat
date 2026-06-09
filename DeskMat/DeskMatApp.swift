@@ -19,10 +19,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     let systemMonitor = SystemMonitorService()
     let windowState = WindowStateService()
     let dragCoordinator = DragCoordinator()
+    let updateService = UpdateService()
     var panel: DeskMatPanel!
     var statusItem: NSStatusItem!
     var exportDockMenuItem: NSMenuItem?
     var importDockMenuItem: NSMenuItem?
+    var checkForUpdatesMenuItem: NSMenuItem?
     var settingsWindow: NSWindow?
     var addShortcutWindow: NSWindow?
     var editShortcutWindow: NSWindow?
@@ -97,6 +99,18 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             showOnboarding()
         }
 
+        Task {
+            await updateService.check()
+            refreshCheckMenuItemIcon()
+            guard updateService.isUpdateAvailable else { return }
+            let version = updateService.latestVersion
+            let notifiedKey = "lastNotifiedUpdateVersion"
+            guard UserDefaults.standard.string(forKey: notifiedKey) != version else { return }
+            UserDefaults.standard.set(version, forKey: notifiedKey)
+            sendNotification(title: Strings.Updates.notificationTitle,
+                             body:  Strings.Updates.notificationBody(version))
+        }
+
         appearanceObserver = UserDefaults.standard.observe(\.appearanceMode, options: [.new]) { [weak self] _, _ in
             DispatchQueue.main.async { self?.applyAppearance() }
         }
@@ -124,6 +138,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(exportItem)
         menu.addItem(importItem)
         menu.addItem(NSMenuItem.separator())
+        let updateItem = NSMenuItem(title: Strings.Menu.checkForUpdates, action: #selector(checkForUpdates), keyEquivalent: "")
+        updateItem.image = NSImage(systemSymbolName: "exclamationmark.circle", accessibilityDescription: nil)
+        checkForUpdatesMenuItem = updateItem
+        menu.addItem(updateItem)
         menu.item(withTitle: Strings.Menu.toggleDock)?.keyEquivalentModifierMask = [.command, .shift]
         menu.addItem(NSMenuItem(title: Strings.Menu.settings, action: #selector(openSettings), keyEquivalent: ","))
         menu.addItem(NSMenuItem(title: Strings.Menu.quitDeskMat, action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
@@ -144,6 +162,48 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             if created < cutoff {
                 try? FileManager.default.removeItem(at: file)
             }
+        }
+    }
+
+    @objc private func checkForUpdates() {
+        checkForUpdatesMenuItem?.title = "Checking..."
+        checkForUpdatesMenuItem?.isEnabled = false
+        Task {
+            await updateService.check(force: true)
+            await MainActor.run {
+                checkForUpdatesMenuItem?.isEnabled = true
+                refreshCheckMenuItemIcon()
+                showUpdateResult()
+            }
+        }
+    }
+
+    private func refreshCheckMenuItemIcon() {
+        let hasUpdate = updateService.isUpdateAvailable
+        checkForUpdatesMenuItem?.title = hasUpdate ? Strings.Menu.updateNow : Strings.Menu.checkForUpdates
+        checkForUpdatesMenuItem?.image = NSImage(systemSymbolName: hasUpdate ? "arrow.down.circle.fill" : "exclamationmark.circle",
+                                                  accessibilityDescription: nil)
+    }
+
+    private func showUpdateResult() {
+        let alert = NSAlert()
+        if updateService.isUpdateAvailable {
+            let version = updateService.latestVersion
+            alert.messageText     = "DeskMat \(version) Available"
+            alert.informativeText = updateService.releaseNotes ?? "A new version of DeskMat is ready to download."
+            alert.addButton(withTitle: "Download")
+            alert.addButton(withTitle: "Later")
+            alert.alertStyle = .informational
+            if alert.runModal() == .alertFirstButtonReturn, let url = updateService.downloadURL {
+                NSWorkspace.shared.open(url)
+            }
+        } else {
+            let current = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? ""
+            alert.messageText     = "DeskMat is Up to Date"
+            alert.informativeText = "Version \(current) is the latest release."
+            alert.addButton(withTitle: "OK")
+            alert.alertStyle = .informational
+            alert.runModal()
         }
     }
 
