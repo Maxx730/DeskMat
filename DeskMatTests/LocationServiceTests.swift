@@ -39,7 +39,7 @@ struct LocationErrorTests {
 struct LocationResultTests {
 
     @Test func initStoresAllFields() {
-        let result = LocationResult(latitude: 37.7749, longitude: -122.4194, displayName: "San Francisco, California")
+        let result = LocationResult(latitude: 37.7749, longitude: -122.4194, cityName: "San Francisco", displayName: "San Francisco, California")
         #expect(result.latitude == 37.7749)
         #expect(result.longitude == -122.4194)
         #expect(result.displayName == "San Francisco, California")
@@ -48,14 +48,14 @@ struct LocationResultTests {
     @Test func latitudeAndLongitudeArePreservedExactly() {
         let lat = 51.5074
         let lon = -0.1278
-        let result = LocationResult(latitude: lat, longitude: lon, displayName: "London")
+        let result = LocationResult(latitude: lat, longitude: lon, cityName: "London", displayName: "London")
         #expect(result.latitude == lat)
         #expect(result.longitude == lon)
     }
 
     @Test func displayNameIsPreserved() {
         let name = "Tokyo, Tokyo"
-        let result = LocationResult(latitude: 35.6762, longitude: 139.6503, displayName: name)
+        let result = LocationResult(latitude: 35.6762, longitude: 139.6503, cityName: "Tokyo", displayName: name)
         #expect(result.displayName == name)
     }
 }

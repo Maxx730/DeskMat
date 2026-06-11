@@ -59,6 +59,20 @@ private struct CharacterInfoResponse: Decodable {
     let race_id: Int
 }
 
+private struct SovereigntyEntry: Decodable {
+    let system_id: Int
+    let faction_id: Int?
+}
+
+private struct SkillsResponse: Decodable {
+    let total_sp: Int
+    let unallocated_sp: Int?
+}
+
+private struct IndustryJob: Decodable {
+    let status: String
+}
+
 // MARK: - EveService
 
 @Observable
@@ -70,14 +84,20 @@ final class EveService {
     private(set) var walletFormatted:    String = ""
     private(set) var trainingSkill:      String = ""
     private(set) var trainingRemaining:  String = ""
-    private(set) var shipRaceId:          Int?   = nil
-    private(set) var characterRaceId:    Int?   = nil
-    private(set) var isLoading:          Bool   = false
-    private(set) var isAuthFailed:       Bool   = false
+    private(set) var shipRaceId:       Int?   = nil
+    private(set) var characterRaceId:  Int?   = nil
+    private(set) var systemFactionId:  Int?   = nil
+    private(set) var totalSP:          String = ""
+    private(set) var unallocatedSP:    String = ""
+    private(set) var activeJobs:       Int    = 0
+    private(set) var isLoading:        Bool   = false
+    private(set) var isAuthFailed:     Bool   = false
 
     let auth: EveAuthService
     private let nameCacheLock = NSLock()
     private var nameCache: [Int: String] = [:]
+    private var sovereigntyCache: [Int: Int] = [:]  // system_id → faction_id
+    private var sovereigntyFetchedAt: Date?
 
     init(auth: EveAuthService) {
         self.auth = auth
@@ -102,24 +122,33 @@ final class EveService {
         async let walletResult     = fetchWallet(id: id, token: token)
         async let skillResult      = fetchSkillQueue(id: id, token: token)
         async let characterResult  = fetchCharacterInfo(id: id, token: token)
+        async let skillsResult     = fetchSkills(id: id, token: token)
+        async let jobsResult       = fetchIndustryJobs(id: id, token: token)
 
         let onlineData      = await onlineResult
-        let locationData    = await locationResult
+        let locationData    = await locationResult          // (name, systemId)
+        let factionData     = await fetchSystemFaction(systemId: locationData.1)
         let shipData        = await shipResult
         let walletData      = await walletResult
         let skillData       = await skillResult
         let characterData   = await characterResult
+        let skillsData      = await skillsResult
+        let jobsData        = await jobsResult
 
         await MainActor.run {
             isOnline          = onlineData.0
             lastSeen          = onlineData.1
-            locationName      = locationData
+            locationName      = locationData.0
+            systemFactionId   = factionData
             shipName          = shipData.0
             shipRaceId        = shipData.1
             characterRaceId   = characterData
             walletFormatted   = walletData
             trainingSkill     = skillData.0
             trainingRemaining = skillData.1
+            totalSP           = skillsData.0
+            unallocatedSP     = skillsData.1
+            activeJobs        = jobsData
             isLoading         = false
         }
     }
@@ -137,14 +166,38 @@ final class EveService {
         }
     }
 
-    private func fetchLocation(id: Int, token: String) async -> String {
+    private func fetchLocation(id: Int, token: String) async -> (String, Int) {
         do {
             let data = try await esiRequest(path: "/characters/\(id)/location/", token: token)
             let r = try esiDecoder.decode(LocationResponse.self, from: data)
-            return await resolveName(id: r.solar_system_id, path: "/universe/systems/\(r.solar_system_id)/")
+            let name = await resolveName(id: r.solar_system_id, path: "/universe/systems/\(r.solar_system_id)/")
+            return (name, r.solar_system_id)
         } catch {
             log.warning("fetchLocation: \(error.localizedDescription)")
-            return ""
+            return ("", 0)
+        }
+    }
+
+    private func fetchSystemFaction(systemId: Int) async -> Int? {
+        guard systemId != 0 else { return nil }
+        if !sovereigntyCache.isEmpty,
+           let fetchedAt = sovereigntyFetchedAt,
+           Date().timeIntervalSince(fetchedAt) < 3600 {
+            return sovereigntyCache[systemId]
+        }
+        do {
+            let data = try await esiRequest(path: "/sovereignty/map/")
+            let entries = try esiDecoder.decode([SovereigntyEntry].self, from: data)
+            sovereigntyCache = Dictionary(
+                uniqueKeysWithValues: entries.map { e in
+                    (e.system_id, e.faction_id ?? 0)
+                }
+            )
+            sovereigntyFetchedAt = Date()
+            return sovereigntyCache[systemId]
+        } catch {
+            log.warning("fetchSystemFaction: \(error.localizedDescription)")
+            return nil
         }
     }
 
@@ -200,6 +253,30 @@ final class EveService {
         }
     }
 
+    private func fetchSkills(id: Int, token: String) async -> (String, String) {
+        do {
+            let data = try await esiRequest(path: "/characters/\(id)/skills/", token: token)
+            let r = try esiDecoder.decode(SkillsResponse.self, from: data)
+            let total = formatSP(r.total_sp)
+            let unalloc = r.unallocated_sp.map { $0 > 0 ? "+\(formatSP($0))" : "" } ?? ""
+            return (total, unalloc)
+        } catch {
+            log.warning("fetchSkills: \(error.localizedDescription)")
+            return ("", "")
+        }
+    }
+
+    private func fetchIndustryJobs(id: Int, token: String) async -> Int {
+        do {
+            let data = try await esiRequest(path: "/characters/\(id)/industry/jobs/?include_completed=false", token: token)
+            let jobs = try esiDecoder.decode([IndustryJob].self, from: data)
+            return jobs.filter { $0.status == "active" }.count
+        } catch {
+            log.warning("fetchIndustryJobs: \(error.localizedDescription)")
+            return 0
+        }
+    }
+
     // MARK: - Universe Name Resolution
 
     private func resolveName(id: Int, path: String) async -> String {
@@ -211,6 +288,14 @@ final class EveService {
     }
 
     // MARK: - Formatting
+
+    private func formatSP(_ sp: Int) -> String {
+        switch sp {
+        case 1_000_000...: return String(format: "%.1fM SP", Double(sp) / 1_000_000)
+        case 1_000...:     return String(format: "%.1fK SP", Double(sp) / 1_000)
+        default:           return "\(sp) SP"
+        }
+    }
 
     private func formatISK(_ balance: Double) -> String {
         switch balance {

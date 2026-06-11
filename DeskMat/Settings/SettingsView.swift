@@ -381,6 +381,9 @@ private struct WidgetsSettingsTab: View {
     @AppStorage("showLEDBoard")         private var showLEDBoard = false
     @AppStorage("showSystemWidget")     private var showSystemWidget = false
     @AppStorage("showEveWidget")        private var showEveWidget    = false
+    #if DEBUG
+    @AppStorage("showTestWidget")       private var showTestWidget   = false
+    #endif
     @AppStorage("eveWidgetTheme")       private var eveWidgetTheme: EveWidgetTheme = .auto
     @AppStorage("clockStyle")           private var clockStyle: ClockStyle = .system
     @AppStorage("sysWidgetMetric")      private var sysWidgetMetric: SystemMetric = .cpu
@@ -624,6 +627,11 @@ private struct WidgetsSettingsTab: View {
                     }
                 }
             }
+            #if DEBUG
+            Section("Debug") {
+                Toggle("Test Widget", isOn: $showTestWidget)
+            }
+            #endif
         }
         .formStyle(.grouped)
     }

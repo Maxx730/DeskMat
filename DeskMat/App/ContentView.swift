@@ -12,6 +12,7 @@ struct ContentView: View {
     @AppStorage("showLEDBoard") private var showLEDBoard = false
     @AppStorage("showSystemWidget") private var showSystemWidget = false
     @AppStorage("showEveWidget") private var showEveWidget = false
+    @AppStorage("showTestWidget") private var showTestWidget = false
     @AppStorage("dockBackground") private var dockBackground: DockBackground = .system
     @AppStorage("reactiveStyle") private var reactiveStyle: ReactiveStyle = .none
     @AppStorage("limitReactiveFPS") private var limitReactiveFPS: Bool = true
@@ -92,6 +93,10 @@ struct ContentView: View {
 
                 if entitlements.isPro && showEveWidget {
                     EveWidget()
+                }
+
+                if showTestWidget {
+                    TestWidget()
                 }
             }
             .padding(.horizontal, 10)
@@ -296,7 +301,7 @@ struct ContentView: View {
     }
 
     private var anyWidgetVisible: Bool {
-        entitlements.isPro && (showWeatherWidget || showImageWidget || showLEDBoard || showClockWidget || showSystemWidget || showEveWidget)
+        showTestWidget || (entitlements.isPro && (showWeatherWidget || showImageWidget || showLEDBoard || showClockWidget || showSystemWidget || showEveWidget))
     }
 
     private func commitFolderDrop(shortcut: AppShortcut, folder: AppFolder, at dropIndex: Int) {

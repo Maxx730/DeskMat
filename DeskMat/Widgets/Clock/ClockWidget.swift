@@ -41,6 +41,7 @@ private struct AnalogClockFace: View {
 
     var body: some View {
         Canvas(renderer: render)
+            .padding(style == .system ? 6 : 0)
     }
 
     private func render(context: inout GraphicsContext, size: CGSize) {
@@ -110,8 +111,8 @@ private struct AnalogClockFace: View {
 
     private func renderSystem(_ context: inout GraphicsContext, center: CGPoint,
                                dim: CGFloat, sec: Double, min: Double, hour: Double) {
-        // Ring just outside the hour dot orbit
-        let sysRingR = dim * 0.57
+        // Ring just outside the hour dot orbit (dots at 0.44, ring at 0.47 — fits within padded canvas)
+        let sysRingR = dim * 0.5
         context.stroke(
             Path(ellipseIn: CGRect(x: center.x - sysRingR, y: center.y - sysRingR,
                                    width: sysRingR * 2, height: sysRingR * 2)),
@@ -122,11 +123,11 @@ private struct AnalogClockFace: View {
         // Hour markers
         for i in 0..<12 {
             let angle = Double(i) / 12.0 * .pi * 2 - .pi / 2
-            let mr = dim * 0.04
+            let mr = dim * 0.02
             let mx = center.x + CGFloat(cos(angle)) * dim * 0.44
             let my = center.y + CGFloat(sin(angle)) * dim * 0.44
             context.fill(
-                Path(ellipseIn: CGRect(x: mx - mr, y: my - mr, width: mr, height: mr)),
+                Path(ellipseIn: CGRect(x: mx - mr, y: my - mr, width: mr * 2, height: mr * 2)),
                 with: .color(.white.opacity(0.3))
             )
         }

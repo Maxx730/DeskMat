@@ -8,8 +8,10 @@ struct EveWidget: View {
 
     private var effectiveTheme: EveWidgetTheme {
         guard theme == .auto else { return theme }
-        let resolved = EveWidgetTheme.from(raceId: eveService.shipRaceId)
-        if resolved != .auto { return resolved }
+        let bySystem = EveWidgetTheme.from(factionId: eveService.systemFactionId)
+        if bySystem != .auto { return bySystem }
+        let byShip = EveWidgetTheme.from(raceId: eveService.shipRaceId)
+        if byShip != .auto { return byShip }
         return EveWidgetTheme.from(raceId: eveService.characterRaceId)
     }
 
@@ -17,7 +19,13 @@ struct EveWidget: View {
         VStack(spacing: 10) {
             DockWidget(cells: 2, isLoading: eveService.isLoading, backgroundColor: effectiveTheme == .auto ? nil : .clear, onRefresh: { await eveService.refresh() }) {
                 if eveService.auth.isAuthenticated {
-                    characterContent
+                    PagedContainerView(pageCount: 2, showChevrons: true, showDots: false) { page in
+                        switch page {
+                        case 0: pilotPage
+                        case 1: intelPage
+                        default: EmptyView()
+                        }
+                    }
                 } else {
                     notConnectedContent
                 }
@@ -53,7 +61,7 @@ struct EveWidget: View {
     }
 
     @ViewBuilder
-    private var characterContent: some View {
+    private var pilotPage: some View {
         HStack(spacing: 8) {
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 4) {
@@ -92,7 +100,35 @@ struct EveWidget: View {
                 }
             }
         }
-        .padding(.horizontal, 16)
+        .padding(.horizontal, 4)
+    }
+
+    @ViewBuilder
+    private var intelPage: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            HStack(spacing: 4) {
+                Text(eveService.totalSP)
+                    .font(.custom("Exo 2", size: 11).weight(.semibold))
+                    .foregroundStyle(effectiveTheme.labelTint)
+                if !eveService.unallocatedSP.isEmpty {
+                    Text(eveService.unallocatedSP)
+                        .font(.custom("Exo 2", size: 8))
+                        .foregroundStyle(effectiveTheme.labelTint.opacity(0.55))
+                }
+            }
+            if eveService.activeJobs > 0 {
+                Label("\(eveService.activeJobs) active job\(eveService.activeJobs == 1 ? "" : "s")",
+                      systemImage: "hammer")
+                    .font(.custom("Exo 2", size: 8))
+                    .foregroundStyle(effectiveTheme.labelTint.opacity(0.75))
+            }
+            if eveService.activeJobs == 0 && eveService.totalSP.isEmpty {
+                Text("No intel")
+                    .font(.custom("Exo 2", size: 8))
+                    .foregroundStyle(effectiveTheme.labelTint.opacity(0.4))
+            }
+        }
+        .padding(.horizontal, 4)
     }
 
     private var notConnectedContent: some View {
