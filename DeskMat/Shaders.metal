@@ -1,3 +1,15 @@
+// SwiftUI Shaders
+// ---------------
+// These functions are called via SwiftUI's ShaderLibrary API:
+//   ShaderLibrary.functionName(.float(x), ...)
+// They are applied as post-process overlays on rasterized SwiftUI views using
+// .layerEffect() or .colorEffect(). Each function operates on already-rendered
+// pixels — there is no vertex stage, no multi-pass rendering, and no access to
+// mouse position or other AppKit state.
+//
+// For background shaders that need mouse input, multi-pass rendering, or a
+// custom vertex stage, see ReactiveShaders.metal + ReactiveBackgroundView.swift.
+
 #include <metal_stdlib>
 #include <SwiftUI/SwiftUI_Metal.h>
 using namespace metal;
@@ -290,6 +302,102 @@ float scanlineNoise(float2 uv, float offset) {
     // Lerping towards white at shine intensity — transparent pixels stay unlit.
     float3 result = mix(float3(col.rgb), float3(1.0f), shine * float(col.a));
     return half4(half3(result), col.a);
+}
+
+/// Eve Online hologram layer effect.
+/// Stacks seven passes over the source layer to produce a CRT-style holographic look:
+///   0. Glitch                — discrete events displace horizontal slices sideways
+///   1. Chromatic aberration  — R channel shifted left, B channel shifted right (enhanced during glitch)
+///   2. Scan lines            — smoothstep dark bands every 4 px scrolling over time
+///   3. Sweep band            — a brighter horizontal band that scrolls top→bottom
+///   4. Faction tint          — dark areas nudged toward the faction colour
+///   5. Flicker               — beating sine waves for irregular global brightness pulse
+///   6. Noise                 — low-amplitude per-frame grain for phosphor instability
+/// At intensity == 0 the shader returns the source pixel unchanged.
+/// - position:   pixel coordinate in user space
+/// - layer:      the rasterized SwiftUI layer
+/// - time:       elapsed time for animation
+/// - intensity:  overall effect strength 0..1
+/// - viewWidth:  view width in points (for UV normalisation)
+/// - viewHeight: view height in points (for UV normalisation)
+/// - tintR/G/B:  faction colour components for the dark-area tint pass
+[[stitchable]] half4 eveHologram(
+    float2 position,
+    SwiftUI::Layer layer,
+    float time,
+    float intensity,
+    float viewWidth,
+    float viewHeight,
+    float tintR, float tintG, float tintB
+) {
+    if (intensity < 0.001) return layer.sample(position);
+
+    float2 uv = position / float2(viewWidth, viewHeight);
+
+    // 0. Glitch — fire discrete events at ~15 Hz; displace random horizontal slices
+    float glitchFrame  = floor(time * 15.0);
+    float glitchSeed   = fract(sin(glitchFrame * 127.1) * 43758.5453);
+    float glitchShift = 0.0;
+    if (glitchSeed > 0.80) {  // active ~20% of events (~3 times/sec)
+        float sliceH    = 3.0 + floor(fract(sin(glitchFrame * 93.9) * 43758.5) * 6.0);
+        float sliceIdx  = floor(position.y / sliceH);
+        float sliceRand = fract(sin(sliceIdx * 311.7 + glitchFrame * 57.3) * 43758.5453);
+        if (sliceRand > 0.55) {
+            glitchShift = (sliceRand - 0.55) / 0.45 * viewWidth * 0.025 * intensity;
+        }
+    }
+    float2 samplePos = position + float2(glitchShift, 0.0);
+
+    // 1. Chromatic aberration — aberration widens during a glitch
+    float aberration = (1.5 + abs(glitchShift) * 0.25) * intensity;
+    half4 center = layer.sample(samplePos);
+    if (center.a < 0.01h) return layer.sample(position);
+
+    half rCh = layer.sample(samplePos + float2(-aberration, 0.0)).r;
+    half bCh = layer.sample(samplePos + float2( aberration, 0.0)).b;
+    float3 rgb = float3(rCh, center.g, bCh);
+
+    // 2. Scan lines — smoothstep fade creates soft dark bands every 4 px, scrolling over time
+    float scanBand  = fract((position.y + time * 8.0) * 0.25);
+    float scanLight = smoothstep(0.0, 0.45, scanBand) * smoothstep(1.0, 0.55, scanBand);
+    rgb *= 1.0 - (1.0 - scanLight) * 0.35 * intensity;
+
+    // 3. Sweep band — sharp leading edge, long trailing glow, horizontal shimmer
+    float sweepY    = fract(time * 0.22);
+    float sweepRelY = uv.y - sweepY;
+    sweepRelY -= floor(sweepRelY + 0.5);  // wrap to [-0.5, 0.5] for continuity at edges
+
+    float aboveDist = max(-sweepRelY, 0.0);
+    float belowDist = max( sweepRelY, 0.0);
+    float leadEdge  = smoothstep(0.018, 0.0, aboveDist);   // crisp upper edge
+    float trailGlow = smoothstep(0.12,  0.0, belowDist);   // soft trailing tail
+    float sweepAmt  = leadEdge * 0.30 + trailGlow * 0.14;
+
+    // Horizontal shimmer — slow sine wave blended with per-column grain
+    float shimmer = 0.88 + sin(position.x * 0.35 + time * 6.0) * 0.07
+                  + fract(sin(position.x * 127.1) * 43758.5) * 0.05;
+    sweepAmt *= shimmer;
+
+    // Tint toward faction colour on the bright band
+    float3 sweepColor = mix(float3(1.0), float3(tintR, tintG, tintB), 0.30);
+    rgb = clamp(rgb + sweepAmt * sweepColor * intensity, 0.0, 1.0);
+
+    // 4. Faction tint — push dark areas toward the faction colour
+    float luma  = dot(rgb, float3(0.299, 0.587, 0.114));
+    float3 tint = float3(tintR, tintG, tintB);
+    rgb = mix(rgb, tint, (1.0 - luma) * 0.18 * intensity);
+
+    // 5. Flicker — beating sine waves produce an irregular global brightness pulse
+    float flicker = 1.0 + (sin(time * 23.7) * sin(time * 7.3) * 0.10
+                         + sin(time * 47.1) * 0.03) * intensity;
+    rgb = clamp(rgb * flicker, 0.0, 1.0);
+
+    // 6. Noise — hash-based per-frame grain for phosphor instability
+    float2 noiseUV = position + fract(time * 317.0);
+    float  noise   = fract(sin(dot(noiseUV, float2(12.9898, 78.233))) * 43758.5453) - 0.5;
+    rgb = clamp(rgb + noise * 0.025 * intensity, 0.0, 1.0);
+
+    return half4(half3(rgb), center.a);
 }
 
 /// Hue drift color effect.

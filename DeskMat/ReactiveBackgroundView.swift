@@ -1,3 +1,25 @@
+// MARK: - Shader Systems Overview
+//
+// DeskMat has two distinct shader systems. Do not attempt to merge them —
+// they use different rendering APIs and serve different purposes.
+//
+// 1. SwiftUI Shaders (Shaders.metal + WidgetShaderModifier.swift)
+//    - Applied via .layerEffect() / .colorEffect() as post-process overlays
+//    - Called through ShaderLibrary.functionName(...)
+//    - Used for: dock icon effects (DockVisualEffect), widget overlays (EveHologramEffect)
+//    - Constraints: no vertex stage, no multi-pass, no mouse input, no continuous loop
+//
+// 2. Reactive Background Shaders (ReactiveShaders.metal + this file)
+//    - Applied via a raw Metal MTKView pipeline managed by ReactiveBackgroundView
+//    - Called through MTLLibrary / MTLRenderPipelineState
+//    - Used for: animated fullscreen backgrounds rendered inside widget frames
+//    - Capabilities: vertex stage, multi-pass (main → edge highlight → corner mask),
+//      mouse position uniforms from NSTrackingArea, MTKView continuous render loop
+//
+// System 2 exists because the reactive backgrounds need capabilities that
+// SwiftUI's shader API cannot provide. Adding mouse tracking or multi-pass
+// rendering to System 1 is not possible without moving to System 2.
+
 import AppKit
 import Metal
 import MetalKit

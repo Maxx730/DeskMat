@@ -20,6 +20,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     let windowState = WindowStateService()
     let dragCoordinator = DragCoordinator()
     let updateService = UpdateService()
+    let eveAuth = EveAuthService()
+    lazy var eveService = EveService(auth: eveAuth)
     var panel: DeskMatPanel!
     var statusItem: NSStatusItem!
     var exportDockMenuItem: NSMenuItem?
@@ -51,6 +53,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
+        if let url = Bundle.main.url(forResource: "Exo2-VariableFont_wght", withExtension: "ttf") {
+            CTFontManagerRegisterFontsForURL(url as CFURL, .process, nil)
+        }
         // Visual effect picker is hidden from UI — force stored value to none so
         // any previously saved effect doesn't persist invisibly.
         UserDefaults.standard.set(VisualEffect.none.rawValue, forKey: "visualEffect")

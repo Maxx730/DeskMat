@@ -36,7 +36,7 @@ struct WeatherWidget: View {
     @State private var weatherService = WeatherService()
     @AppStorage("showLabels")             private var showLabels = true
     @AppStorage("weatherLatitude")        private var weatherLatitude     = 37.2707
-    @AppStorage("weatherLongitude")       private var weatherLongitude    = -76.7075
+    @AppStorage("weatherLongitude")       private var weatherLongitude      = -76.7075
     @AppStorage("weatherLocationName")    private var weatherLocationName = Strings.Weather.defaultLocationName
     @AppStorage("weatherTemperatureUnit") private var temperatureUnit     = "fahrenheit"
 

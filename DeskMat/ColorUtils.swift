@@ -99,6 +99,12 @@ enum ColorUtils {
 // MARK: - Color hex initializers
 
 extension Color {
+    /// Resolves a SwiftUI Color to its sRGB float components for passing to Metal shaders.
+    var resolvedRGB: (r: Float, g: Float, b: Float) {
+        let ns = NSColor(self).usingColorSpace(.sRGB) ?? NSColor(self)
+        return (Float(ns.redComponent), Float(ns.greenComponent), Float(ns.blueComponent))
+    }
+
     /// Accepts "#rrggbb", "#rrggbbaa", "rrggbb", or "rrggbbaa".
     init(hex: String) {
         self = ColorUtils.fromHex(hex)

@@ -373,12 +373,15 @@ private struct IconsSettingsTab: View {
 // MARK: - Widgets
 
 private struct WidgetsSettingsTab: View {
-    @Environment(LicenseManager.self) private var license
+    @Environment(LicenseManager.self)  private var license
+    @Environment(EveAuthService.self)  private var eveAuth
     @AppStorage("showWeatherWidget")    private var showWeatherWidget = false
     @AppStorage("showClockWidget")      private var showClockWidget = false
     @AppStorage("showImageWidget")      private var showImageWidget = false
     @AppStorage("showLEDBoard")         private var showLEDBoard = false
     @AppStorage("showSystemWidget")     private var showSystemWidget = false
+    @AppStorage("showEveWidget")        private var showEveWidget    = false
+    @AppStorage("eveWidgetTheme")       private var eveWidgetTheme: EveWidgetTheme = .auto
     @AppStorage("clockStyle")           private var clockStyle: ClockStyle = .system
     @AppStorage("sysWidgetMetric")      private var sysWidgetMetric: SystemMetric = .cpu
     @AppStorage(LEDBoardWidget.imagePathKey)  private var ledBoardImagePath = ""
@@ -570,6 +573,53 @@ private struct WidgetsSettingsTab: View {
                     Picker(Strings.Settings.sysWidgetMetric, selection: $sysWidgetMetric) {
                         ForEach(SystemMetric.allCases, id: \.self) { metric in
                             Text(metric.rawValue).tag(metric)
+                        }
+                    }
+                }
+            }
+            Section {
+                Toggle(isOn: $showEveWidget) {
+                    proLabel(Strings.Eve.settingsLabel, isPro: license.isPro)
+                }
+                .disabled(!license.isPro)
+                if showEveWidget && license.isPro {
+                    Picker(Strings.Eve.themeLabel, selection: $eveWidgetTheme) {
+                        ForEach(EveWidgetTheme.allCases, id: \.self) { theme in
+                            Text(theme.displayName).tag(theme)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    if eveAuth.isAuthenticated {
+                        HStack(spacing: 10) {
+                            AsyncImage(url: URL(string: "https://imageserver.eveonline.com/Character/\(eveAuth.characterId)_64.jpg")) { image in
+                                image.resizable().scaledToFill()
+                            } placeholder: {
+                                Circle().fill(.secondary.opacity(0.3))
+                            }
+                            .frame(width: 28, height: 28)
+                            .clipShape(Circle())
+                            Text(eveAuth.characterName)
+                                .font(.subheadline)
+                            Spacer()
+                            Button(Strings.Eve.disconnectButton) {
+                                eveAuth.disconnect()
+                            }
+                            .foregroundStyle(.red)
+                        }
+                    } else {
+                        HStack {
+                            Spacer()
+                            if eveAuth.isConnecting {
+                                ProgressView().controlSize(.small)
+                                Text("Connecting...")
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                            } else {
+                                Button(Strings.Eve.connectButton) {
+                                    Task { try? await eveAuth.connect() }
+                                }
+                            }
+                            Spacer()
                         }
                     }
                 }

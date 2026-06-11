@@ -8,6 +8,7 @@ extension AppDelegate {
             .environment(systemMonitor)
             .environment(windowState)
             .environment(dragCoordinator)
+            .environment(eveService)
 
         let hostingView = NSHostingView(rootView: content)
         hostingView.setFrameSize(hostingView.fittingSize)

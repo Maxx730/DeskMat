@@ -205,6 +205,7 @@ extension AppDelegate {
         let settingsView = SettingsView()
             .environment(entitlements)
             .environment(updateService)
+            .environment(eveAuth)
         let window = makeStandardWindow(title: Strings.Windows.settings, rootView: settingsView)
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)

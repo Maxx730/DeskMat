@@ -1,3 +1,16 @@
+// Reactive Background Shaders
+// ----------------------------
+// These functions are called via AppKit's MTLLibrary API through ReactiveBackgroundView,
+// which wraps an MTKView and manages a raw Metal render pipeline. They run as fullscreen
+// background fills inside widget frames with mouse-reactive uniforms.
+//
+// This system is intentionally separate from the SwiftUI shader system (Shaders.metal)
+// because it requires capabilities SwiftUI's .layerEffect/.colorEffect cannot provide:
+//   - Custom vertex stage (reactiveVertex)
+//   - Multi-pass rendering (main pass → edge highlight → corner mask)
+//   - Mouse position uniforms fed from NSTrackingArea
+//   - MTKView's continuous render loop independent of SwiftUI's update cycle
+
 #include <metal_stdlib>
 using namespace metal;
 

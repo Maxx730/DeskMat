@@ -224,6 +224,17 @@ enum Strings {
         }
     }
 
+    // MARK: - Eve Online
+
+    enum Eve {
+        static let widgetLabel      = "Eve Online"
+        static let settingsLabel    = "Eve Online Widget"
+        static let connectButton    = "Connect Eve Account"
+        static let disconnectButton = "Disconnect"
+        static let notConnected     = "Connect Eve Account →"
+        static let themeLabel       = "Theme"
+    }
+
     // MARK: - Pro
 
     enum Pro {
