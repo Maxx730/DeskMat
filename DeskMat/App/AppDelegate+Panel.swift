@@ -1,7 +1,21 @@
 import AppKit
 import SwiftUI
 
+extension NSScreen {
+    var displayID: CGDirectDisplayID? {
+        deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID
+    }
+}
+
 extension AppDelegate {
+    func targetScreen() -> NSScreen {
+        let id = CGDirectDisplayID(cachedPreferredScreenID)
+        if id != 0, let match = NSScreen.screens.first(where: { $0.displayID == id }) {
+            return match
+        }
+        return NSScreen.main ?? NSScreen.screens[0]
+    }
+
     func setupPanel() {
         let content = ContentView()
             .environment(entitlements)
@@ -9,8 +23,9 @@ extension AppDelegate {
             .environment(windowState)
             .environment(dragCoordinator)
             .environment(eveService)
+            .environment(mediaRemote)
 
-        let hostingView = NSHostingView(rootView: content)
+        let hostingView = FirstMouseHostingView(rootView: content)
         hostingView.setFrameSize(hostingView.fittingSize)
 
         panel = DeskMatPanel(
@@ -64,6 +79,14 @@ extension AppDelegate {
                 self?.repositionPanel()
             }
         }
+        preferredScreenIDObserver = UserDefaults.standard.observe(\.preferredScreenID, options: [.new]) { [weak self] _, change in
+            DispatchQueue.main.async {
+                if let val = change.newValue {
+                    self?.cachedPreferredScreenID = val
+                }
+                self?.repositionPanel()
+            }
+        }
     }
 
     func updatePanelShadow() {
@@ -93,7 +116,6 @@ extension AppDelegate {
     }
 
     func repositionPanel() {
-        guard let screen = NSScreen.main else { return }
-        panel.setFrameOrigin(dockedOrigin(for: screen))
+        panel.setFrameOrigin(dockedOrigin(for: targetScreen()))
     }
 }

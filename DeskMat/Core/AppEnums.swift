@@ -84,3 +84,34 @@ enum ClockStyle: String, CaseIterable {
     case system = "System"
     case flat   = "Flat"
 }
+
+enum MediaCommand: Int {
+    case play              = 0
+    case pause             = 1
+    case togglePlayPause   = 2
+    case stop              = 3
+    case nextTrack         = 4
+    case previousTrack     = 5
+    case beginFastForward  = 8
+    case endFastForward    = 9
+    case beginRewind       = 10
+    case endRewind         = 11
+}
+
+enum WebFrameRefreshInterval: String, CaseIterable {
+    case live    = "Live"
+    case sec30   = "30s"
+    case min1    = "1 min"
+    case min5    = "5 min"
+    case manual  = "Manual"
+
+    var seconds: TimeInterval? {
+        switch self {
+        case .live:   return 5
+        case .sec30:  return 30
+        case .min1:   return 60
+        case .min5:   return 300
+        case .manual: return nil
+        }
+    }
+}

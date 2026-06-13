@@ -19,7 +19,7 @@ struct EveWidget: View {
         VStack(spacing: 10) {
             DockWidget(cells: 2, isLoading: eveService.isLoading, backgroundColor: effectiveTheme == .auto ? nil : .clear, onRefresh: { await eveService.refresh() }) {
                 if eveService.auth.isAuthenticated {
-                    PagedContainerView(pageCount: 2, showChevrons: true, showDots: false) { page in
+                    PagedContainerView(pageCount: 2, showChevrons: false, showDots: false) { page in
                         switch page {
                         case 0: pilotPage
                         case 1: intelPage

@@ -156,6 +156,7 @@ private struct GeneralSettingsTab: View {
         ud.set(DockPosition.bottom.rawValue,    forKey: "dockPosition")
         ud.set(0,                               forKey: "dockOffset")
         ud.set(0,                               forKey: "dockOffsetX")
+        ud.set(0,                               forKey: "preferredScreenID")
         ud.set(HoverSize.small.rawValue,        forKey: "hoverSize")
         ud.set(HoverAnimation.bounce.rawValue,  forKey: "hoverAnimation")
         ud.set(false,                           forKey: "autoHideDock")
@@ -180,6 +181,13 @@ private struct GeneralSettingsTab: View {
         ud.set(80,    forKey: LEDBoardWidget.scrollSpeedKey)
         ud.set(150,   forKey: LEDBoardWidget.frameSpeedKey)
         ud.set(true,  forKey: LEDBoardWidget.widthModeKey)
+        // Web Frame
+        ud.set(false,                                   forKey: "showWebFrameWidget")
+        ud.set("https://example.com",                   forKey: WebFrameSettings.urlKey)
+        ud.set(WebFrameRefreshInterval.manual.rawValue, forKey: WebFrameSettings.refreshIntervalKey)
+        ud.set(true,                                    forKey: WebFrameSettings.jsEnabledKey)
+        ud.set(false,                                   forKey: WebFrameSettings.interactiveModeKey)
+        ud.set(false,                                   forKey: WebFrameSettings.persistSessionKey)
     }
 
     #if DEBUG
@@ -203,7 +211,9 @@ private struct DockSettingsTab: View {
     @AppStorage("dockPosition") private var dockPosition: DockPosition = .bottom
     @AppStorage("dockOffset") private var dockOffset = 0
     @AppStorage("dockOffsetX") private var dockOffsetX = 0
+    @AppStorage("preferredScreenID") private var preferredScreenID: Int = 0
     @AppStorage("autoHideDock") private var autoHideDock = false
+    @State private var availableScreens: [NSScreen] = NSScreen.screens
     @AppStorage("hideAnimation") private var hideAnimation: HideAnimation = .fade
     @AppStorage("dockBackground") private var dockBackground: DockBackground = .system
     @AppStorage("dockBackgroundColorHex") private var dockBackgroundColorHex: String = "#000000ff"
@@ -238,6 +248,24 @@ private struct DockSettingsTab: View {
                 Picker(Strings.Settings.position, selection: $dockPosition) {
                     ForEach(DockPosition.allCases, id: \.self) { position in
                         Text(position.rawValue).tag(position)
+                    }
+                }
+
+                if availableScreens.count > 1 {
+                    Picker(Strings.Settings.display, selection: $preferredScreenID) {
+                        Text(Strings.Settings.displayMain).tag(0)
+                        ForEach(availableScreens, id: \.displayID) { screen in
+                            Text(screen.localizedName).tag(Int(screen.displayID ?? 0))
+                        }
+                    }
+                    .onReceive(NotificationCenter.default.publisher(
+                        for: NSApplication.didChangeScreenParametersNotification)
+                    ) { _ in
+                        availableScreens = NSScreen.screens
+                        if preferredScreenID != 0,
+                           !availableScreens.contains(where: { Int($0.displayID ?? 0) == preferredScreenID }) {
+                            preferredScreenID = 0
+                        }
                     }
                 }
             }
@@ -380,7 +408,12 @@ private struct WidgetsSettingsTab: View {
     @AppStorage("showImageWidget")      private var showImageWidget = false
     @AppStorage("showLEDBoard")         private var showLEDBoard = false
     @AppStorage("showSystemWidget")     private var showSystemWidget = false
-    @AppStorage("showEveWidget")        private var showEveWidget    = false
+    @AppStorage("showEveWidget")              private var showEveWidget          = false
+    @AppStorage("showWebFrameWidget")         private var showWebFrameWidget     = false
+    @AppStorage(WebFrameSettings.urlKey)      private var webFrameURL            = "https://example.com"
+    @AppStorage(WebFrameSettings.refreshIntervalKey) private var webFrameRefresh: WebFrameRefreshInterval = .manual
+    @AppStorage(WebFrameSettings.jsEnabledKey)       private var webFrameJSEnabled      = true
+    @AppStorage(WebFrameSettings.persistSessionKey)  private var webFramePersistSession = false
     #if DEBUG
     @AppStorage("showTestWidget")       private var showTestWidget   = false
     #endif
@@ -624,6 +657,26 @@ private struct WidgetsSettingsTab: View {
                             }
                             Spacer()
                         }
+                    }
+                }
+            }
+            Section {
+                Toggle(isOn: $showWebFrameWidget) {
+                    proLabel(Strings.WebFrame.settingsLabel, isPro: license.isPro)
+                }
+                .disabled(!license.isPro)
+                if showWebFrameWidget && license.isPro {
+                    TextField(Strings.WebFrame.urlField, text: $webFrameURL)
+                        .autocorrectionDisabled()
+                    Picker(Strings.WebFrame.refreshLabel, selection: $webFrameRefresh) {
+                        ForEach(WebFrameRefreshInterval.allCases, id: \.self) { interval in
+                            Text(interval.rawValue).tag(interval)
+                        }
+                    }
+                    Toggle(Strings.WebFrame.jsToggle, isOn: $webFrameJSEnabled)
+                    Toggle("Keep Session", isOn: $webFramePersistSession)
+                    Button(Strings.WebFrame.clearSession, role: .destructive) {
+                        WebFrameWidget.clearSession()
                     }
                 }
             }

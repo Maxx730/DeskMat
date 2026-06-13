@@ -3,12 +3,6 @@ import SwiftUI
 
 class DeskMatPanel: NSPanel {
     override var canBecomeKey: Bool { true }
-
-    override func mouseDown(with event: NSEvent) {
-        super.mouseDown(with: event)
-        NSApp.activate(ignoringOtherApps: true)
-        makeKey()
-    }
 }
 
 struct VisualEffectBackground: NSViewRepresentable {

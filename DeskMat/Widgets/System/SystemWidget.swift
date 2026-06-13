@@ -69,7 +69,7 @@ private struct RAMView: View {
     let total: Double
 
     private var fraction: Double {
-        total > 0 ? min(used / total, 1.0) : 0
+        total > 0 ? max(0, min(used / total, 1.0)) : 0
     }
 
     var body: some View {

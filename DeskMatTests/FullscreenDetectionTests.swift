@@ -86,4 +86,35 @@ struct FullscreenDetectionTests {
         delegate.isFullscreenHidden = true
         #expect(delegate.isFullscreenHidden == true)
     }
+
+    // MARK: - forceFade animation selection
+    //
+    // Mirrors the animation-selection expression inside setDockVisible so the
+    // logic can be tested without a live NSPanel.
+
+    private func resolveAnimation(forceFade: Bool, stored: String?) -> HideAnimation {
+        forceFade ? .fade : (HideAnimation(rawValue: stored ?? "Fade") ?? .fade)
+    }
+
+    @Test func forceFadeAlwaysSelectsFade() {
+        #expect(resolveAnimation(forceFade: true, stored: "Slide") == .fade)
+        #expect(resolveAnimation(forceFade: true, stored: "Fade")  == .fade)
+        #expect(resolveAnimation(forceFade: true, stored: nil)     == .fade)
+    }
+
+    @Test func noForceFadeRespectsStoredSlide() {
+        #expect(resolveAnimation(forceFade: false, stored: "Slide") == .slide)
+    }
+
+    @Test func noForceFadeRespectsStoredFade() {
+        #expect(resolveAnimation(forceFade: false, stored: "Fade") == .fade)
+    }
+
+    @Test func noForceFadeMissingKeyDefaultsToFade() {
+        #expect(resolveAnimation(forceFade: false, stored: nil) == .fade)
+    }
+
+    @Test func noForceFadeUnknownValueDefaultsToFade() {
+        #expect(resolveAnimation(forceFade: false, stored: "Dissolve") == .fade)
+    }
 }

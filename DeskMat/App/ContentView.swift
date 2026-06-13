@@ -12,6 +12,7 @@ struct ContentView: View {
     @AppStorage("showLEDBoard") private var showLEDBoard = false
     @AppStorage("showSystemWidget") private var showSystemWidget = false
     @AppStorage("showEveWidget") private var showEveWidget = false
+    @AppStorage("showWebFrameWidget") private var showWebFrameWidget = false
     @AppStorage("showTestWidget") private var showTestWidget = false
     @AppStorage("dockBackground") private var dockBackground: DockBackground = .system
     @AppStorage("reactiveStyle") private var reactiveStyle: ReactiveStyle = .none
@@ -94,6 +95,13 @@ struct ContentView: View {
                 if entitlements.isPro && showEveWidget {
                     EveWidget()
                 }
+
+                if entitlements.isPro && showWebFrameWidget {
+                    WebFrameWidget()
+                }
+
+                // Phase 2 temporary wiring — replaced with @AppStorage gate in Phase 4
+                MediaControlWidget()
 
                 if showTestWidget {
                     TestWidget()
@@ -301,7 +309,7 @@ struct ContentView: View {
     }
 
     private var anyWidgetVisible: Bool {
-        showTestWidget || (entitlements.isPro && (showWeatherWidget || showImageWidget || showLEDBoard || showClockWidget || showSystemWidget || showEveWidget))
+        showTestWidget || (entitlements.isPro && (showWeatherWidget || showImageWidget || showLEDBoard || showClockWidget || showSystemWidget || showEveWidget || showWebFrameWidget))
     }
 
     private func commitFolderDrop(shortcut: AppShortcut, folder: AppFolder, at dropIndex: Int) {

@@ -71,7 +71,7 @@ extension AppDelegate {
         if fullscreen {
             guard !isFullscreenHidden && isDockVisible else { return }
             isFullscreenHidden = true
-            setDockVisible(false, animated: true)
+            setDockVisible(false, animated: true, forceFade: true)
         } else {
             guard isFullscreenHidden else { return }
             isFullscreenHidden = false

@@ -21,6 +21,8 @@ struct PagedContainerView<PageContent: View>: View {
             HStack(spacing: 0) {
                 if showChevrons && pageCount > 1 {
                     chevron("chevron.left") { navigate(.backward) }
+                } else {
+                    Spacer().frame(width: 10)
                 }
 
                 ZStack {
@@ -37,6 +39,8 @@ struct PagedContainerView<PageContent: View>: View {
 
                 if showChevrons && pageCount > 1 {
                     chevron("chevron.right") { navigate(.forward) }
+                } else {
+                    Spacer().frame(width: 20)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)

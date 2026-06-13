@@ -13,4 +13,7 @@ extension UserDefaults {
     @objc dynamic var appearanceMode: String {
         return string(forKey: "appearanceMode") ?? AppearanceMode.system.rawValue
     }
+    @objc dynamic var preferredScreenID: Int {
+        return integer(forKey: "preferredScreenID")
+    }
 }

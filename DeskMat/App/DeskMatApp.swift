@@ -22,6 +22,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     let updateService = UpdateService()
     let eveAuth = EveAuthService()
     lazy var eveService = EveService(auth: eveAuth)
+    let mediaRemote = MediaRemoteService()
     var panel: DeskMatPanel!
     var statusItem: NSStatusItem!
     var exportDockMenuItem: NSMenuItem?
@@ -39,7 +40,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var cachedDockPosition: DockPosition = DockPosition(rawValue: UserDefaults.standard.string(forKey: "dockPosition") ?? "Bottom") ?? .bottom
     var cachedDockOffset: CGFloat = CGFloat(UserDefaults.standard.integer(forKey: "dockOffset"))
     var cachedDockOffsetX: CGFloat = CGFloat(UserDefaults.standard.integer(forKey: "dockOffsetX"))
+    var cachedPreferredScreenID: Int = UserDefaults.standard.integer(forKey: "preferredScreenID")
     var offsetXObserver: Any?
+    var preferredScreenIDObserver: Any?
     var globalHotkeyMonitor: Any?
     var localHotkeyMonitor: Any?
     var mouseGlobalMonitorToken: Any?
@@ -94,6 +97,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         NotificationCenter.default.addObserver(forName: NSApplication.didChangeScreenParametersNotification,
             object: nil, queue: .main) { [weak self] _ in
+            self?.repositionPanel()
             self?.evaluateMousePosition()
         }
 

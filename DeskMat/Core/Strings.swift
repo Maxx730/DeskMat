@@ -63,6 +63,8 @@ enum Strings {
         static let ledBoardCompact = "Compact"
         static let autoHideDock = "Auto-Hide Dock"
         static let hideAnimation    = "Hide Animation"
+        static let display          = "Display"
+        static let displayMain      = "Main Display"
         static let showSystemWidget = "System Widget"
         static let sysWidgetMetric  = "Metric"
         static let clockStyle       = "Style"
@@ -285,6 +287,26 @@ enum Strings {
         static let alertMessage  = "This will restore all settings to their defaults. Your dock shortcuts and license will not be affected."
         static let alertConfirm  = "Reset"
         static let buttonCaption = "Restores all appearance, dock, and widget settings to their defaults. Shortcuts and your license are not affected."
+    }
+
+    // MARK: - Media Control
+
+    enum MediaControl {
+        static let widgetLabel    = "Media"
+        static let nothingPlaying = "Nothing Playing"
+        static let settingsLabel  = "Media Control Widget"
+    }
+
+    // MARK: - Web Frame
+
+    enum WebFrame {
+        static let widgetLabel   = "Web Frame"
+        static let invalidURL    = "Invalid URL"
+        static let settingsLabel = "Web Frame Widget"
+        static let urlField      = "URL"
+        static let clearSession  = "Clear Session Data"
+        static let jsToggle      = "Enable JavaScript"
+        static let refreshLabel  = "Refresh"
     }
 
     // MARK: - Errors

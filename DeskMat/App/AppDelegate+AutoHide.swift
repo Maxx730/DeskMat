@@ -52,7 +52,7 @@ extension AppDelegate {
     }
 
     func isMouseInThresholdZone(_ mouse: NSPoint) -> Bool {
-        guard let screen = panel.screen ?? NSScreen.main else { return true }
+        let screen = panel.screen ?? targetScreen()
         let sf = screen.frame
         let visibleFrame = screen.visibleFrame
         let threshold: CGFloat = 40
@@ -69,9 +69,9 @@ extension AppDelegate {
         }
     }
 
-    func setDockVisible(_ visible: Bool, animated: Bool) {
+    func setDockVisible(_ visible: Bool, animated: Bool, forceFade: Bool = false) {
         isDockVisible = visible
-        let animation = HideAnimation(rawValue: UserDefaults.standard.string(forKey: "hideAnimation") ?? "Fade") ?? .fade
+        let animation = forceFade ? .fade : (HideAnimation(rawValue: UserDefaults.standard.string(forKey: "hideAnimation") ?? "Fade") ?? .fade)
         guard animated else {
             panel.alphaValue = visible ? 1.0 : 0.0
             if visible { repositionPanel() }
@@ -109,7 +109,7 @@ extension AppDelegate {
     }
 
     private func slideOut() {
-        guard let screen = panel.screen ?? NSScreen.main else { return }
+        let screen = panel.screen ?? targetScreen()
         let position = cachedDockPosition
         let targetFrame = NSRect(origin: peekHiddenOrigin(screen: screen, position: position),
                                  size: panel.frame.size)
@@ -121,7 +121,7 @@ extension AppDelegate {
     }
 
     private func slideIn() {
-        guard let screen = panel.screen ?? NSScreen.main else { return }
+        let screen = panel.screen ?? targetScreen()
         let position = cachedDockPosition
         panel.setFrameOrigin(peekHiddenOrigin(screen: screen, position: position))
         let targetFrame = NSRect(origin: dockedOrigin(for: screen), size: panel.frame.size)

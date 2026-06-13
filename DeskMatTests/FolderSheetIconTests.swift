@@ -1,6 +1,7 @@
 import Testing
 import Foundation
 import AppKit
+import SwiftUI
 @testable import DeskMat
 
 // MARK: - FolderSheet Icon Reset Tests
