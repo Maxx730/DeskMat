@@ -18,6 +18,7 @@ final class MediaRemoteService {
     private typealias SendCommand = @convention(c) (Int, AnyObject?) -> Bool
     private var mrBundle: CFBundle?
     nonisolated(unsafe) private var tokens: [Any] = []
+    private var artworkTask: Task<Void, Never>? = nil
 
     // MARK: - Init
 
@@ -93,16 +94,18 @@ final class MediaRemoteService {
             nowPlaying = nil
             return
         }
+        let sameTrack = nowPlaying?.title == title && nowPlaying?.artist == artist
         nowPlaying = NowPlayingInfo(
             title:        title,
             artist:       artist,
             album:        info["Album"] as? String ?? "",
-            artworkData:  nil,
+            artworkData:  sameTrack ? nowPlaying?.artworkData : nil,
             duration:     info["Total Time"]    as? TimeInterval ?? 0,
             playbackRate: state == "Playing" ? 1.0 : 0,
             elapsedTime:  info["Elapsed Time"]  as? TimeInterval ?? 0,
             snapshotDate: .now
         )
+        if !sameTrack { fetchArtwork(artist: artist, title: title) }
     }
 
     private func handleSpotifyNotification(_ info: [AnyHashable: Any]?) {
@@ -114,16 +117,46 @@ final class MediaRemoteService {
             nowPlaying = nil
             return
         }
+        let sameTrack = nowPlaying?.title == title && nowPlaying?.artist == artist
         nowPlaying = NowPlayingInfo(
             title:        title,
             artist:       artist,
             album:        info["Album"]            as? String ?? "",
-            artworkData:  nil,
+            artworkData:  sameTrack ? nowPlaying?.artworkData : nil,
             duration:     (info["Duration"] as? TimeInterval ?? 0) / 1000,
             playbackRate: state == "playing" ? 1.0 : 0,
             elapsedTime:  info["Playback Position"] as? TimeInterval ?? 0,
             snapshotDate: .now
         )
+        if !sameTrack { fetchArtwork(artist: artist, title: title) }
+    }
+
+    private func fetchArtwork(artist: String, title: String) {
+        artworkTask?.cancel()
+        artworkTask = Task {
+            let query = "\(artist) \(title)"
+                .addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+            guard !Task.isCancelled,
+                  let searchURL = URL(string: "https://itunes.apple.com/search?term=\(query)&entity=song&limit=1&media=music")
+            else { return }
+
+            guard let (searchData, _) = try? await URLSession.shared.data(from: searchURL),
+                  !Task.isCancelled,
+                  let json       = try? JSONSerialization.jsonObject(with: searchData) as? [String: Any],
+                  let results    = json["results"] as? [[String: Any]],
+                  let first      = results.first,
+                  let urlString  = first["artworkUrl100"] as? String
+            else { return }
+
+            let hiRes = urlString.replacingOccurrences(of: "100x100bb", with: "600x600bb")
+            guard !Task.isCancelled,
+                  let artURL = URL(string: hiRes),
+                  let (imageData, _) = try? await URLSession.shared.data(from: artURL),
+                  !Task.isCancelled
+            else { return }
+
+            nowPlaying?.artworkData = imageData
+        }
     }
 
     // MARK: - Send commands

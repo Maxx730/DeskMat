@@ -4,7 +4,7 @@ struct NowPlayingInfo: Equatable {
     let title:        String
     let artist:       String
     let album:        String
-    let artworkData:  Data?
+    var artworkData:  Data?
     let duration:     TimeInterval
     let playbackRate: Double
 

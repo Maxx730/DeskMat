@@ -295,6 +295,7 @@ enum Strings {
         static let widgetLabel    = "Media"
         static let nothingPlaying = "Nothing Playing"
         static let settingsLabel  = "Media Control Widget"
+        static let showAlbumArt   = "Show Album Art"
     }
 
     // MARK: - Web Frame

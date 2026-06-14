@@ -181,6 +181,9 @@ private struct GeneralSettingsTab: View {
         ud.set(80,    forKey: LEDBoardWidget.scrollSpeedKey)
         ud.set(150,   forKey: LEDBoardWidget.frameSpeedKey)
         ud.set(true,  forKey: LEDBoardWidget.widthModeKey)
+        // Media Control
+        ud.set(false, forKey: "showMediaControlWidget")
+        ud.set(true,  forKey: "mediaControlShowAlbumArt")
         // Web Frame
         ud.set(false,                                   forKey: "showWebFrameWidget")
         ud.set("https://example.com",                   forKey: WebFrameSettings.urlKey)
@@ -410,6 +413,8 @@ private struct WidgetsSettingsTab: View {
     @AppStorage("showSystemWidget")     private var showSystemWidget = false
     @AppStorage("showEveWidget")              private var showEveWidget          = false
     @AppStorage("showWebFrameWidget")         private var showWebFrameWidget     = false
+    @AppStorage("showMediaControlWidget")     private var showMediaControlWidget = false
+    @AppStorage("mediaControlShowAlbumArt")   private var mediaControlShowAlbumArt = true
     @AppStorage(WebFrameSettings.urlKey)      private var webFrameURL            = "https://example.com"
     @AppStorage(WebFrameSettings.refreshIntervalKey) private var webFrameRefresh: WebFrameRefreshInterval = .manual
     @AppStorage(WebFrameSettings.jsEnabledKey)       private var webFrameJSEnabled      = true
@@ -658,6 +663,15 @@ private struct WidgetsSettingsTab: View {
                             Spacer()
                         }
                     }
+                }
+            }
+            Section {
+                Toggle(isOn: $showMediaControlWidget) {
+                    proLabel(Strings.MediaControl.settingsLabel, isPro: license.isPro)
+                }
+                .disabled(!license.isPro)
+                if showMediaControlWidget && license.isPro {
+                    Toggle(Strings.MediaControl.showAlbumArt, isOn: $mediaControlShowAlbumArt)
                 }
             }
             Section {
