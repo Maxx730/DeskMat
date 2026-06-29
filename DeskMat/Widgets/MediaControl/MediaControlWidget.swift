@@ -11,6 +11,7 @@ struct MediaControlWidget: View {
     @State private var artworkImage: Image? = nil
     @State private var artworkSourceData: Data? = nil
     @State private var widgetBackground: Color = .blue
+    @State private var textColor: Color = .white
 
     var body: some View {
         VStack(spacing: 10) {
@@ -36,6 +37,7 @@ struct MediaControlWidget: View {
                     await MainActor.run {
                         artworkImage = img
                         widgetBackground = avg ?? .blue
+                        textColor = Self.contrastingTextColor(for: widgetBackground, tintStrength: 0.3)
                     }
                 }
             }
@@ -44,6 +46,7 @@ struct MediaControlWidget: View {
                     artworkImage = nil
                     artworkSourceData = nil
                     widgetBackground = .blue
+                    textColor = .white
                 }
             }
 
@@ -87,11 +90,11 @@ struct MediaControlWidget: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(track.title.isEmpty ? "Unknown" : track.title)
                         .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(textColor)
                         .lineLimit(1)
                     Text(track.artist.isEmpty ? track.album : track.artist)
                         .font(.system(size: 10))
-                        .foregroundStyle(.white.opacity(0.65))
+                        .foregroundStyle(textColor.opacity(0.65))
                         .lineLimit(1)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -104,21 +107,21 @@ struct MediaControlWidget: View {
                 Button { media.send(.previousTrack) } label: {
                     Image(systemName: "backward.fill")
                         .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(textColor)
                 }
                 .buttonStyle(.plain)
 
                 Button { media.send(.togglePlayPause) } label: {
                     Image(systemName: track.isPlaying ? "pause.fill" : "play.fill")
                         .font(.system(size: 14, weight: .medium))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(textColor)
                 }
                 .buttonStyle(.plain)
 
                 Button { media.send(.nextTrack) } label: {
                     Image(systemName: "forward.fill")
                         .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(textColor)
                 }
                 .buttonStyle(.plain)
             }
@@ -134,12 +137,12 @@ struct MediaControlWidget: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(track.title.isEmpty ? "Unknown" : track.title)
                     .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(textColor)
                     .lineLimit(1)
                     .frame(maxWidth: .infinity, alignment: .center)
                 Text(track.artist.isEmpty ? track.album : track.artist)
                     .font(.system(size: 8))
-                    .foregroundStyle(.white.opacity(0.65))
+                    .foregroundStyle(textColor.opacity(0.65))
                     .lineLimit(1)
                     .frame(maxWidth: .infinity, alignment: .center)
             }
@@ -151,21 +154,21 @@ struct MediaControlWidget: View {
                 Button { media.send(.previousTrack) } label: {
                     Image(systemName: "backward.fill")
                         .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(textColor)
                 }
                 .buttonStyle(.plain)
 
                 Button { media.send(.togglePlayPause) } label: {
                     Image(systemName: track.isPlaying ? "pause.fill" : "play.fill")
                         .font(.system(size: 14, weight: .medium))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(textColor)
                 }
                 .buttonStyle(.plain)
 
                 Button { media.send(.nextTrack) } label: {
                     Image(systemName: "forward.fill")
                         .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(textColor)
                 }
                 .buttonStyle(.plain)
             }
@@ -195,16 +198,39 @@ struct MediaControlWidget: View {
                      blue: Double(bitmap[2]) / 255)
     }
 
+    // MARK: - Contrasting text color
+
+    static func contrastingTextColor(for background: Color, tintStrength: CGFloat = 0.15) -> Color {
+        guard let nsColor = NSColor(background).usingColorSpace(.sRGB) else { return .white }
+        let r = nsColor.redComponent
+        let g = nsColor.greenComponent
+        let b = nsColor.blueComponent
+
+        func linearise(_ c: CGFloat) -> CGFloat {
+            c <= 0.03928 ? c / 12.92 : pow((c + 0.055) / 1.055, 2.4)
+        }
+        let luminance = 0.2126 * linearise(r) + 0.7152 * linearise(g) + 0.0722 * linearise(b)
+
+        // Threshold 0.179 ≈ midpoint satisfying a 4.5:1 contrast ratio with both extremes.
+        let base: CGFloat = luminance > 0.179 ? 0.0 : 1.0
+        let mix = 1.0 - tintStrength
+        return Color(
+            red:   Double(base * mix + r * tintStrength),
+            green: Double(base * mix + g * tintStrength),
+            blue:  Double(base * mix + b * tintStrength)
+        )
+    }
+
     // MARK: - Nothing playing
 
     private var nothingPlayingView: some View {
         VStack(spacing: 4) {
             Image(systemName: "music.note")
                 .font(.system(size: 14))
-                .foregroundStyle(.white.opacity(0.3))
+                .foregroundStyle(textColor.opacity(0.3))
             Text(Strings.MediaControl.nothingPlaying)
                 .font(.system(size: 8))
-                .foregroundStyle(.white.opacity(0.3))
+                .foregroundStyle(textColor.opacity(0.3))
         }
     }
 }

@@ -14,6 +14,7 @@ struct ContentView: View {
     @AppStorage("showEveWidget") private var showEveWidget = false
     @AppStorage("showWebFrameWidget") private var showWebFrameWidget = false
     @AppStorage("showMediaControlWidget") private var showMediaControlWidget = false
+    @AppStorage("showTasksWidget") private var showTasksWidget = false
     @AppStorage("showTestWidget") private var showTestWidget = false
     @AppStorage("dockBackground") private var dockBackground: DockBackground = .system
     @AppStorage("reactiveStyle") private var reactiveStyle: ReactiveStyle = .none
@@ -105,6 +106,10 @@ struct ContentView: View {
                     MediaControlWidget()
                 }
 
+                if entitlements.isPro && showTasksWidget {
+                    TasksWidget()
+                }
+
                 if showTestWidget {
                     TestWidget()
                 }
@@ -145,6 +150,11 @@ struct ContentView: View {
                     updateShortcut(updated)
                 }
             }
+            .onReceive(NotificationCenter.default.publisher(for: .shortcutRemoved)) { notification in
+                if let removed = notification.object as? AppShortcut {
+                    removeItem(.shortcut(removed))
+                }
+            }
             .onReceive(NotificationCenter.default.publisher(for: .folderAdded)) { notification in
                 if let newFolder = notification.object as? AppFolder {
                     items.append(.folder(newFolder))
@@ -175,6 +185,8 @@ struct ContentView: View {
             switch dockBackground {
             case .system:
                 VisualEffectBackground()
+            case .liquidGlass:
+                Color.clear
             case .color:
                 RoundedRectangle(cornerRadius: dockCornerRadius)
                     .fill(ColorUtils.fromHex(dockBackgroundColorHex))
@@ -197,6 +209,7 @@ struct ContentView: View {
                     )
             }
         }
+        .modifier(ConditionalGlassEffect(enabled: dockBackground == .liquidGlass))
         .onChange(of: dragCoordinator.dropCommitted) { _, committed in
             guard committed else { return }
             if let shortcut = dragCoordinator.sourceShortcut,
@@ -547,6 +560,18 @@ struct ContentView: View {
 }
 
 private let hstackItemSpacing: CGFloat = 8
+
+private struct ConditionalGlassEffect: ViewModifier {
+    let enabled: Bool
+
+    func body(content: Content) -> some View {
+        if enabled {
+            content.glassEffect(.clear.interactive(), in: RoundedRectangle(cornerRadius: 16))
+        } else {
+            content
+        }
+    }
+}
 
 struct DragGhostIcon: View {
     let icon: Image?

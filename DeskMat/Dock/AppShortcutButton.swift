@@ -128,6 +128,13 @@ struct AppShortcutButton: View {
         .task(id: shortcut.iconFileName) {
             await loadIcon()
         }
+        .task(id: shortcut.backgroundColorHex) {
+            if let hex = shortcut.backgroundColorHex {
+                avgColor = ColorUtils.fromHex(hex)
+            } else {
+                await loadIcon()
+            }
+        }
         .onReceive(NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.didActivateApplicationNotification)) { notification in
             if let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication {
                 withAnimation(.easeInOut(duration: 0.15)) {
@@ -181,6 +188,10 @@ struct AppShortcutButton: View {
         cachedIcon     = result.0
         cachedIconFull = result.1
         avgColor       = result.2
+
+        if let hex = shortcut.backgroundColorHex {
+            avgColor = ColorUtils.fromHex(hex)
+        }
     }
 
     private func startLaunchBounce() {

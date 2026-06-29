@@ -104,12 +104,13 @@ struct AppearanceModeTests {
 
 struct DockBackgroundEnumTests {
 
-    @Test func allCasesContainsFourCases() {
-        #expect(DockBackground.allCases.count == 4)
+    @Test func allCasesContainsFiveCases() {
+        #expect(DockBackground.allCases.count == 5)
     }
 
     @Test func rawValuesMatchDisplayNames() {
         #expect(DockBackground.system.rawValue == "System")
+        #expect(DockBackground.liquidGlass.rawValue == "Liquid Glass")
         #expect(DockBackground.color.rawValue == "Color")
         #expect(DockBackground.transparent.rawValue == "Transparent")
         #expect(DockBackground.reactive.rawValue == "Reactive")
@@ -117,6 +118,7 @@ struct DockBackgroundEnumTests {
 
     @Test func initFromRawValue() {
         #expect(DockBackground(rawValue: "System") == .system)
+        #expect(DockBackground(rawValue: "Liquid Glass") == .liquidGlass)
         #expect(DockBackground(rawValue: "Color") == .color)
         #expect(DockBackground(rawValue: "Transparent") == .transparent)
         #expect(DockBackground(rawValue: "Reactive") == .reactive)

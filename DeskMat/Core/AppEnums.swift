@@ -23,10 +23,11 @@ enum VisualEffect: String, CaseIterable {
 }
 
 enum DockBackground: String, CaseIterable {
-    case system = "System"
-    case color = "Color"
+    case system      = "System"
+    case liquidGlass = "Liquid Glass"
+    case color       = "Color"
     case transparent = "Transparent"
-    case reactive = "Reactive"
+    case reactive    = "Reactive"
 }
 
 enum ReactiveStyle: String, CaseIterable {

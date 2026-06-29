@@ -91,22 +91,30 @@ struct LEDBoardWidget: View {
         }
     }
 
-    nonisolated private static func buildPixelGrid(from frameRep: NSBitmapImageRep, columns: Int, rows: Int) -> [[Color?]] {
-        let aspect = CGFloat(frameRep.pixelsWide) / CGFloat(frameRep.pixelsHigh)
-        let gridAspect = CGFloat(columns) / CGFloat(rows)
-
-        let sampledCols: Int
-        let sampledRows: Int
+    /// Returns (scaledWidth, scaledHeight, xOffset, yOffset) for fitting
+    /// a source of `srcW × srcH` into a grid of `cols × rows` cells.
+    nonisolated static func gridFitMetrics(srcW: Int, srcH: Int, cols: Int, rows: Int)
+        -> (scaledW: Int, scaledH: Int, xOff: Int, yOff: Int) {
+        let aspect = CGFloat(srcW) / CGFloat(srcH)
+        let gridAspect = CGFloat(cols) / CGFloat(rows)
+        let scaledW: Int
+        let scaledH: Int
         if aspect >= gridAspect {
-            sampledCols = columns
-            sampledRows = max(1, Int((CGFloat(columns) / aspect).rounded()))
+            scaledW = cols
+            scaledH = max(1, Int((CGFloat(cols) / aspect).rounded()))
         } else {
-            sampledRows = rows
-            sampledCols = max(1, Int((CGFloat(rows) * aspect).rounded()))
+            scaledH = rows
+            scaledW = max(1, Int((CGFloat(rows) * aspect).rounded()))
         }
+        return (scaledW, scaledH, (cols - scaledW) / 2, (rows - scaledH) / 2)
+    }
 
-        let colOffset = (columns - sampledCols) / 2
-        let rowOffset = (rows - sampledRows) / 2
+    nonisolated private static func buildPixelGrid(from frameRep: NSBitmapImageRep, columns: Int, rows: Int) -> [[Color?]] {
+        let metrics = Self.gridFitMetrics(srcW: frameRep.pixelsWide, srcH: frameRep.pixelsHigh, cols: columns, rows: rows)
+        let sampledCols = metrics.scaledW
+        let sampledRows = metrics.scaledH
+        let colOffset = metrics.xOff
+        let rowOffset = metrics.yOff
 
         guard let sampled = ImageUtils.pixelGrid(from: frameRep, columns: sampledCols, rows: sampledRows) else {
             return Array(repeating: Array(repeating: nil, count: columns), count: rows)

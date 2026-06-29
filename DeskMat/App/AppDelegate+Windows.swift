@@ -70,6 +70,10 @@ extension AppDelegate {
         }, onDismiss: { [weak self] in
             self?.editShortcutWindow?.close()
             self?.editShortcutWindow = nil
+        }, onRemove: { [weak self] in
+            NotificationCenter.default.post(name: .shortcutRemoved, object: shortcut)
+            self?.editShortcutWindow?.close()
+            self?.editShortcutWindow = nil
         })
 
         let window = makeStandardWindow(title: Strings.Windows.editShortcut, rootView: editView)

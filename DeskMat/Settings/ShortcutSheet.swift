@@ -6,8 +6,10 @@ struct ShortcutSheet: View {
     let shortcut: AppShortcut?
     let onSave: (AppShortcut) -> Void
     let onDismiss: () -> Void
+    var onRemove: (() -> Void)? = nil
 
     @State private var selectedAppURL: URL?
+    @State private var showRemoveConfirm = false
     @State private var selectedAppName: String = ""
     @State private var selectedBundleID: String = ""
     @State private var selectedIconImage: NSImage?
@@ -15,6 +17,7 @@ struct ShortcutSheet: View {
     @State private var iconChanged = false
     @State private var errorMessage: String?
     @State private var customLabel: String = ""
+    @State private var customBackgroundColor: Color = .gray
 
     private var isEditing: Bool { shortcut != nil }
     private var hasCustomIcon: Bool {
@@ -23,65 +26,70 @@ struct ShortcutSheet: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            VStack(spacing: 0) {
 
-            // MARK: Header — icon + window title
-            VStack(spacing: 10) {
+            // MARK: Content — two columns
+            HStack(alignment: .top, spacing: 20) {
                 IconPickerButton(
                     image: selectedIconImage,
                     placeholderSystemImage: "photo",
                     hasCustomIcon: hasCustomIcon,
                     onPick: pickIcon,
-                    onReset: resetToAppIcon
+                    onReset: resetToAppIcon,
+                    backgroundPreviewColor: selectedIconImage != nil ? customBackgroundColor : nil,
+                    size: 100
                 )
                 .help(Strings.Shortcuts.chooseIcon)
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.top, 24)
-            .padding(.bottom, 20)
 
-            // MARK: Form rows
-            VStack(spacing: 0) {
-                formRow(label: Strings.Shortcuts.application) {
-                    Text(selectedAppName.isEmpty ? Strings.Shortcuts.noAppSelected : selectedAppName)
-                        .foregroundStyle(selectedAppName.isEmpty ? .tertiary : .primary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    Button(Strings.Shortcuts.chooseApp) { pickApp() }
-                        .buttonStyle(.bordered)
+                // MARK: Form rows
+                VStack(spacing: 0) {
+                    formRow(label: Strings.Shortcuts.application) {
+                        Text(selectedAppName.isEmpty ? Strings.Shortcuts.noAppSelected : selectedAppName)
+                            .foregroundStyle(selectedAppName.isEmpty ? .tertiary : .primary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        Button(Strings.Shortcuts.chooseApp) { pickApp() }
+                            .buttonStyle(.bordered)
+                    }
+
+                    formRow(label: Strings.Shortcuts.customLabel) {
+                        TextField(selectedAppName.isEmpty ? "Label" : selectedAppName, text: $customLabel)
+                            .textFieldStyle(.plain)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 6)
+                            .background {
+                                RoundedRectangle(cornerRadius: 7)
+                                    .fill(Color(NSColor.textBackgroundColor))
+                                RoundedRectangle(cornerRadius: 7)
+                                    .stroke(.secondary.opacity(0.2), lineWidth: 1)
+                            }
+                    }
+
                 }
-
-                formRow(label: Strings.Shortcuts.customLabel) {
-                    TextField(selectedAppName.isEmpty ? "Label" : selectedAppName, text: $customLabel)
-                        .textFieldStyle(.plain)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 6)
-                        .background {
-                            RoundedRectangle(cornerRadius: 7)
-                                .fill(Color(NSColor.textBackgroundColor))
-                            RoundedRectangle(cornerRadius: 7)
-                                .stroke(.secondary.opacity(0.2), lineWidth: 1)
-                        }
-                }
+                .frame(maxWidth: .infinity)
             }
-
-            } // end inner wrapper
-
-            .background(.background)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-            .shadow(color: .black.opacity(0.15), radius: 8, y: 2)
-            .padding(16)
+            .padding(24)
 
             Divider()
 
-            // MARK: Footer — error + actions
-            VStack(spacing: 10) {
+            // MARK: Footer — remove + color + actions
+            VStack(spacing: 8) {
                 if let error = errorMessage {
                     Text(error)
                         .foregroundStyle(.red)
                         .font(.caption)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                HStack {
+                HStack(spacing: 10) {
+                    if isEditing && onRemove != nil {
+                        Button("Remove") { showRemoveConfirm = true }
+                            .buttonStyle(.plain)
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 6)
+                            .background(Color.red, in: Capsule())
+                    }
+                    ColorPicker("", selection: $customBackgroundColor, supportsOpacity: false)
+                        .labelsHidden()
+                        .frame(width: 32)
                     Spacer()
                     Button(Strings.Common.cancel) { onDismiss() }
                         .buttonStyle(.bordered)
@@ -92,8 +100,16 @@ struct ShortcutSheet: View {
                 }
             }
             .padding(20)
+            .confirmationDialog(
+                "Remove \(shortcut?.displayName ?? "shortcut")?",
+                isPresented: $showRemoveConfirm,
+                titleVisibility: .visible
+            ) {
+                Button("Remove", role: .destructive) { onRemove?() }
+                Button("Cancel", role: .cancel) { }
+            }
         }
-        .frame(width: 360)
+        .frame(width: 520)
         .onAppear {
             if let shortcut {
                 selectedAppURL = shortcut.appURL
@@ -102,6 +118,12 @@ struct ShortcutSheet: View {
                 customLabel = shortcut.customLabel ?? shortcut.displayName
                 let iconURL = AppShortcutStore.iconURL(for: shortcut.iconFileName)
                 selectedIconImage = NSImage(contentsOf: iconURL)
+                if let hex = shortcut.backgroundColorHex {
+                    customBackgroundColor = ColorUtils.fromHex(hex)
+                } else if let image = selectedIconImage,
+                          let derived = ColorUtils.averageColor(of: image) {
+                    customBackgroundColor = derived
+                }
             }
         }
     }
@@ -113,10 +135,11 @@ struct ShortcutSheet: View {
         HStack(spacing: 12) {
             Text(label)
                 .foregroundStyle(.secondary)
-                .frame(width: 72, alignment: .leading)
-            content()
+                .lineLimit(1)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            HStack(spacing: 8) { content() }
+                .frame(maxWidth: .infinity)
         }
-        .padding(.horizontal, 20)
         .padding(.vertical, 11)
     }
 
@@ -146,6 +169,9 @@ struct ShortcutSheet: View {
             selectedIconImage = icon
             selectedIconURL   = nil
             if isEditing { iconChanged = true }
+            if let derived = ColorUtils.averageColor(of: icon) {
+                customBackgroundColor = derived
+            }
         }
     }
 
@@ -166,6 +192,10 @@ struct ShortcutSheet: View {
             selectedIconURL = url
             selectedIconImage = NSImage(contentsOf: url)
             iconChanged = true
+            if let image = selectedIconImage,
+               let derived = ColorUtils.averageColor(of: image) {
+                customBackgroundColor = derived
+            }
         }
     }
 
@@ -199,7 +229,8 @@ struct ShortcutSheet: View {
                 bundleIdentifier: selectedBundleID,
                 appURL: appURL,
                 iconFileName: iconFileName,
-                customLabel: customLabel.isEmpty ? nil : customLabel
+                customLabel: customLabel.isEmpty ? nil : customLabel,
+                backgroundColorHex: ColorUtils.toHex(customBackgroundColor)
             )
             onSave(newShortcut)
         } catch {
@@ -233,6 +264,7 @@ struct ShortcutSheet: View {
             updated.appURL = appURL
             updated.iconFileName = iconFileName
             updated.customLabel = customLabel.isEmpty ? nil : customLabel
+            updated.backgroundColorHex = ColorUtils.toHex(customBackgroundColor)
             onSave(updated)
         } catch {
             errorMessage = Strings.Errors.failedToSaveIcon(error.localizedDescription)

@@ -49,6 +49,7 @@ extension AppDelegate {
         // Resize panel when SwiftUI content changes size
         hostingView.postsFrameChangedNotifications = true
         NotificationCenter.default.addObserver(self, selector: #selector(hostingViewFrameChanged(_:)), name: NSView.frameDidChangeNotification, object: hostingView)
+        NotificationCenter.default.addObserver(self, selector: #selector(dockContentSizeChanged(_:)), name: .dockContentSizeChanged, object: nil)
 
         updatePanelShadow()
         repositionPanel()
@@ -92,12 +93,18 @@ extension AppDelegate {
     func updatePanelShadow() {
         let raw = UserDefaults.standard.string(forKey: "dockBackground") ?? DockBackground.system.rawValue
         let background = DockBackground(rawValue: raw) ?? .system
-        panel.hasShadow = background == .system
+        panel.hasShadow = background == .system || background == .liquidGlass
     }
 
     @objc func hostingViewFrameChanged(_ notification: Notification) {
         guard let hostingView = notification.object as? NSView else { return }
         panel.setContentSize(hostingView.fittingSize)
+        repositionPanel()
+    }
+
+    @objc func dockContentSizeChanged(_ notification: Notification) {
+        guard let value = notification.userInfo?["size"] as? NSValue else { return }
+        panel.setContentSize(value.sizeValue)
         repositionPanel()
     }
 

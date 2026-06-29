@@ -212,6 +212,7 @@ enum Strings {
         static let clock       = "Clock"
         static let ledBoard    = "LED Board"
         static let images      = "Images"
+        static let tasks       = "Tasks"
 
         enum SystemMonitor {
             static let cpuHeader = "CPU"

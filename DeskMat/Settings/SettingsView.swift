@@ -183,6 +183,7 @@ private struct GeneralSettingsTab: View {
         ud.set(true,  forKey: LEDBoardWidget.widthModeKey)
         // Media Control
         ud.set(false, forKey: "showMediaControlWidget")
+        ud.set(false, forKey: "showTasksWidget")
         ud.set(true,  forKey: "mediaControlShowAlbumArt")
         // Web Frame
         ud.set(false,                                   forKey: "showWebFrameWidget")
@@ -414,6 +415,7 @@ private struct WidgetsSettingsTab: View {
     @AppStorage("showEveWidget")              private var showEveWidget          = false
     @AppStorage("showWebFrameWidget")         private var showWebFrameWidget     = false
     @AppStorage("showMediaControlWidget")     private var showMediaControlWidget = false
+    @AppStorage("showTasksWidget")            private var showTasksWidget        = false
     @AppStorage("mediaControlShowAlbumArt")   private var mediaControlShowAlbumArt = true
     @AppStorage(WebFrameSettings.urlKey)      private var webFrameURL            = "https://example.com"
     @AppStorage(WebFrameSettings.refreshIntervalKey) private var webFrameRefresh: WebFrameRefreshInterval = .manual
@@ -697,6 +699,10 @@ private struct WidgetsSettingsTab: View {
             #if DEBUG
             Section("Debug") {
                 Toggle("Test Widget", isOn: $showTestWidget)
+                Toggle(isOn: $showTasksWidget) {
+                    proLabel(Strings.Widgets.tasks, isPro: license.isPro)
+                }
+                .disabled(!license.isPro)
             }
             #endif
         }
